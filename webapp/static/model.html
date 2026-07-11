@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">Model — Notino Quantity Forecast</title>
+  <link rel="stylesheet" href="/static/styles.css?v=7" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="promo-bar">
+    <span>30 Product Time Series</span>
+    <span>7-Day Recursive Forecast</span>
+    <span>5 Models Compared</span>
+    <span>Walk-Forward Validated</span>
+  </div>
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="brand-logo">NOTINO</span>
+        <span class="brand-tagline">Interview Assignment</span>
+      </div>
+      <div class="hero-title-block">
+        <h1>Quantity Forecast Dashboard</h1>
+      </div>
+    </div>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+
+  <header class="model-hero" id="model-hero" style="--mc:#0a0a0a">
+    <span class="model-badge" id="hero-badge">—</span>
+    <h1 id="hero-title">Loading…</h1>
+    <p class="blurb" id="hero-blurb"></p>
+    <a class="source-link" id="hero-source" href="#" target="_blank" rel="noopener" style="display:none">View official docs ↗</a>
+  </header>
+
+  <main id="app">
+    <section class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Per-fold performance</h2>
+          <p>Walk-forward CV — each fold trains only on data before its 7-day eval window</p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-folds"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Fold table</h2>
+          <p>Exact per-fold metrics for this model</p>
+        </div>
+        <div class="table-wrap" id="fold-table-wrap">
+          <table class="data-table" id="fold-table">
+            <thead>
+              <tr><th>Fold</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>n</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Product explorer</h2>
+          <p>History (last 90 days) vs. this model's 7-day forecast</p>
+        </div>
+        <select id="product-select"></select>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="chart-product"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="footer-note"></p>
+  </footer>
+
+  <script src="/static/common.js?v=7"></script>
+  <script src="/static/model.js?v=7"></script>
+</body>
+</html>

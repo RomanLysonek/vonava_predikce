@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notino Quantity Forecast — Model Comparison</title>
+  <link rel="stylesheet" href="/static/styles.css?v=7" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="promo-bar">
+    <span>30 Product Time Series</span>
+    <span>7-Day Recursive Forecast</span>
+    <span>5 Models Compared</span>
+    <span>Walk-Forward Validated</span>
+  </div>
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="brand-logo">NOTINO</span>
+        <span class="brand-tagline">Interview Assignment</span>
+      </div>
+      <div class="hero-title-block">
+        <h1>Quantity Forecast Dashboard</h1>
+      </div>
+    </div>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+
+  <main id="app">
+    <section class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Model comparison</h2>
+        <p>Walk-forward CV averages &middot; colors match each project's own branding &middot; click a card for the full breakdown</p>
+      </div>
+      <div class="columns-grid" id="columns-grid"></div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>MAE &amp; RMSE by model</h2>
+          <p>Average across all walk-forward folds — lower is better</p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-comparison"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Walk-forward CV results</h2>
+          <p>Each fold trains only on data before its 7-day eval window</p>
+        </div>
+        <div class="table-wrap" id="cv-table-wrap">
+          <table class="data-table" id="cv-table">
+            <thead>
+              <tr><th>Fold</th><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Product explorer — all models</h2>
+          <p>History (last 90 days) vs. every model's 7-day forecast, overlaid for comparison</p>
+        </div>
+        <select id="product-select"></select>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="chart-product"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Submission grid</h2>
+        <p>NeuralNet final predictions — the actual submission (non-tree, per the task brief)</p>
+      </div>
+      <div class="table-wrap tall" id="submission-table-wrap"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Submission is a non-tree-based approach (PyTorch MLP + product/campaign embeddings), recursive
+      multi-step forecasting, walk-forward validated against XGBoost, LightGBM and two naive baselines.
+      See <code>README.md</code> for methodology details.
+    </p>
+  </footer>
+
+  <script src="/static/common.js?v=7"></script>
+  <script src="/static/app.js?v=7"></script>
+</body>
+</html>
