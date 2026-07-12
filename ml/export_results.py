@@ -12,7 +12,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from solution_final import (
+from pipeline import (
     CFG,
     export_results_json,
     load_raw,

@@ -2,7 +2,7 @@
 
 Serves the static frontend (webapp/static/) and a small JSON API that reads
 outputs/results.json fresh on every request -- rerun the ML pipeline
-(uv run python ml/solution_final.py) or the lightweight
+(uv run python ml/pipeline.py) or the lightweight
 `uv run python ml/export_results.py`, then just refresh the browser.
 
 Run (from repo root): uv run python webapp/server.py
@@ -30,7 +30,7 @@ def get_results() -> JSONResponse:
             status_code=404,
             detail=(
                 "outputs/results.json not found. Run "
-                "'uv run python ml/solution_final.py' (or ml/export_results.py) first."
+                "'uv run python ml/pipeline.py' (or ml/export_results.py) first."
             ),
         )
     with open(RESULTS_PATH) as f:

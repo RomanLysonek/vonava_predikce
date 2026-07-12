@@ -1,0 +1,93 @@
+Full-roadmap implementation notes (Tier A -> B -> C from the two-model review)
+================================================================================
+Source: chat discussion comparing ml/solution_final.py vs another_approach/,
+then a rebuttal from the other_approach model, both reconciled and verified
+against the actual data before starting. User chose "Tier A+B+C full roadmap".
+
+Verified facts (don't re-derive, just cite):
+- test_data.parquet has NO ProductAvailable column. Forecast is necessarily
+  conditional on availability.
+- train: 1060/51534 (2.06%) rows ProductAvailable=False. 268 of those have
+  Quantity>0 (possible data noise / same-day partial availability).
+- Per-product unavailable %: ProductId 24 ~22.0%, 26 ~10.3%, 23 ~9.9%,
+  27 ~5.9%, 25 ~5.4%, 22 ~5.3%, 15 ~4.0%. Rest low/zero.
+- Zero unavailable rows in the final 56 training days -> the recursive
+  history *seed* for the real test forecast isn't directly contaminated;
+  contamination mainly affects earlier training/CV windows.
+- Contaminated vs availability-clean rolling-28 mean: 3.22% of available
+  rows differ, mean abs diff 2.41 (Product 24 alone: 10.69).
+- Calendar gaps (missing DATES, not ProductAvailable=False rows) exist for
+  ProductId 1 (21 missing days) and ProductId 30 (8 missing days). Both
+  gaps sit in the middle of otherwise-continuous, available history (data
+  glitch, not a listing gap) -> reindex + treat as NaN/unknown, not zero.
+- All 3 ML models (NeuralNet, XGBoost, LightGBM) share recursive_forecast_
+  generic (ml/tree_worker.py:89, ml/solution_final.py:165-173) -> the NN's
+  bad Christmas fold is NOT proven to be a recursion-specific effect (trees
+  recurse too and did better) -- it's an open question (loss fn? capacity?
+  single-seed CV vs 3-seed final? under a promo spike).
+- CV currently trains/evals a SINGLE NN seed per fold (run_walk_forward_cv
+  passes seed=cfg.seed only), but the final submission averages 3 seeds
+  (cfg.seeds = 42,123,777). Reported CV "NeuralNet" row does not represent
+  the actual submitted estimator. Must fix (Tier A item a3).
+- Dynamic Ridge's cap (another_approach/notino_forecasting_solution.py:445)
+  applies ONLY to Dynamic Ridge, NOT LightGBM (floor-only, :503) or any
+  ensemble. Don't generalize this claim.
+
+Plan tiers (see chat for full rationale/citations):
+  Tier A = foundational correctness fixes, no architecture change
+  Tier B = structural modeling wins (direct stacked panel, baseline-residual NN, Dynamic Ridge)
+  Tier C = ablations, ensemble optimization, dashboard depth, stretch features
+
+STATUS
+------
+[x] A1 reindex_daily_calendar (ml/framework.py) + wired into load_raw
+[x] A2 availability-aware lag/rolling (add_train_lags, init_history, recursive
+        history nanmean fallback, seasonal_naive_predict, moving_average_predict)
+        + compute_baseline() weighted-same-weekday helper (also used by Tier B)
+[x] A3 CV uses same 3-seed ensemble as final inference (run_walk_forward_cv)
+[x] A4 fix discount_total (dropped naive sum; added effective_price_web/app)
+[x] A5 compute_metrics: WAPE, sMAPE, RMSLE, Bias, BiasRatio (MAPE stays, demoted)
+        + mean_fold (macro) vs global (micro) distinguished in summarize_oof
+[x] A6 row-level OOF predictions saved (outputs/oof_predictions.parquet --
+        origin, horizon, ProductId, DateKey, ProductAvailable, actual, baseline,
+        per-seed + ensemble NN preds, XGBoost, LightGBM, naive baselines)
+[x] A7 dev origins (12, broad/scattered) vs recent holdout origins (last-4-
+        folds, untouched) as two labeled, separate CV passes -- DEVELOPMENT_ORIGINS
+        + recent_holdout_origins() in ml/pipeline.py
+[x] Update/add tests in tests/test_pipeline.py for all of the above (16 tests green)
+[x] Restructured ml/ into framework.py (shared) + models/ (one file per model,
+        neural_net/xgboost_model/lightgbm_model/naive_baselines) + pipeline.py
+        (CV/training/export orchestrator); tree_worker.py is now a thin
+        subprocess dispatcher. torch/xgboost process isolation verified intact.
+[x] Tier A checkpoint: full test suite green (16/16), pipeline.py + tree_worker.py
+    import smoke-tested, dashboard verified live (/ and /api/results both 200),
+    git commit done before starting Tier B
+
+[ ] B1 stacked (ForecastOrigin x Horizon x ProductId) direct panel, kills
+        recursion for NN/XGBoost/LightGBM
+[ ] B2 weighted same-weekday baseline as NN input feature + skip-connection
+        residual target (predict log-residual, not raw log1p(Quantity))
+[ ] B3 Dynamic Ridge as 3rd model tier (Naive / Structured statistical /
+        Global nonlinear), not auto-blended
+[ ] B4 report conditional-demand vs realized-sales eval regimes where they differ
+
+[ ] C1 recency weighting ablation grid (window x half-life)
+[ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)
+[ ] C3 prediction-cap ablation (measure affected count, capped vs uncapped OOF)
+[ ] C4 OOF-fitted ensemble weight search (dev-fit, holdout-checked once)
+[ ] C5 dashboard: horizon curves, per-product error/bias, top-decile days,
+        ablation showcase section
+[ ] C6 stretch: dual web/app heads + effective price, holiday distance
+        features, static results.json for GitHub Pages portability
+
+Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py):
+  ml/framework.py          - reindex, availability-aware features, baseline fn, metrics,
+                             recursive_forecast_generic engine, model registry/metadata
+  ml/models/neural_net.py  - NN model (QuantityNet, train/predict/recursive_forecast)
+  ml/models/xgboost_model.py, lightgbm_model.py - tree models, direct-panel path (Tier B) goes here
+  ml/models/naive_baselines.py - seasonal-naive + moving-average
+  ml/models/dynamic_ridge.py   - NEW, Tier B3 (not yet created)
+  ml/pipeline.py           - CV loop (3-seed, dev/holdout split, OOF export), NN residual target
+  ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py, lightgbm_model.py
+  tests/test_pipeline.py   - update + extend
+  webapp/static/*          - Tier A5 metric surfacing, Tier C5 dashboard depth

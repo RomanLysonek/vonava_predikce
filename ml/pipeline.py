@@ -25,8 +25,14 @@ Pipeline
    day of the 7-day horizon look identical to the model.
 7. Write submission.csv / submission.parquet (+ cv_results.csv, a plot).
 
-Run:   uv run python ml/solution_final.py   (run from the repo root)
+Run:   uv run python ml/pipeline.py   (run from the repo root)
 Tests: uv run pytest tests/
+
+This file is the CV/training/export orchestrator. Each model's own
+train/predict definition lives under `models/` (`models/neural_net.py`,
+`models/xgboost_model.py`, `models/lightgbm_model.py`,
+`models/naive_baselines.py`); shared feature engineering, the generic
+recursive-forecast engine and metrics live in `framework.py`.
 """
 
 from __future__ import annotations
@@ -45,132 +51,52 @@ warnings.filterwarnings("ignore")
 
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
-from torch.utils.data import DataLoader, TensorDataset
 
-from features import (
+from framework import (
     CFG,
     MODEL_META,
     MODEL_ORDER,
     MODEL_SLUGS,
-    NUM_CAMPAIGN_CATS,
     Config,
     add_train_lags,
+    compute_baseline,
     compute_metrics,
     feature_columns,
     init_history,
     load_raw,
-    moving_average_predict,
     order_models,
     prepare_features,
-    recursive_forecast_generic,
-    seasonal_naive_predict,
 )
+from models.naive_baselines import moving_average_predict, seasonal_naive_predict
+from models.neural_net import DEVICE, make_tensors, recursive_forecast, train_model
 
 np.random.seed(CFG.seed)
-torch.manual_seed(CFG.seed)
-DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
-
-# ---------------------------------------------------------------------------
-# Model
-# ---------------------------------------------------------------------------
-class QuantityNet(nn.Module):
-    def __init__(self, num_numeric: int, cfg: Config):
-        super().__init__()
-        self.product_emb = nn.Embedding(cfg.num_products, cfg.embed_dim_product)
-        self.campaign_emb_web = nn.Embedding(NUM_CAMPAIGN_CATS, cfg.embed_dim_campaign)
-        self.campaign_emb_app = nn.Embedding(NUM_CAMPAIGN_CATS, cfg.embed_dim_campaign)
-
-        input_dim = num_numeric + cfg.embed_dim_product + 2 * cfg.embed_dim_campaign
-        layers: list[nn.Module] = []
-        prev = input_dim
-        for hidden, p in zip(cfg.hidden_dims, cfg.dropout):
-            layers += [nn.Linear(prev, hidden), nn.BatchNorm1d(hidden), nn.GELU(), nn.Dropout(p)]
-            prev = hidden
-        layers.append(nn.Linear(prev, 1))
-        self.net = nn.Sequential(*layers)
-
-    def forward(self, x_num, x_prod, x_camp_web, x_camp_app):
-        emb = torch.cat([
-            self.product_emb(x_prod),
-            self.campaign_emb_web(x_camp_web),
-            self.campaign_emb_app(x_camp_app),
-        ], dim=1)
-        x = torch.cat([x_num, emb], dim=1)
-        return self.net(x).squeeze(-1)
+# Broader, seasonally-scattered origins used to make modeling/feature
+# decisions (spring/summer lulls, several Januaries, Black Friday windows,
+# pre/post-Christmas, a Valentine's-adjacent week -- relevant for a
+# cosmetics retailer). Deliberately disjoint from `recent_holdout_origins`
+# below: these are for iteration, the holdout is for a final check only,
+# and mixing the two would let repeated tuning quietly overfit to the
+# holdout the same way a single reused test set would.
+DEVELOPMENT_ORIGINS = pd.to_datetime([
+    "2022-02-01", "2022-06-15", "2022-11-20",
+    "2023-01-10", "2023-07-01", "2023-11-24", "2023-12-18",
+    "2024-02-14", "2024-06-20", "2024-11-29", "2024-12-20",
+    "2025-02-10",
+])
 
 
-def make_tensors(df: pd.DataFrame, scaler: StandardScaler, fit: bool, cfg: Config = CFG) -> dict[str, torch.Tensor]:
-    num = df[feature_columns(cfg)].to_numpy(dtype=np.float32)
-    num = scaler.fit_transform(num) if fit else scaler.transform(num)
-    return {
-        "num": torch.tensor(num, dtype=torch.float32),
-        "prod": torch.tensor(df["product_idx"].to_numpy(dtype=np.int64)),
-        "cw": torch.tensor(df["campaign_idx_web"].to_numpy(dtype=np.int64)),
-        "ca": torch.tensor(df["campaign_idx_app"].to_numpy(dtype=np.int64)),
-    }
-
-
-def train_model(tensors: dict, y_log: np.ndarray, cfg: Config, epochs: int, seed: int) -> QuantityNet:
-    """Fixed-epoch training (no early stopping): every fold/final run gets a
-    comparable, leakage-free training budget instead of peeking at the
-    evaluation window to pick the "best" epoch."""
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-
-    model = QuantityNet(len(feature_columns(cfg)), cfg).to(DEVICE)
-    opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs, eta_min=cfg.lr * 0.01)
-    crit = nn.HuberLoss(delta=1.0)
-
-    ds = TensorDataset(tensors["num"], tensors["prod"], tensors["cw"], tensors["ca"],
-                       torch.tensor(y_log, dtype=torch.float32))
-    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True)
-
-    model.train()
-    for epoch in range(1, epochs + 1):
-        total = 0.0
-        for xn, xp, xcw, xca, yt in dl:
-            xn, xp, xcw, xca, yt = (xn.to(DEVICE), xp.to(DEVICE), xcw.to(DEVICE),
-                                     xca.to(DEVICE), yt.to(DEVICE))
-            pred = model(xn, xp, xcw, xca)
-            loss = crit(pred, yt)
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-            total += loss.item() * xn.size(0)
-        sched.step()
-        if epoch == 1 or epoch % 10 == 0 or epoch == epochs:
-            print(f"      epoch {epoch:3d}/{epochs} | train loss {total / len(ds):.4f}")
-    model.eval()
-    return model
-
-
-def predict_ensemble(models: list, tensors: dict) -> np.ndarray:
-    preds = []
-    for m in models:
-        m.eval()
-        with torch.no_grad():
-            p = m(tensors["num"].to(DEVICE), tensors["prod"].to(DEVICE),
-                   tensors["cw"].to(DEVICE), tensors["ca"].to(DEVICE)).cpu().numpy()
-        preds.append(np.expm1(p))
-    return np.clip(np.mean(preds, axis=0), 0, None)
-
-
-def recursive_forecast(models: list, scaler: StandardScaler,
-                        static_df: pd.DataFrame, history: dict,
-                        cfg: Config = CFG) -> np.ndarray:
-    """Neural-net ensemble convenience wrapper around `recursive_forecast_generic`."""
-    def predict_fn(day_df: pd.DataFrame) -> np.ndarray:
-        tensors = make_tensors(day_df, scaler, fit=False, cfg=cfg)
-        return predict_ensemble(models, tensors)
-
-    return recursive_forecast_generic(predict_fn, static_df, history, cfg)
+def recent_holdout_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.DatetimeIndex:
+    """Last `cfg.n_cv_folds` non-overlapping `cfg.horizon`-day origins ending
+    at the most recent training data -- the closest pseudo-test periods to
+    the actual forecast. Meant as a final model-selection check, not
+    something to repeatedly re-tune against."""
+    max_date = hist_df["DateKey"].max()
+    return pd.DatetimeIndex([max_date - pd.Timedelta(days=(i + 1) * cfg.horizon) for i in range(cfg.n_cv_folds)])
 
 
 # ---------------------------------------------------------------------------
@@ -214,63 +140,156 @@ def run_tree_baselines(train_examples: pd.DataFrame, static_eval: pd.DataFrame,
 # ---------------------------------------------------------------------------
 # Walk-forward cross-validation
 # ---------------------------------------------------------------------------
-def run_walk_forward_cv(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
-    """Evaluate on the last `n_cv_folds` non-overlapping 7-day blocks. Each
-    fold trains only on data strictly before the eval block (no leakage) and
-    forecasts recursively, exactly mirroring the real deployment scenario.
+def run_walk_forward_cv(hist_df: pd.DataFrame, origins, origin_type: str,
+                         cfg: Config = CFG) -> pd.DataFrame:
+    """Evaluate at each `origin` date (the last training day): trains only
+    on data up to and including `origin` (no leakage) and forecasts the
+    next `cfg.horizon` days recursively, exactly mirroring the real
+    deployment scenario.
+
+    Trains the SAME `cfg.seeds`-sized NN ensemble, fed forward jointly
+    (shared history) via `recursive_forecast`, as `run_final_forecast` --
+    CV must score the actual estimator being submitted, not a cheaper
+    single-seed stand-in (a real mismatch this function used to have: it
+    trained one seed while the submission averages three). `cv_epochs` vs
+    `final_epochs` remains a deliberate, disclosed compute/accuracy
+    trade-off (cheaper proxy training while iterating; the one-time final
+    artifact trains longer) -- unlike the seed count, that's not a hidden
+    inconsistency, since it's applied identically across every model/fold.
+
+    Returns row-level out-of-fold predictions -- one row per (origin,
+    product, date), with per-seed NN columns alongside the ensemble and
+    every baseline -- rather than only aggregated metrics, so later
+    diagnostics (per-horizon, per-product, paired comparisons, ensemble
+    weight fitting) don't require rerunning the CV.
     """
     max_window = max(cfg.lag_windows)
-    max_date = hist_df["DateKey"].max()
     first_seen = hist_df.groupby("ProductId")["DateKey"].min()  # static historical fact, always in the past
-    rows = []
+    fold_frames = []
 
-    for i in range(cfg.n_cv_folds):
-        eval_end = max_date - pd.Timedelta(days=i * cfg.horizon)
-        eval_start = eval_end - pd.Timedelta(days=cfg.horizon - 1)
-        fold_train_raw = hist_df[hist_df["DateKey"] < eval_start].copy()
+    for origin in origins:
+        eval_start = origin + pd.Timedelta(days=1)
+        eval_end = origin + pd.Timedelta(days=cfg.horizon)
+        fold_train_raw = hist_df[hist_df["DateKey"] <= origin].copy()
         fold_eval_raw = hist_df[(hist_df["DateKey"] >= eval_start) & (hist_df["DateKey"] <= eval_end)].copy()
         if fold_train_raw.empty or fold_eval_raw.empty:
             continue
 
-        print(f"  Fold {i}: train until {(eval_start - pd.Timedelta(days=1)).date()}, "
-              f"eval {eval_start.date()}..{eval_end.date()}")
+        print(f"  [{origin_type}] origin {origin.date()}: eval {eval_start.date()}..{eval_end.date()}")
 
         price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
 
         fold_train_feat = prepare_features(fold_train_raw, price_ref, first_seen)
         fold_train_feat = add_train_lags(fold_train_feat, cfg.lag_windows)
-        train_examples = (fold_train_feat[fold_train_feat["ProductAvailable"]]
+        available_mask = fold_train_feat["ProductAvailable"].fillna(False)
+        train_examples = (fold_train_feat[available_mask]
                            .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
 
         scaler = StandardScaler()
         tensors = make_tensors(train_examples, scaler, fit=True, cfg=cfg)
         y_log = np.log1p(train_examples["Quantity"].to_numpy(dtype=np.float32))
-        model = train_model(tensors, y_log, cfg, epochs=cfg.cv_epochs, seed=cfg.seed)
+        seed_models = [train_model(tensors, y_log, cfg, epochs=cfg.cv_epochs, seed=seed)
+                       for seed in cfg.seeds]
 
         fold_eval_feat = prepare_features(fold_eval_raw, price_ref, first_seen).reset_index(drop=True)
 
-        # Each model gets its own fresh copy of history: recursion mutates it
-        # in place with that model's own predictions, so sharing one dict
-        # across models would leak one model's forecasts into another's lags.
-        nn_preds = recursive_forecast([model], scaler, fold_eval_feat,
-                                       init_history(fold_train_feat, max_window), cfg)
+        # Each recursion gets its own fresh copy of history: recursion
+        # mutates it in place with that run's own predictions, so sharing
+        # one dict across runs would leak one run's forecasts into
+        # another's lags. Per-seed recursions are independent (own history
+        # each) and kept only as diagnostics; the ensemble recursion below
+        # is the one that matters -- it jointly feeds the *ensemble's* daily
+        # prediction forward, exactly like `run_final_forecast`'s submission.
+        seed_preds = {
+            seed: recursive_forecast([model], scaler, fold_eval_feat,
+                                      init_history(fold_train_feat, max_window), cfg)
+            for seed, model in zip(cfg.seeds, seed_models)
+        }
+        ensemble_preds = recursive_forecast(seed_models, scaler, fold_eval_feat,
+                                             init_history(fold_train_feat, max_window), cfg)
         tree_preds = run_tree_baselines(train_examples, fold_eval_feat,
                                          init_history(fold_train_feat, max_window), cfg)
 
         seasonal_pred = seasonal_naive_predict(fold_eval_feat, fold_train_raw, lag_days=cfg.horizon)
         ma_pred = moving_average_predict(fold_eval_feat, fold_train_raw, window=28)
+        baseline_pred = compute_baseline(fold_eval_feat, fold_train_raw)
         actual = fold_eval_feat["Quantity"].to_numpy(dtype=float)
 
-        preds_by_model = [
-            ("NeuralNet", nn_preds),
-            ("XGBoost", tree_preds["XGBoost"]),
-            ("LightGBM", tree_preds["LightGBM"]),
-            ("SeasonalNaive", seasonal_pred),
-            ("MovingAvg28", ma_pred),
-        ]
-        for name, pred in preds_by_model:
-            rows.append({"fold": i, "model": name, **compute_metrics(actual, pred)})
+        fold_oof = pd.DataFrame({
+            "origin": origin,
+            "origin_type": origin_type,
+            "horizon": (fold_eval_feat["DateKey"] - origin).dt.days.to_numpy(),
+            "ProductId": fold_eval_feat["ProductId"].to_numpy(),
+            "DateKey": fold_eval_feat["DateKey"].to_numpy(),
+            "ProductAvailable": fold_eval_feat["ProductAvailable"].to_numpy(),
+            "actual": actual,
+            "baseline": baseline_pred,
+            "pred_NeuralNet": ensemble_preds,
+            "pred_XGBoost": tree_preds["XGBoost"],
+            "pred_LightGBM": tree_preds["LightGBM"],
+            "pred_SeasonalNaive": seasonal_pred,
+            "pred_MovingAvg28": ma_pred,
+        })
+        for seed in cfg.seeds:
+            fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
+        fold_frames.append(fold_oof)
 
+    return pd.concat(fold_frames, ignore_index=True) if fold_frames else pd.DataFrame()
+
+
+OOF_MODEL_COLUMNS = {
+    "NeuralNet": "pred_NeuralNet",
+    "XGBoost": "pred_XGBoost",
+    "LightGBM": "pred_LightGBM",
+    "SeasonalNaive": "pred_SeasonalNaive",
+    "MovingAvg28": "pred_MovingAvg28",
+}
+
+
+def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
+    """Two labeled aggregations per model, since they are not
+    interchangeable: "mean_fold" (macro) averages each origin's own metric
+    equally regardless of how many rows it contributed; "global" (micro)
+    pools every row across all origins first, then computes the metric
+    once. Rows with a NaN prediction for a given model (e.g. a fold where
+    that model wasn't run) are dropped for that model only.
+    """
+    pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    rows = []
+    for model_name, col in pred_columns.items():
+        if col not in oof.columns:
+            continue
+        valid = oof.dropna(subset=[col])
+        if valid.empty:
+            continue
+
+        fold_metrics = [compute_metrics(g["actual"], g[col]) for _, g in valid.groupby("origin")]
+        mean_fold = pd.DataFrame(fold_metrics).mean(numeric_only=True).to_dict()
+        rows.append({"model": model_name, "aggregation": "mean_fold", "n_folds": len(fold_metrics), **mean_fold})
+
+        global_metrics = compute_metrics(valid["actual"], valid[col])
+        rows.append({"model": model_name, "aggregation": "global", "n_folds": len(fold_metrics), **global_metrics})
+    return pd.DataFrame(rows)
+
+
+def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
+    """Reshape row-level OOF predictions back into the older
+    fold/model/MAE/RMSE/MAPE(+new metrics) shape the dashboard/export code
+    already understands, for a given (single origin_type) OOF slice."""
+    pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    origins_sorted = sorted(oof["origin"].unique(), reverse=True)  # most recent = fold 0, matching the old numbering
+    fold_of_origin = {origin: i for i, origin in enumerate(origins_sorted)}
+
+    rows = []
+    for origin, fold_df in oof.groupby("origin"):
+        for model_name, col in pred_columns.items():
+            if col not in fold_df.columns:
+                continue
+            valid = fold_df.dropna(subset=[col])
+            if valid.empty:
+                continue
+            rows.append({"fold": fold_of_origin[origin], "model": model_name,
+                         **compute_metrics(valid["actual"], valid[col])})
     return pd.DataFrame(rows)
 
 
@@ -285,7 +304,8 @@ def run_final_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
 
     train_feat = prepare_features(train_raw, price_ref, first_seen)
     train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    train_examples = (train_feat[train_feat["ProductAvailable"]]
+    available_mask = train_feat["ProductAvailable"].fillna(False)
+    train_examples = (train_feat[available_mask]
                        .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
 
     scaler = StandardScaler()
@@ -318,7 +338,8 @@ def run_final_tree_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg
 
     train_feat = prepare_features(train_raw, price_ref, first_seen)
     train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    train_examples = (train_feat[train_feat["ProductAvailable"]]
+    available_mask = train_feat["ProductAvailable"].fillna(False)
+    train_examples = (train_feat[available_mask]
                        .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
 
     test_feat = prepare_features(test_raw, price_ref, first_seen).reset_index(drop=True)
@@ -361,9 +382,30 @@ def plot_forecast(train_raw: pd.DataFrame, submission: pd.DataFrame,
     print(f"Saved: {out_path}")
 
 
+def _json_safe(obj):
+    """Recursively replace non-finite floats (NaN/Inf) with None.
+
+    Calendar-gap reindexing (`reindex_daily_calendar`) and zero-actual
+    slices in WAPE/BiasRatio legitimately produce NaN, and `json.dump`
+    silently allows non-standard literal NaN/Infinity tokens by default --
+    which then breaks the FIRST spec-compliant consumer downstream
+    (Starlette's `JSONResponse` in `webapp/server.py`, and any browser's
+    `JSON.parse`). Applied once here, at the JSON write boundary, so every
+    field is safe regardless of which pipeline stage produced the NaN.
+    """
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    if isinstance(obj, float) and not np.isfinite(obj):
+        return None
+    return obj
+
+
 def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submission: pd.DataFrame,
                          final_forecasts: dict, cv_results: pd.DataFrame, cfg: Config = CFG,
-                         history_lookback: int = 90, path: str | None = None) -> dict:
+                         history_lookback: int = 90, path: str | None = None,
+                         dev_summary: pd.DataFrame = None, holdout_summary: pd.DataFrame = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file:
     per-fold CV metrics + averages, per-model skill scores, model metadata
     (label/brand color/blurb, for the per-model pages), the full submission
@@ -415,6 +457,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "horizon": cfg.horizon,
             "lag_windows": list(cfg.lag_windows),
             "n_cv_folds": cfg.n_cv_folds,
+            "n_dev_origins": len(DEVELOPMENT_ORIGINS),
             "cv_epochs": cfg.cv_epochs,
             "final_epochs": cfg.final_epochs,
             "seeds": list(cfg.seeds),
@@ -424,6 +467,14 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "cv_results": order_models(cv_results.round(3)).to_dict(orient="records"),
         "cv_summary": summary.to_dict(orient="records"),
         "skill_vs_seasonal_naive": skill,
+        # "recent_holdout": untouched last-N-weeks folds, closest to the real
+        # forecast; "development": broader seasonally-scattered folds used to
+        # make modeling decisions. Each has both a mean_fold (macro) and a
+        # global (micro, pooled) aggregation -- see summarize_oof.
+        "holdout_summary": (order_models(holdout_summary.round(3)).to_dict(orient="records")
+                             if holdout_summary is not None else None),
+        "dev_summary": (order_models(dev_summary.round(3)).to_dict(orient="records")
+                         if dev_summary is not None else None),
         "submission": submission.assign(
             DateKey=submission["DateKey"].dt.strftime("%Y-%m-%d")
         ).to_dict(orient="records"),
@@ -431,6 +482,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "forecasts": forecasts,
     }
 
+    payload = _json_safe(payload)
     out_path = path or os.path.join(cfg.output_dir, "results.json")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w") as f:
@@ -448,20 +500,35 @@ def main() -> None:
 
     train_raw, test_raw = load_raw(cfg)
     cfg.num_products = int(max(train_raw["ProductId"].max(), test_raw["ProductId"].max()))
+    holdout_origins = recent_holdout_origins(train_raw, cfg)
 
-    print(f"\n=== Walk-forward validation ({cfg.n_cv_folds} folds x {cfg.horizon}d) ===")
-    cv_results = run_walk_forward_cv(train_raw, cfg)
-    print()
+    print(f"\n=== Development CV ({len(DEVELOPMENT_ORIGINS)} scattered origins x {cfg.horizon}d) ===")
+    dev_oof = run_walk_forward_cv(train_raw, DEVELOPMENT_ORIGINS, "development", cfg)
+
+    print(f"\n=== Recent-holdout CV ({len(holdout_origins)} folds x {cfg.horizon}d, untouched final check) ===")
+    holdout_oof = run_walk_forward_cv(train_raw, holdout_origins, "recent_holdout", cfg)
+
+    oof = pd.concat([dev_oof, holdout_oof], ignore_index=True)
+
+    print("\nDevelopment summary (mean_fold vs global aggregation, per model):")
+    dev_summary = summarize_oof(dev_oof)
+    print(order_models(dev_summary.round(3)).to_string(index=False))
+
+    print("\nRecent-holdout summary:")
+    holdout_summary = summarize_oof(holdout_oof)
+    print(order_models(holdout_summary.round(3)).to_string(index=False))
+
+    # Legacy fold/model shape for the dashboard/export code below -- holdout
+    # only, since that's what used to be shown as "cv_results".
+    cv_results = oof_to_legacy_cv_results(holdout_oof)
+    print("\nRecent-holdout, per fold:")
     print(order_models(cv_results.round(2)).to_string(index=False))
-    summary = order_models(cv_results.groupby("model")[["MAE", "RMSE", "MAPE"]]
-                            .mean().round(2).reset_index()).set_index("model")
-    print("\nAverage over folds:")
-    print(summary.to_string())
 
-    nn_mae = summary.loc["NeuralNet", "MAE"]
-    naive_mae = summary.loc["SeasonalNaive", "MAE"]
+    holdout_global = holdout_summary[holdout_summary["aggregation"] == "global"].set_index("model")
+    nn_mae = holdout_global.loc["NeuralNet", "MAE"]
+    naive_mae = holdout_global.loc["SeasonalNaive", "MAE"]
     skill = 1 - nn_mae / naive_mae
-    print(f"\nSkill vs seasonal-naive baseline: {skill:+.1%} (positive = model beats naive)")
+    print(f"\nSkill vs seasonal-naive baseline (holdout, global MAE): {skill:+.1%} (positive = model beats naive)")
 
     print("\n=== Training final ensemble on all data (submission model) ===")
     submission, nn_preds = run_final_forecast(train_raw, test_raw, cfg)
@@ -490,14 +557,19 @@ def main() -> None:
     submission.to_parquet(os.path.join(cfg.output_dir, "submission.parquet"), index=False)
     submission.to_csv(os.path.join(cfg.output_dir, "submission.csv"), index=False)
     cv_results.to_csv(os.path.join(cfg.output_dir, "cv_results.csv"), index=False)
-    print(f"\nSaved: {cfg.output_dir}/submission.parquet, submission.csv, cv_results.csv")
+    oof.to_parquet(os.path.join(cfg.output_dir, "oof_predictions.parquet"), index=False)
+    dev_summary.to_csv(os.path.join(cfg.output_dir, "dev_summary.csv"), index=False)
+    holdout_summary.to_csv(os.path.join(cfg.output_dir, "holdout_summary.csv"), index=False)
+    print(f"\nSaved: {cfg.output_dir}/submission.{{parquet,csv}}, cv_results.csv, "
+          "oof_predictions.parquet, dev_summary.csv, holdout_summary.csv")
 
     try:
         plot_forecast(train_raw, submission, cfg=cfg)
     except Exception as exc:  # pragma: no cover - plotting is a nice-to-have
         print(f"Plot skipped ({exc})")
 
-    export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, cfg)
+    export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, cfg,
+                         dev_summary=dev_summary, holdout_summary=holdout_summary)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,16 @@
-"""Torch-free core: config, feature engineering, tree-model feature framing,
-model-agnostic recursive forecasting, naive baselines, and metrics.
+"""Shared framework: config, feature engineering, tree-model feature framing,
+the model-agnostic recursive forecasting engine, the model registry/metadata,
+and metrics. Every actual model's train/predict definition lives under
+`models/` instead (`models/neural_net.py`, `models/xgboost_model.py`,
+`models/lightgbm_model.py`, `models/naive_baselines.py`); this module is
+everything those model definitions -- and `pipeline.py`'s orchestration --
+share.
 
 Deliberately has NO dependency on torch, xgboost, or lightgbm. This lets
-`tree_worker.py` (which needs xgboost/lightgbm) and `solution_final.py`
-(which needs torch) both import this module without ever importing each
-other's heavy native-code dependency into the same process -- see
-`tree_worker.py`'s docstring for why that matters on macOS.
+`tree_worker.py` (which needs xgboost/lightgbm) and `pipeline.py` (which
+needs torch) both import this module without ever importing each other's
+heavy native-code dependency into the same process -- see `tree_worker.py`'s
+docstring for why that matters on macOS.
 """
 
 from __future__ import annotations
@@ -57,7 +62,8 @@ STATIC_NUMERIC_FEATURES = [
     "day_of_year_sin", "day_of_year_cos",
     "week_of_year_sin", "week_of_year_cos",
     "day_of_month", "is_weekend",
-    "discount_web", "discount_app", "discount_total", "discount_max",
+    "discount_web", "discount_app", "discount_max",
+    "effective_price_web", "effective_price_app",
     "is_sale", "price", "price_rel", "days_since_launch",
 ]
 
@@ -65,7 +71,8 @@ STATIC_NUMERIC_FEATURES = [
 def lag_feature_names(lag_windows) -> list[str]:
     names = []
     for w in lag_windows:
-        names += [f"qty_roll_mean_{w}", f"qty_roll_std_{w}", f"qty_roll_median_{w}"]
+        names += [f"qty_roll_mean_{w}", f"qty_roll_std_{w}", f"qty_roll_median_{w}",
+                  f"qty_available_count_{w}", f"stockout_rate_{w}"]
     return names
 
 
@@ -83,6 +90,39 @@ NUMERIC_FEATURES = feature_columns(CFG)  # default schema, used wherever cfg == 
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
+def reindex_daily_calendar(df: pd.DataFrame) -> pd.DataFrame:
+    """Fill in any missing calendar days per product so every later
+    `shift(1)` means "yesterday", not "whatever row happened to be
+    previous". Two products in this dataset (1 and 30) have gaps sitting in
+    the middle of otherwise-continuous, available history -- a data glitch,
+    not a real absence from the catalog -- so a gap day's Quantity /
+    ProductAvailable are unknown, not zero: they're filled as NaN / <NA>,
+    which the availability-aware rolling stats in `add_train_lags` then
+    treat exactly like a stockout day. `is_gap_filled` records provenance.
+    """
+    frames = []
+    for pid, sub in df.groupby("ProductId", sort=True):
+        sub = sub.sort_values("DateKey")
+        full_idx = pd.date_range(sub["DateKey"].min(), sub["DateKey"].max(), freq="D")
+        original_dates = set(sub["DateKey"])
+        reindexed = sub.set_index("DateKey").reindex(full_idx)
+        reindexed.index.name = "DateKey"
+        reindexed["is_gap_filled"] = ~reindexed.index.isin(original_dates)
+        reindexed["ProductId"] = pid
+        frames.append(reindexed.reset_index())
+
+    out = pd.concat(frames, ignore_index=True).sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
+    out["ProductAvailable"] = out["ProductAvailable"].astype("boolean")  # nullable -> NaN for gap rows
+    out["Quantity"] = out["Quantity"].astype(float)                     # NaN for gap rows
+
+    carry_forward = ["CampaignSubTypeWeb", "CampaignSubTypeApp", "DiscountValueWebRelative",
+                      "DiscountValueAppRelative", "IsSaleOrPromo", "PriceLocalVat"]
+    for col in carry_forward:
+        if col in out.columns:
+            out[col] = out.groupby("ProductId")[col].transform(lambda s: s.ffill().bfill())
+    return out
+
+
 def load_raw(cfg: Config = CFG) -> tuple[pd.DataFrame, pd.DataFrame]:
     train = pd.read_parquet(cfg.train_path)
     test = pd.read_parquet(cfg.test_path)
@@ -90,6 +130,8 @@ def load_raw(cfg: Config = CFG) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     ids = sorted(train["ProductId"].unique())
     assert ids == list(range(1, len(ids) + 1)), "ProductId is expected to be contiguous 1..N"
+
+    train = reindex_daily_calendar(train)
     return train, test
 
 
@@ -124,10 +166,15 @@ def prepare_features(df: pd.DataFrame, price_ref: pd.Series, first_seen: pd.Seri
     df["campaign_idx_app"] = df["CampaignSubTypeApp"].map(CAMPAIGN_TO_IDX).fillna(0).astype(int)
     df["discount_web"] = df["DiscountValueWebRelative"].fillna(0).astype(float)
     df["discount_app"] = df["DiscountValueAppRelative"].fillna(0).astype(float)
-    df["discount_total"] = df["discount_web"] + df["discount_app"]
     df["discount_max"] = np.maximum(df["discount_web"], df["discount_app"])
     df["is_sale"] = df["IsSaleOrPromo"].astype(int)
     df["price"] = df["PriceLocalVat"].fillna(0).astype(float)
+    # Two channel-specific discount percentages don't sum to a meaningful
+    # "total discount" (a 10% web cut + 10% app cut is not a 20% market
+    # discount) -- effective per-channel price is the economically sound
+    # combination instead.
+    df["effective_price_web"] = df["price"] * (1.0 - df["discount_web"] / 100.0)
+    df["effective_price_app"] = df["price"] * (1.0 - df["discount_app"] / 100.0)
 
     ref = df["ProductId"].map(price_ref).replace(0, np.nan)
     df["price_rel"] = (df["price"] / ref).fillna(1.0)
@@ -137,25 +184,87 @@ def prepare_features(df: pd.DataFrame, price_ref: pd.Series, first_seen: pd.Seri
     return df
 
 
+def compute_baseline(target_df: pd.DataFrame, hist_df: pd.DataFrame) -> np.ndarray:
+    """Availability-aware weighted same-weekday baseline: a 4:3:2:1 weighted
+    average of Quantity at lags 7/14/21/28 days, using only observed-and-
+    available demand from `hist_df`. Weights renormalize over whichever
+    lags are actually observed -- a stockout/unknown-gap lag drops out of
+    the average instead of forcing the whole baseline to NaN. `hist_df` is
+    the lookup source (e.g. training history); `target_df` is whatever rows
+    need a baseline value (can be the same frame, for training rows, or
+    later out-of-sample eval/test rows looking back into `hist_df`)."""
+    available = hist_df["ProductAvailable"].fillna(False)
+    qty_available = hist_df["Quantity"].where(available)
+    lookup = pd.Series(qty_available.to_numpy(),
+                        index=pd.MultiIndex.from_frame(hist_df[["ProductId", "DateKey"]]))
+
+    lags = (7, 14, 21, 28)
+    weights = np.array([4.0, 3.0, 2.0, 1.0])
+    lag_matrix = np.full((len(target_df), len(lags)), np.nan)
+    for j, lag in enumerate(lags):
+        keys = list(zip(target_df["ProductId"], target_df["DateKey"] - pd.Timedelta(days=lag)))
+        lag_matrix[:, j] = [lookup.get(k, np.nan) for k in keys]
+
+    observed = np.isfinite(lag_matrix)
+    numerator = np.nansum(lag_matrix * weights, axis=1)
+    denominator = (observed * weights).sum(axis=1)
+    return np.divide(numerator, denominator,
+                      out=np.full(len(target_df), np.nan, dtype=float),
+                      where=denominator > 0)
+
+
 def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.DataFrame:
     """Rolling lag statistics computed strictly from the past (`shift(1)`),
-    grouped per product. Only usable on rows where the target is known."""
+    grouped per product, using only observed-and-available demand. A
+    stockout day (ProductAvailable=False) or a reindexed calendar gap has
+    unknown true demand, so it's excluded (NaN) from `qty_available` before
+    rolling -- pandas' rolling mean/std/median already skip NaN internally
+    (subject to min_periods), so a stockout no longer silently drags the
+    average toward zero. `qty_available_count_{w}` / `stockout_rate_{w}`
+    expose how much real signal backs each window. Only usable on rows
+    where the target is known."""
     df = df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
-    g = df.groupby("ProductId")["Quantity"]
+    available = df["ProductAvailable"].fillna(False)
+    df["qty_available"] = df["Quantity"].where(available)
+
+    g = df.groupby("ProductId")["qty_available"]
+    row_num = df.groupby("ProductId").cumcount()
     for w in windows:
         df[f"qty_roll_mean_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).mean())
         df[f"qty_roll_std_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).std().fillna(0))
         df[f"qty_roll_median_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).median())
+        count = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).count())
+        df[f"qty_available_count_{w}"] = count
+        window_days = np.minimum(row_num, w).clip(lower=1)
+        df[f"stockout_rate_{w}"] = 1.0 - count / window_days
+
+    df["baseline"] = compute_baseline(df, df)
     return df
 
 
+def _nan_safe_window_stats(values: np.ndarray) -> tuple[float, float, float, int]:
+    """mean/std/median/count over the non-NaN entries of `values`. Falls
+    back to (0, 0, 0, 0) if the entire window is unavailable/unknown --
+    plain `.mean()`/`.std()` on an all-NaN slice would otherwise poison the
+    recursive forecast with NaN for every subsequent day."""
+    valid = values[~np.isnan(values)]
+    if len(valid) == 0:
+        return 0.0, 0.0, 0.0, 0
+    return float(valid.mean()), float(valid.std()), float(np.median(valid)), int(len(valid))
+
+
 def init_history(df: pd.DataFrame, max_window: int) -> dict[int, list[float]]:
-    """Per-product tail of actual quantities, used as the starting point for
-    recursive forecasting."""
+    """Per-product tail of availability-aware quantities (NaN for a
+    stockout or unknown-calendar-gap day), used as the starting point for
+    recursive forecasting. NaN is preserved -- not zero-filled -- so
+    `recursive_forecast_generic` can skip it via `_nan_safe_window_stats`
+    instead of letting a recent stockout drag the rolling stats toward
+    zero."""
     hist: dict[int, list[float]] = {}
+    col = "qty_available" if "qty_available" in df.columns else "Quantity"
     for pid, sub in df.sort_values("DateKey").groupby("ProductId"):
-        vals = sub["Quantity"].to_numpy(dtype=float)
-        hist[int(pid)] = list(vals[-max_window:]) if len(vals) else [0.0]
+        vals = sub[col].to_numpy(dtype=float)
+        hist[int(pid)] = list(vals[-max_window:]) if len(vals) else [np.nan]
     return hist
 
 
@@ -181,15 +290,17 @@ def recursive_forecast_generic(predict_fn, static_df: pd.DataFrame, history: dic
         mask = (static_df["DateKey"] == d).to_numpy()
         day_df = static_df.loc[mask].copy()
         for w in cfg.lag_windows:
-            means, stds, meds = [], [], []
+            means, stds, meds, counts = [], [], [], []
             for pid in day_df["ProductId"]:
                 arr = np.asarray(history[int(pid)][-w:], dtype=float)
-                means.append(arr.mean())
-                stds.append(arr.std())
-                meds.append(np.median(arr))
+                m, s, md, c = _nan_safe_window_stats(arr)
+                means.append(m); stds.append(s); meds.append(md); counts.append(c)
             day_df[f"qty_roll_mean_{w}"] = means
             day_df[f"qty_roll_std_{w}"] = stds
             day_df[f"qty_roll_median_{w}"] = meds
+            day_df[f"qty_available_count_{w}"] = counts
+            window_days = [min(len(history[int(pid)][-w:]), w) for pid in day_df["ProductId"]]
+            day_df[f"stockout_rate_{w}"] = 1.0 - np.asarray(counts) / np.maximum(window_days, 1)
 
         day_pred = predict_fn(day_df)
         out[mask] = day_pred
@@ -219,21 +330,8 @@ def tree_feature_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Naive baselines & metrics
+# Model registry/metadata & metrics
 # ---------------------------------------------------------------------------
-def seasonal_naive_predict(eval_df: pd.DataFrame, train_df: pd.DataFrame, lag_days: int) -> np.ndarray:
-    """Predict Quantity(date) := Quantity(date - lag_days) for the same product."""
-    lookup = train_df.set_index(["ProductId", "DateKey"])["Quantity"]
-    keys = list(zip(eval_df["ProductId"], eval_df["DateKey"] - pd.Timedelta(days=lag_days)))
-    return np.array([lookup.get(k, np.nan) for k in keys], dtype=float)
-
-
-def moving_average_predict(eval_df: pd.DataFrame, train_df: pd.DataFrame, window: int = 28) -> np.ndarray:
-    """Predict a flat value: the mean of the last `window` days per product."""
-    means = train_df.sort_values("DateKey").groupby("ProductId")["Quantity"].apply(lambda s: s.tail(window).mean())
-    return eval_df["ProductId"].map(means).to_numpy(dtype=float)
-
-
 MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "SeasonalNaive", "MovingAvg28"]
 
 # Colors match each model's own project branding, so the dashboard visually
@@ -310,11 +408,38 @@ def order_models(df: pd.DataFrame, column: str = "model") -> pd.DataFrame:
 
 
 def compute_metrics(y_true, y_pred) -> dict:
+    """MAE/RMSE stay scale-dependent; MAPE is kept only as a supplementary
+    number since clipping its denominator at 1 makes it unstable near-zero.
+    WAPE (sum|error|/sum|actual|) is scale-aware and the primary metric for
+    comparing models across products of very different volume. sMAPE/RMSLE
+    add robustness/percentage views; Bias/BiasRatio expose systematic over-
+    or under-forecasting that MAE/RMSE hide (two models can share an MAE
+    while one is unbiased and the other consistently over-forecasts).
+
+    Calling this once per (fold, model) gives a "mean-fold" (macro) metric
+    when averaged across folds by the caller; computing it once over all
+    folds' pooled rows instead gives a "global" (micro) metric -- the two
+    are not interchangeable and callers should label whichever they use.
+    """
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
     mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
     y_true, y_pred = y_true[mask], y_pred[mask]
-    mae = float(np.mean(np.abs(y_pred - y_true)))
-    rmse = float(np.sqrt(np.mean((y_pred - y_true) ** 2)))
-    mape = float(np.mean(np.abs((y_pred - y_true) / np.clip(y_true, 1, None))) * 100)
-    return {"MAE": mae, "RMSE": rmse, "MAPE": mape, "n": int(mask.sum())}
+
+    error = y_pred - y_true
+    abs_error = np.abs(error)
+    sum_abs_actual = float(np.sum(np.abs(y_true)))
+
+    mae = float(np.mean(abs_error))
+    rmse = float(np.sqrt(np.mean(error ** 2)))
+    mape = float(np.mean(abs_error / np.clip(y_true, 1, None)) * 100)
+    wape = float(np.sum(abs_error) / sum_abs_actual) if sum_abs_actual > 0 else float("nan")
+    smape = float(np.mean(2.0 * abs_error / (np.abs(y_true) + np.abs(y_pred) + 1e-8)))
+    rmsle = float(np.sqrt(np.mean((np.log1p(np.clip(y_pred, 0, None)) - np.log1p(np.clip(y_true, 0, None))) ** 2)))
+    bias = float(np.mean(error))
+    bias_ratio = float(np.sum(error) / sum_abs_actual) if sum_abs_actual > 0 else float("nan")
+
+    return {
+        "MAE": mae, "RMSE": rmse, "MAPE": mape, "WAPE": wape, "sMAPE": smape,
+        "RMSLE": rmsle, "Bias": bias, "BiasRatio": bias_ratio, "n": int(mask.sum()),
+    }

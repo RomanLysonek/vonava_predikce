@@ -1,11 +1,14 @@
-"""Standalone subprocess worker for the XGBoost/LightGBM baselines.
+"""Standalone subprocess worker/dispatcher for the XGBoost/LightGBM models.
 
 Why a separate process: on macOS, PyTorch and XGBoost/LightGBM each bundle
 their own copy of the LLVM OpenMP runtime (libomp.dylib). Loading both into
 the same process crashes the interpreter (segfault) as soon as either one
-actually runs its native training code. This module has NO torch import, so
-running it as a child process keeps it fully isolated from
-`solution_final.py`'s torch usage -- the two runtimes never share a process.
+actually runs its native training code. This module has NO torch import (and
+must never gain one), so running it as a child process keeps it fully
+isolated from `pipeline.py`'s torch usage -- the two runtimes never share a
+process. Each model's actual train/predict/recursive-forecast definition
+lives in its own file under `models/` (`models/xgboost_model.py`,
+`models/lightgbm_model.py`); this module just dispatches to them.
 
 Protocol: the caller pickles a job dict (see `run_job`) to a temp file,
 invokes this script with `<job_path> <output_path>`, and reads back a
@@ -19,48 +22,12 @@ from __future__ import annotations
 import pickle
 import sys
 
-import numpy as np
-import pandas as pd
-
-from features import Config, recursive_forecast_generic, tree_feature_frame
-
-
-def train_xgboost(train_examples: pd.DataFrame, cfg: Config):
-    from xgboost import XGBRegressor
-
-    X = tree_feature_frame(train_examples, cfg)
-    y = np.log1p(train_examples["Quantity"].to_numpy(dtype=np.float32))
-    model = XGBRegressor(
-        n_estimators=400, max_depth=5, learning_rate=0.05,
-        subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
-        tree_method="hist", enable_categorical=True,
-        random_state=cfg.seed, verbosity=0,
-    )
-    model.fit(X, y)
-    return model
-
-
-def train_lightgbm(train_examples: pd.DataFrame, cfg: Config):
-    from lightgbm import LGBMRegressor
-
-    X = tree_feature_frame(train_examples, cfg)
-    y = np.log1p(train_examples["Quantity"].to_numpy(dtype=np.float32))
-    model = LGBMRegressor(
-        n_estimators=400, num_leaves=31, learning_rate=0.05,
-        subsample=0.8, colsample_bytree=0.8, min_child_samples=10,
-        random_state=cfg.seed, verbosity=-1,
-    )
-    model.fit(X, y)
-    return model
-
-
-def predict_tree(model, day_df: pd.DataFrame, cfg: Config) -> np.ndarray:
-    X = tree_feature_frame(day_df, cfg)
-    pred_log = model.predict(X)
-    return np.clip(np.expm1(pred_log), 0, None)
-
+from framework import Config
+from models.lightgbm_model import recursive_forecast_lightgbm, train_lightgbm
+from models.xgboost_model import recursive_forecast_xgboost, train_xgboost
 
 TRAINERS = {"XGBoost": train_xgboost, "LightGBM": train_lightgbm}
+RECURSIVE_FORECASTERS = {"XGBoost": recursive_forecast_xgboost, "LightGBM": recursive_forecast_lightgbm}
 
 
 def run_job(job: dict) -> dict:
@@ -80,13 +47,12 @@ def run_job(job: dict) -> dict:
 
     results = {}
     for name in job.get("models", list(TRAINERS)):
-        trainer = TRAINERS[name]
-        model = trainer(train_examples, cfg)
+        model = TRAINERS[name](train_examples, cfg)
         # Fresh copy per model: recursion mutates history in place with that
         # model's own predictions, so sharing one dict across models would
         # leak one model's forecasts into another's lag features.
         history = {k: list(v) for k, v in history_seed.items()}
-        preds = recursive_forecast_generic(lambda d: predict_tree(model, d, cfg), static_eval, history, cfg)
+        preds = RECURSIVE_FORECASTERS[name](model, static_eval, history, cfg)
         results[name] = preds.tolist()
     return results
 
