@@ -8,8 +8,6 @@ the baseline/metric helpers used for walk-forward validation.
 Run with: uv run pytest tests/
 """
 
-import pickle
-import subprocess
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -44,9 +42,6 @@ from models.neural_net import (
     residual_log1p_target,
 )
 from pipeline import _json_safe
-
-TREE_WORKER_PATH = Path(__file__).resolve().parents[1] / "ml" / "tree_worker.py"
-
 
 def test_add_calendar_features_bounds_and_weekend():
     df = pd.DataFrame({"DateKey": pd.date_range("2026-01-12", periods=14, freq="D")})
@@ -412,74 +407,6 @@ def test_direct_panel_tree_frame_casts_categoricals():
     for col in direct_panel_feature_names(cfg):
         assert str(X[col].dtype) != "category"
 
-
-def test_tree_worker_subprocess_smoke(tmp_path):
-    """Integration smoke test for the XGBoost/LightGBM subprocess worker,
-    invoked as a real subprocess -- exactly how `pipeline.py`'s
-    `run_tree_baselines` uses it. NOT called in-process here: this test
-    module also imports `pipeline`/`models.neural_net` (torch), and running
-    XGBoost's or LightGBM's native training code in the same process as an
-    already-loaded torch segfaults on macOS (each bundles its own, different,
-    copy of the LLVM OpenMP runtime). The subprocess is what keeps them apart
-    for real.
-    """
-    cfg = Config(lag_windows=(3, 7))
-    raw = _make_synthetic_raw()
-    price_ref = raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = raw.groupby("ProductId")["DateKey"].min()
-
-    feat = add_train_lags(prepare_features(raw, price_ref, first_seen), cfg.lag_windows)
-
-    future_dates = pd.date_range(raw["DateKey"].max() + pd.Timedelta(days=1), periods=cfg.horizon, freq="D")
-    future_rows = [
-        {
-            "ProductId": pid, "DateKey": d, "CampaignSubTypeWeb": -1, "CampaignSubTypeApp": -1,
-            "DiscountValueWebRelative": 0.0, "DiscountValueAppRelative": 0.0,
-            "IsSaleOrPromo": False, "PriceLocalVat": 100.0 + pid,
-        }
-        for pid in raw["ProductId"].unique()
-        for d in future_dates
-    ]
-    future_feat = prepare_features(pd.DataFrame(future_rows), price_ref, first_seen).reset_index(drop=True)
-
-    horizons = range(1, cfg.horizon + 1)
-    panel = build_direct_panel(feat, horizons, cfg=cfg, future_covariates=future_feat)
-
-    last_train_date = raw["DateKey"].max()
-    # Only 40 days of synthetic history -- never enough for the yearly
-    # seasonal lags (364/365/371) to be non-NaN, so this test only
-    # requires a valid target (trees handle NaN features natively) rather
-    # than the full dropna(direct_panel_feature_names(...)) the real
-    # pipeline applies once there's enough real history.
-    train_panel = (panel[panel["TargetDateKey"] <= last_train_date]
-                    .dropna(subset=["target"]).reset_index(drop=True))
-    eval_panel = panel[panel["OriginDateKey"] == last_train_date].reset_index(drop=True)
-
-    job = {
-        "cfg": asdict(cfg),
-        "train_panel": train_panel,
-        "eval_panel": eval_panel,
-        "models": ["XGBoost", "LightGBM", "DynamicRidge"],
-    }
-    job_path = tmp_path / "job.pkl"
-    out_path = tmp_path / "out.pkl"
-    with open(job_path, "wb") as f:
-        pickle.dump(job, f)
-
-    result = subprocess.run(
-        [sys.executable, str(TREE_WORKER_PATH), str(job_path), str(out_path)],
-        capture_output=True, text=True,
-    )
-    assert result.returncode == 0, result.stderr
-
-    with open(out_path, "rb") as f:
-        results = pickle.load(f)
-
-    assert set(results) == {"XGBoost", "LightGBM", "DynamicRidge"}
-    for preds in results.values():
-        preds = np.asarray(preds)
-        assert len(preds) == len(eval_panel)
-        assert (preds >= 0).all()
 
 
 def _make_deterministic_raw(n_days: int = 40, product_id: int = 1, start: str = "2026-01-01") -> pd.DataFrame:

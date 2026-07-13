@@ -41,11 +41,11 @@ brief itself frames them as the standard comparison point.
   what actually happened.
 - **Validation**: walk-forward (rolling-origin) cross-validation over two
   labeled sets of origins -- a broader, seasonally-scattered `development`
-  set used to make modeling decisions, and a `recent_holdout` set (the last
-  `n_cv_folds` non-overlapping 7-day blocks, untouched during iteration) as
-  a final check. Each fold trains only on data strictly before its
-  evaluation block, so the reported metrics mirror the real deployment
-  scenario (no early-stopping on the eval fold, no leakage).
+  set used to make modeling decisions, and a `recent_benchmark` set (the last
+  `n_cv_folds` non-overlapping 7-day blocks, a pseudo-test check) as
+  a final benchmark of recent performance. Each fold trains only on data
+  strictly before its evaluation block, so the reported metrics mirror the
+  real deployment scenario (no early-stopping on the eval fold, no leakage).
 - **Baselines**: XGBoost, LightGBM, and Dynamic Ridge (native categorical support or
   one-hot encoding, same feature set, same direct multi-horizon panel). 
   **NeuralNet** and **Dynamic Ridge** predict a baseline-relative log residual, 
@@ -63,6 +63,8 @@ brief itself frames them as the standard comparison point.
 
 ## Results (walk-forward CV, 4 folds x 7 days, Conditional Demand)
 
+The results below are from the `recent_benchmark` origins:
+
 | model         |   MAE |  RMSE |   MAPE |
 |---------------|------:|------:|-------:|
 | NeuralNet     |  9.60 | 13.89 |  74.7% |
@@ -79,7 +81,8 @@ trees are the standard choice for. The NN remains the submission because the
 brief explicitly asked for a non-tree approach; the tree numbers are here so
 that trade-off is transparent rather than hidden. Exact numbers regenerate
 into `cv_results.csv` each run and will vary slightly run-to-run (no fixed
-seed across folds' data-dependent init) but the ranking is stable.
+seed across folds' data-dependent init) but the ranking is stable. Note: 
+these benchmarks use the most recent history available at training time.
 
 ## Repo layout
 

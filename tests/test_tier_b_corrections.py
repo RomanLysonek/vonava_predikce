@@ -184,9 +184,14 @@ def test_direct_panel_safety():
     with pytest.raises(ValueError, match="positive"):
         build_direct_panel(train_feat, [0], cfg)
         
-    # Too large horizon
+    # Too large horizon vs seasonal lags
     with pytest.raises(ValueError, match="future observations"):
         build_direct_panel(train_feat, [100], cfg)
+
+    # Too large horizon vs config
+    cfg_short = Config(horizon=3)
+    with pytest.raises(ValueError, match="Config.horizon"):
+        build_direct_panel(train_feat, [4], cfg_short)
 
 @pytest.mark.integration
 def test_tree_worker_full_smoke(tmp_path):

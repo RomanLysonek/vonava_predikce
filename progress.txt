@@ -51,9 +51,9 @@ STATUS
 [x] A6 row-level OOF predictions saved (outputs/oof_predictions.parquet --
         origin, horizon, ProductId, DateKey, ProductAvailable, actual, baseline,
         per-seed + ensemble NN preds, XGBoost, LightGBM, naive baselines)
-[x] A7 dev origins (12, broad/scattered) vs recent holdout origins (last-4-
-        folds, untouched) as two labeled, separate CV passes -- DEVELOPMENT_ORIGINS
-        + recent_holdout_origins() in ml/pipeline.py
+[x] A7 dev origins (12, broad/scattered) vs recent benchmark origins (last-4-
+        folds) as two labeled, separate CV passes -- DEVELOPMENT_ORIGINS
+        + recent_benchmark_origins() in ml/pipeline.py
 [x] Update/add tests in tests/test_pipeline.py for all of the above (16 tests green)
 [x] Restructured ml/ into framework.py (shared) + models/ (one file per model,
         neural_net/xgboost_model/lightgbm_model/naive_baselines) + pipeline.py
@@ -130,7 +130,7 @@ STATUS
         check) -- total wall time 3408s/56.8min (dev CV 1563s, holdout CV
         1229s, final NN ensemble 607s, final trees 8s). Holdout skill vs
         seasonal-naive (global MAE): +55.7%. NOTE: not a controlled A/B
-        against the +58.8% Tier B1 number above -- recent_holdout_origins is
+        against the +58.8% Tier B1 number above -- recent_benchmark_origins is
         derived from train_raw's own max date, which has advanced since that
         run (the dataset keeps growing), so the two runs score different
         calendar weeks, not the same held-out fold.
@@ -142,6 +142,10 @@ STATUS
         summarize_oof refactored to report regimes (Realized/Conditional)
         and populations (Common/Specific) with detailed metrics (WAPE, Bias,
         Coverage, etc). Dashboard updated with toggle and Bias metrics.
+        [REPAIRED] select_primary_summary bug fixed; common population
+        enforced in legacy fold-level reports; subprocess timeouts added.
+        [CLEANUP] Duplicate unbounded tests removed; build_direct_panel
+        hardening (horizon check); holdout renamed to benchmark.
 
 [ ] C1 recency weighting ablation grid (window x half-life)
 [ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)

@@ -82,10 +82,10 @@ TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tre
 # Broader, seasonally-scattered origins used to make modeling/feature
 # decisions (spring/summer lulls, several Januaries, Black Friday windows,
 # pre/post-Christmas, a Valentine's-adjacent week -- relevant for a
-# cosmetics retailer). Deliberately disjoint from `recent_holdout_origins`
-# below: these are for iteration, the holdout is for a final check only,
+# cosmetics retailer). Deliberately disjoint from `recent_benchmark_origins`
+# below: these are for iteration, the benchmark is for a pseudo-test check,
 # and mixing the two would let repeated tuning quietly overfit to the
-# holdout the same way a single reused test set would.
+# benchmark the same way a single reused test set would.
 DEVELOPMENT_ORIGINS = pd.to_datetime([
     "2022-02-01", "2022-06-15", "2022-11-20",
     "2023-01-10", "2023-07-01", "2023-11-24", "2023-12-18",
@@ -94,11 +94,11 @@ DEVELOPMENT_ORIGINS = pd.to_datetime([
 ])
 
 
-def recent_holdout_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.DatetimeIndex:
+def recent_benchmark_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.DatetimeIndex:
     """Last `cfg.n_cv_folds` non-overlapping `cfg.horizon`-day origins ending
     at the most recent training data -- the closest pseudo-test periods to
-    the actual forecast. Meant as a final model-selection check, not
-    something to repeatedly re-tune against."""
+    the actual forecast. Meant as a final model-selection check (a benchmark
+    of recent performance), not something to repeatedly re-tune against."""
     max_date = hist_df["DateKey"].max()
     return pd.DatetimeIndex([max_date - pd.Timedelta(days=(i + 1) * cfg.horizon) for i in range(cfg.n_cv_folds)])
 
@@ -568,15 +568,15 @@ def select_primary_summary(
 def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submission: pd.DataFrame,
                          final_forecasts: dict, cv_results: pd.DataFrame, cfg: Config = CFG,
                          history_lookback: int = 90, path: str | None = None,
-                         dev_summary: pd.DataFrame = None, holdout_summary: pd.DataFrame = None) -> dict:
+                         dev_summary: pd.DataFrame = None, benchmark_summary: pd.DataFrame = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
     """
     # Skill scores and primary summary table.
-    # Prefer holdout_summary (global/conditional/common) if available.
-    if holdout_summary is not None:
-        summary = select_primary_summary(holdout_summary).copy()
+    # Prefer benchmark_summary (global/conditional/common) if available.
+    if benchmark_summary is not None:
+        summary = select_primary_summary(benchmark_summary).copy()
     else:
         # Fallback to cv_results (legacy or if summary not provided)
         summary_source = cv_results
@@ -644,12 +644,12 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "cv_results": order_models(cv_results.round(3)).to_dict(orient="records"),
         "cv_summary": summary.to_dict(orient="records"),
         "skill_vs_seasonal_naive": skill,
-        # "recent_holdout": untouched last-N-weeks folds, closest to the real
+        # "recent_benchmark": last-N-weeks folds, closest to the real
         # forecast; "development": broader seasonally-scattered folds used to
         # make modeling decisions. Each has both a mean_fold (macro) and a
         # global (micro, pooled) aggregation -- see summarize_oof.
-        "holdout_summary": (order_models(holdout_summary.round(3)).to_dict(orient="records")
-                             if holdout_summary is not None else None),
+        "benchmark_summary": (order_models(benchmark_summary.round(3)).to_dict(orient="records")
+                             if benchmark_summary is not None else None),
         "dev_summary": (order_models(dev_summary.round(3)).to_dict(orient="records")
                          if dev_summary is not None else None),
         "submission": submission.assign(
@@ -683,7 +683,7 @@ def main() -> None:
 
     train_raw, test_raw = load_raw(cfg)
     cfg.num_products = int(max(train_raw["ProductId"].max(), test_raw["ProductId"].max()))
-    holdout_origins = recent_holdout_origins(train_raw, cfg)
+    benchmark_origins = recent_benchmark_origins(train_raw, cfg)
 
     print(f"\n=== Development CV ({len(DEVELOPMENT_ORIGINS)} scattered origins x {cfg.horizon}d) ===")
     t0 = time.perf_counter()
@@ -691,36 +691,36 @@ def main() -> None:
     timings["dev_cv_seconds"] = round(time.perf_counter() - t0, 2)
     print(f"[timing] development CV total: {timings['dev_cv_seconds']:.1f}s")
 
-    print(f"\n=== Recent-holdout CV ({len(holdout_origins)} folds x {cfg.horizon}d, untouched final check) ===")
+    print(f"\n=== Recent-benchmark CV ({len(benchmark_origins)} folds x {cfg.horizon}d) ===")
     t0 = time.perf_counter()
-    holdout_oof = run_walk_forward_cv(train_raw, holdout_origins, "recent_holdout", cfg, timings=timings["cv_folds"])
-    timings["holdout_cv_seconds"] = round(time.perf_counter() - t0, 2)
-    print(f"[timing] recent-holdout CV total: {timings['holdout_cv_seconds']:.1f}s")
+    benchmark_oof = run_walk_forward_cv(train_raw, benchmark_origins, "recent_benchmark", cfg, timings=timings["cv_folds"])
+    timings["benchmark_cv_seconds"] = round(time.perf_counter() - t0, 2)
+    print(f"[timing] recent-benchmark CV total: {timings['benchmark_cv_seconds']:.1f}s")
 
-    oof = pd.concat([dev_oof, holdout_oof], ignore_index=True)
+    oof = pd.concat([dev_oof, benchmark_oof], ignore_index=True)
 
     print("\nDevelopment summary (mean_fold vs global aggregation, per model):")
     dev_summary = summarize_oof(dev_oof)
     print(order_models(dev_summary.round(3)).to_string(index=False))
 
-    print("\nRecent-holdout summary:")
-    holdout_summary = summarize_oof(holdout_oof)
-    print(order_models(holdout_summary.round(3)).to_string(index=False))
+    print("\nRecent-benchmark summary:")
+    benchmark_summary = summarize_oof(benchmark_oof)
+    print(order_models(benchmark_summary.round(3)).to_string(index=False))
 
-    # Legacy fold/model shape for the dashboard/export code below -- holdout
+    # Legacy fold/model shape for the dashboard/export code below -- benchmark
     # only, since that's what used to be shown as "cv_results".
-    cv_results = oof_to_legacy_cv_results(holdout_oof)
-    print("\nRecent-holdout, per fold:")
+    cv_results = oof_to_legacy_cv_results(benchmark_oof)
+    print("\nRecent-benchmark, per fold:")
     print(order_models(cv_results.round(2)).to_string(index=False))
 
-    primary_holdout = select_primary_summary(holdout_summary).set_index("model")
-    nn_mae = float(primary_holdout.loc["NeuralNet", "MAE"])
-    naive_mae = float(primary_holdout.loc["SeasonalNaive", "MAE"])
+    primary_benchmark = select_primary_summary(benchmark_summary).set_index("model")
+    nn_mae = float(primary_benchmark.loc["NeuralNet", "MAE"])
+    naive_mae = float(primary_benchmark.loc["SeasonalNaive", "MAE"])
     skill = 1.0 - nn_mae / naive_mae
 
     print(
         "\nSkill vs seasonal-naive baseline "
-        f"(holdout, conditional/common/global MAE): {skill:+.1%} "
+        f"(benchmark, conditional/common/global MAE): {skill:+.1%} "
         "(positive = model beats naive)"
     )
 
@@ -763,9 +763,9 @@ def main() -> None:
     cv_results.to_csv(os.path.join(cfg.output_dir, "cv_results.csv"), index=False)
     oof.to_parquet(os.path.join(cfg.output_dir, "oof_predictions.parquet"), index=False)
     dev_summary.to_csv(os.path.join(cfg.output_dir, "dev_summary.csv"), index=False)
-    holdout_summary.to_csv(os.path.join(cfg.output_dir, "holdout_summary.csv"), index=False)
+    benchmark_summary.to_csv(os.path.join(cfg.output_dir, "benchmark_summary.csv"), index=False)
     print(f"\nSaved: {cfg.output_dir}/submission.{{parquet,csv}}, cv_results.csv, "
-          "oof_predictions.parquet, dev_summary.csv, holdout_summary.csv")
+          "oof_predictions.parquet, dev_summary.csv, benchmark_summary.csv")
 
     t0 = time.perf_counter()
     try:
@@ -776,7 +776,7 @@ def main() -> None:
 
     t0 = time.perf_counter()
     export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, cfg,
-                         dev_summary=dev_summary, holdout_summary=holdout_summary)
+                         dev_summary=dev_summary, benchmark_summary=benchmark_summary)
     timings["export_json_seconds"] = round(time.perf_counter() - t0, 2)
 
     timings["total_seconds"] = round(time.perf_counter() - run_start, 2)

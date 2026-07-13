@@ -308,6 +308,11 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         raise ValueError(
             "Target-relative seasonal lags would require future observations"
         )
+
+    if max(horizons) > cfg.horizon:
+        raise ValueError(
+            "Requested horizon exceeds Config.horizon and the NN horizon embedding domain"
+        )
     
     for name, frame in [
         ("train_feat", train_feat),

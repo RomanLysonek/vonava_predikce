@@ -31,8 +31,8 @@ def main() -> None:
     dev_summary_path = os.path.join(CFG.output_dir, "dev_summary.csv")
     dev_summary = pd.read_csv(dev_summary_path) if os.path.exists(dev_summary_path) else None
     
-    holdout_summary_path = os.path.join(CFG.output_dir, "holdout_summary.csv")
-    holdout_summary = pd.read_csv(holdout_summary_path) if os.path.exists(holdout_summary_path) else None
+    benchmark_summary_path = os.path.join(CFG.output_dir, "benchmark_summary.csv")
+    benchmark_summary = pd.read_csv(benchmark_summary_path) if os.path.exists(benchmark_summary_path) else None
 
     # submission.csv already holds the NeuralNet's rounded final predictions,
     # aligned to test_raw's (ProductId, DateKey) rows.
@@ -55,7 +55,7 @@ def main() -> None:
         "MovingAvg28": naive_final["MovingAvg28"],
     }
     export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, CFG,
-                        dev_summary=dev_summary, holdout_summary=holdout_summary)
+                        dev_summary=dev_summary, benchmark_summary=benchmark_summary)
 
 
 if __name__ == "__main__":
