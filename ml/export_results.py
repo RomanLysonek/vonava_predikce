@@ -27,6 +27,12 @@ def main() -> None:
 
     submission = pd.read_csv(os.path.join(CFG.output_dir, "submission.csv"), parse_dates=["DateKey"])
     cv_results = pd.read_csv(os.path.join(CFG.output_dir, "cv_results.csv"))
+    
+    dev_summary_path = os.path.join(CFG.output_dir, "dev_summary.csv")
+    dev_summary = pd.read_csv(dev_summary_path) if os.path.exists(dev_summary_path) else None
+    
+    holdout_summary_path = os.path.join(CFG.output_dir, "holdout_summary.csv")
+    holdout_summary = pd.read_csv(holdout_summary_path) if os.path.exists(holdout_summary_path) else None
 
     # submission.csv already holds the NeuralNet's rounded final predictions,
     # aligned to test_raw's (ProductId, DateKey) rows.
@@ -44,10 +50,12 @@ def main() -> None:
         "NeuralNet": nn_preds,
         "XGBoost": tree_final["XGBoost"],
         "LightGBM": tree_final["LightGBM"],
+        "DynamicRidge": tree_final["DynamicRidge"],
         "SeasonalNaive": naive_final["SeasonalNaive"],
         "MovingAvg28": naive_final["MovingAvg28"],
     }
-    export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, CFG)
+    export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, CFG,
+                        dev_summary=dev_summary, holdout_summary=holdout_summary)
 
 
 if __name__ == "__main__":

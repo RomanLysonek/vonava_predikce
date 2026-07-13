@@ -25,26 +25,32 @@ def train_dynamic_ridge(train_panel: pd.DataFrame, cfg: Config = CFG):
     categorical_features = TREE_CATEGORICAL_COLUMNS
     
     # Preprocessor: scale numeric features and one-hot encode categories.
-    # Ridge does not handle NaNs natively, so we impute with 0 (safe for 
-    # demand lags/rolling stats where missing usually implies no history).
+    # Ridge does not handle NaNs natively, so we impute with median for numeric
+    # and most_frequent for categorical.
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", Pipeline([
-                ("imputer", SimpleImputer(strategy="constant", fill_value=0)),
+                ("imputer", SimpleImputer(strategy="median")),
                 ("scaler", StandardScaler()),
             ]), numeric_features),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+            ("cat", Pipeline([
+                ("imputer", SimpleImputer(strategy="most_frequent")),
+                ("onehot", OneHotEncoder(handle_unknown="ignore")),
+            ]), categorical_features),
         ]
     )
     
     model = Pipeline([
         ("preprocessor", preprocessor),
-        ("ridge", Ridge(alpha=1.0, random_state=cfg.seed))
+        ("ridge", Ridge(alpha=cfg.ridge_alpha, random_state=cfg.seed))
     ])
     
     X = train_panel
-    # Ridge typically performs better on log-scale for demand
-    y = np.log1p(train_panel["target"].to_numpy(dtype=np.float32))
+    # Ridge trained on the same baseline-relative log residual used by NN (Tier B Corrections)
+    y = (
+        np.log1p(train_panel["target"].to_numpy(dtype=float))
+        - np.log1p(train_panel["target_baseline"].to_numpy(dtype=float))
+    )
     
     # Filter out any rows with NaN target (should already be handled by caller)
     mask = ~np.isnan(y)
@@ -55,10 +61,19 @@ def train_dynamic_ridge(train_panel: pd.DataFrame, cfg: Config = CFG):
 
 def predict_dynamic_ridge(model, panel: pd.DataFrame, cfg: Config = CFG) -> np.ndarray:
     """Predict and apply a safety cap (Tier B3)."""
-    pred_log = model.predict(panel)
-    preds = np.expm1(pred_log)
+    residual = model.predict(panel)
+    
+    # Reconstruct from baseline-relative log residual
+    preds = np.expm1(
+        residual
+        + np.log1p(panel["target_baseline"].to_numpy(dtype=float))
+    )
     
     # Tier B3 "Dynamic Ridge's cap": linear models can occasionally 
-    # extrapolate to extreme values. A safety cap at 500 (near the max 
-    # observed history) keeps it stable.
-    return np.clip(preds, 0, 500)
+    # extrapolate to extreme values. 
+    preds = np.clip(preds, 0.0, None)
+    
+    if cfg.ridge_prediction_cap is not None:
+        preds = np.minimum(preds, cfg.ridge_prediction_cap)
+        
+    return preds

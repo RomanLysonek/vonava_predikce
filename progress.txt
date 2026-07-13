@@ -135,14 +135,13 @@ STATUS
         run (the dataset keeps growing), so the two runs score different
         calendar weeks, not the same held-out fold.
 [x] B3 Dynamic Ridge as 3rd model tier (Naive / Structured statistical /
-        Global nonlinear), not auto-blended -- ml/models/dynamic_ridge.py
-        using sklearn.Ridge + StandardScaler + OneHotEncoder on the stacked
-        panel; safety cap at 500 (Tier B3 item 32) implemented; integrated
-        into tree_worker.py and pipeline.py.
-[x] B4 report conditional-demand vs realized-sales eval regimes where they differ
-        -- summarize_oof and oof_to_legacy_cv_results now report both;
-        Conditional Demand = available days only, Realized Sales = all days.
-        Dashboard updated with a regime toggle and Bias/BiasRatio metrics.
+        Global nonlinear) -- ml/models/dynamic_ridge.py using sklearn.Ridge
+        + StandardScaler + OneHotEncoder; trained on baseline-relative log residual;
+        configurable alpha/cap (Tier B repair).
+[x] B4 common-population evaluation (Conditional Demand = primary) --
+        summarize_oof refactored to report regimes (Realized/Conditional)
+        and populations (Common/Specific) with detailed metrics (WAPE, Bias,
+        Coverage, etc). Dashboard updated with toggle and Bias metrics.
 
 [ ] C1 recency weighting ablation grid (window x half-life)
 [ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)
@@ -163,12 +162,13 @@ post-Tier-B1 the recursive engine is gone, replaced by the direct panel builder)
   ml/models/xgboost_model.py, lightgbm_model.py - tree models, train/predict directly
                              on build_direct_panel()'s output (horizon = plain feature)
   ml/models/naive_baselines.py - seasonal-naive + moving-average
-  ml/models/dynamic_ridge.py   - NEW, Tier B3 (not yet created)
+  ml/models/dynamic_ridge.py   - linear regression baseline w/ one-hot encoding,
+                             trained on baseline-relative log residual (repaired)
   ml/pipeline.py           - CV loop (3-seed, dev/holdout split, OOF export) + final
                              forecasts, all panel-based (no recursion); NN residual
-                             target (Tier B2) done; time.perf_counter() timing
-                             checkpoints per fold/phase -> outputs/timings.json
+                             target (Tier B2) done; common-population evaluation
+                             logic (B4 repair)
   ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py,
-                             lightgbm_model.py; job protocol = {train_panel, eval_panel}
+                             lightgbm_model.py, and dynamic_ridge.py
   tests/test_pipeline.py   - update + extend
   webapp/static/*          - Tier A5 metric surfacing, Tier C5 dashboard depth

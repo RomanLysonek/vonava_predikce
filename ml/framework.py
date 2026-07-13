@@ -45,6 +45,8 @@ class Config:
     seeds: tuple = (42, 123, 777)
     n_cv_folds: int = 4
     seed: int = 42
+    ridge_alpha: float = 10.0
+    ridge_prediction_cap: float | None = None
 
 
 CFG = Config()
@@ -292,52 +294,28 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
 def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
                         future_covariates: pd.DataFrame | None = None) -> pd.DataFrame:
     """Stack (ForecastOrigin x Horizon x ProductId) into one direct-
-    prediction panel -- every horizon predicted straight from the origin in
-    a single pass, no recursive one-day-at-a-time feedback loop.
-
-    `train_feat` must already be `prepare_features` + `add_train_lags`
-    output (calendar-reindexed/gapless per product -- required for the
-    row-position shifts below to mean exactly "N calendar days", see
-    `reindex_daily_calendar`). `future_covariates`, if given, is
-    `prepare_features` output (lag features not required) for the dates
-    immediately following `train_feat`'s own max date per product -- e.g.
-    a CV fold's eval window or the real test week -- so that origins near
-    the end of `train_feat` can still look *forward* to their target
-    date's own covariates (calendar/discount/price -- known in advance,
-    the same assumption test_data.parquet already makes) and, for CV
-    folds, their real target Quantity for scoring.
-
-    For every origin row, independent of horizon: origin-relative point
-    lags (`qty_lag_{1,2,6,7}`) and the rolling-stat columns already on
-    `train_feat` from `add_train_lags` -- both purely backward-looking.
-
-    For each horizon h in `horizons`, additionally:
-      - `seasonal_lag_{L}` = qty_available at (target_date - L days),
-        computed as an origin-relative shift of (L - h) days. Every L in
-        SEASONAL_LAG_DAYS is >= 7 >= max(horizons), so (L - h) is always
-        >= 0 -- a lookup into data at-or-before the origin, never a value
-        from another horizon's own prediction. This is what eliminates
-        recursion: no horizon's inputs ever depend on another horizon's
-        output.
-      - target-date covariates (`TARGET_COVARIATE_COLUMNS`) and `target`
-        (Quantity at the target date, NaN if it falls beyond whatever
-        data is available -- e.g. the real forecast, which by definition
-        has nothing to score against yet).
-      - `target_baseline` (Tier B2): the same weighted 4:3:2:1
-        same-weekday baseline as `compute_baseline`, for the target date
-        itself -- built straight from this row's own `seasonal_lag_{7,14,
-        21,28}` (so it's exactly as leakage-safe as they are, no separate
-        lookup needed). Given to the NN both as an input feature and as
-        the reference value its skip-connection residual target is
-        defined against (see `models/neural_net.py`).
-      - `horizon` itself as a feature.
-
-    Returns one row per (origin, horizon, ProductId) where the origin was
-    an actual row of `train_feat` (rows only present via
-    `future_covariates` are lookup targets, never origins themselves),
-    with `ProductId`, `OriginDateKey`, `TargetDateKey`, `target`,
-    `TargetProductAvailable`, and every column in `direct_panel_feature_names`.
+    prediction panel.
     """
+    horizons = tuple(int(h) for h in horizons)
+
+    if not horizons:
+        raise ValueError("At least one forecast horizon is required")
+
+    if min(horizons) < 1:
+        raise ValueError("Forecast horizons must be positive")
+
+    if max(horizons) > min(SEASONAL_LAG_DAYS):
+        raise ValueError(
+            "Target-relative seasonal lags would require future observations"
+        )
+    
+    for name, frame in [
+        ("train_feat", train_feat),
+        ("future_covariates", future_covariates),
+    ]:
+        if frame is not None and frame.duplicated(["ProductId", "DateKey"]).any():
+            raise ValueError(f"{name} contains duplicate ProductId/DateKey keys")
+
     train_feat = train_feat.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     origin_index = pd.MultiIndex.from_frame(train_feat[["ProductId", "DateKey"]])
 

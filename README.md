@@ -19,7 +19,10 @@ brief itself frames them as the standard comparison point.
   through embedding layers instead of as raw numeric features.
 - **Model**: an MLP (256→128→64) with BatchNorm/GELU/Dropout, taking the
   numeric features plus product, campaign-web and campaign-app embeddings.
-  Target is `log1p`-transformed; trained with Huber loss.
+  Target is a **baseline-relative log residual**: `log1p(Quantity) - log1p(target_baseline)`.
+  Trained with Huber loss.
+- **Seeds**: random seeds for both the NN ensemble and the tree-based baselines are
+  fixed (`Config.seeds`) to ensure reproducibility.
 - **Direct multi-horizon forecasting**: all 7 horizon days are predicted in
   a single pass from a stacked (ForecastOrigin x Horizon x ProductId) panel
   (`framework.build_direct_panel`) instead of recursively, one day at a
@@ -44,15 +47,21 @@ brief itself frames them as the standard comparison point.
   evaluation block, so the reported metrics mirror the real deployment
   scenario (no early-stopping on the eval fold, no leakage).
 - **Baselines**: XGBoost, LightGBM, and Dynamic Ridge (native categorical support or
-  one-hot encoding, same feature set, log1p target, same direct multi-horizon
-  panel -- an apples-to-apples comparison) plus two naive baselines:
-  seasonal-naive (value from 7 days prior) and a 28-day moving average. All
-  are evaluated on the same folds.
+  one-hot encoding, same feature set, same direct multi-horizon panel). 
+  **NeuralNet** and **Dynamic Ridge** predict a baseline-relative log residual, 
+  while **XGBoost** and **LightGBM** predict `log1p(Quantity)` directly. 
+  Two naive baselines are also included: seasonal-naive (value from 7 days prior) 
+  and a 28-day moving average. All are evaluated on the same folds and the same 
+  **common population** of rows where every model produced a valid prediction.
+- **Evaluation Regimes**: **Conditional Demand** (only days where the product
+  was available in stock) is the primary evaluation regime, as it measures the
+  true demand the model is meant to capture. **Realized Sales** (all days,
+  including stockouts) is available as a diagnostic toggle.
 - **Final submission**: an ensemble of 3 NN seeds trained on all available
   history (XGBoost/LightGBM are comparison baselines only, not the
   submission, per the task brief).
 
-## Results (walk-forward CV, 4 folds x 7 days)
+## Results (walk-forward CV, 4 folds x 7 days, Conditional Demand)
 
 | model         |   MAE |  RMSE |   MAPE |
 |---------------|------:|------:|-------:|

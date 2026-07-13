@@ -131,6 +131,7 @@ def run_tree_baselines(train_panel: pd.DataFrame, eval_panel: pd.DataFrame, cfg:
         result = subprocess.run(
             [sys.executable, TREE_WORKER_PATH, job_path, out_path],
             capture_output=True, text=True,
+            timeout=300,
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -286,41 +287,81 @@ OOF_MODEL_COLUMNS = {
 
 
 def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
-    """Two labeled aggregations per model, since they are not
-    interchangeable: "mean_fold" (macro) averages each origin's own metric
-    equally regardless of how many rows it contributed; "global" (micro)
-    pools every row across all origins first, then computes the metric
-    once.
-
-    B4: Each is reported for both "Realized Sales" (all days) and
-    "Conditional Demand" (only days where the product was available).
+    """B4: Refactored to support common-population evaluation and detailed metrics.
+    Produces combinations of:
+      - evaluation_regime: 'realized' (all days) vs 'conditional' (available only)
+      - comparison_population: 'common' (same rows for all models) vs 'model_specific'
+      - aggregation: 'global' (micro) vs 'mean_fold' (macro)
     """
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    pred_cols = list(pred_columns.values())
+    
+    # Base masks for regimes
+    regime_masks = {
+        "realized": oof["actual"].notna(),
+        "conditional": (
+            oof["actual"].notna()
+            & oof["ProductAvailable"].fillna(False)
+        ),
+    }
+    
     rows = []
-    for model_name, col in pred_columns.items():
-        if col not in oof.columns:
-            continue
-        valid = oof.dropna(subset=[col])
-        if valid.empty:
-            continue
-
-        def add_regime(df, suffix):
-            if df.empty:
-                return
-            fold_metrics = [compute_metrics(g["actual"], g[col]) for _, g in df.groupby("origin")]
-            mean_fold = pd.DataFrame(fold_metrics).mean(numeric_only=True).to_dict()
-            rows.append({"model": model_name, "aggregation": f"mean_fold{suffix}", "n_folds": len(fold_metrics), **mean_fold})
-
-            global_metrics = compute_metrics(df["actual"], df[col])
-            rows.append({"model": model_name, "aggregation": f"global{suffix}", "n_folds": len(fold_metrics), **global_metrics})
-
-        # Realized Sales regime (all rows)
-        add_regime(valid, "")
-
-        # Conditional Demand regime (available days only)
-        available = valid[valid["ProductAvailable"].fillna(False)]
-        add_regime(available, "_conditional")
-
+    
+    for regime_name, regime_mask in regime_masks.items():
+        # Rows where ALL models have finite predictions
+        common_mask = regime_mask & oof[pred_cols].apply(np.isfinite).all(axis=1)
+        
+        populations = ["common", "model_specific"]
+        for pop_name in populations:
+            for model_name, pred_col in pred_columns.items():
+                if pred_col not in oof.columns:
+                    continue
+                
+                # Rows for THIS model and THIS population
+                if pop_name == "common":
+                    mask = common_mask
+                else:
+                    mask = regime_mask & np.isfinite(oof[pred_col])
+                
+                scored_df = oof[mask]
+                
+                # Diagnostics (always regime-relative)
+                n_expected = int(regime_mask.sum())
+                n_actual = int((regime_mask & oof["actual"].notna()).sum())
+                n_predicted = int((regime_mask & np.isfinite(oof[pred_col])).sum())
+                n_scored = int(mask.sum())
+                coverage = n_predicted / n_expected if n_expected > 0 else 0.0
+                
+                def add_row(df, agg_name):
+                    if df.empty:
+                        metrics = {k: np.nan for k in ["MAE", "RMSE", "WAPE", "sMAPE", "RMSLE", "Bias", "BiasRatio", "MAPE"]}
+                        n_folds = 0
+                    else:
+                        if agg_name == "global":
+                            metrics = compute_metrics(df["actual"], df[pred_col])
+                            n_folds = df["origin"].nunique()
+                        else:  # mean_fold
+                            fold_metrics = [compute_metrics(g["actual"], g[pred_col]) for _, g in df.groupby("origin")]
+                            metrics = pd.DataFrame(fold_metrics).mean(numeric_only=True).to_dict()
+                            n_folds = len(fold_metrics)
+                    
+                    rows.append({
+                        "model": model_name,
+                        "evaluation_regime": regime_name,
+                        "comparison_population": pop_name,
+                        "aggregation": agg_name,
+                        "n_folds": n_folds,
+                        "n_expected": n_expected,
+                        "n_actual": n_actual,
+                        "n_predicted": n_predicted,
+                        "n_scored": n_scored,
+                        "coverage": coverage,
+                        **metrics
+                    })
+                
+                add_row(scored_df, "global")
+                add_row(scored_df, "mean_fold")
+                
     return pd.DataFrame(rows)
 
 
@@ -478,15 +519,34 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          history_lookback: int = 90, path: str | None = None,
                          dev_summary: pd.DataFrame = None, holdout_summary: pd.DataFrame = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
-    Uses the 'Realized Sales' (all rows) regime for the primary summary
-    table and skill scores.
+    Uses 'Conditional Demand' on a 'Common' population as the primary summary
+    (Tier B Corrections).
     """
-    summary_source = cv_results
-    if "regime" in cv_results.columns:
-        summary_source = cv_results[cv_results["regime"] == "realized"]
+    # Skill scores and primary summary table. 
+    # Prefer holdout_summary (global/conditional/common) if available.
+    summary = None
+    if holdout_summary is not None:
+        mask = (
+            (holdout_summary["evaluation_regime"] == "conditional") &
+            (holdout_summary["comparison_population"] == "common") &
+            (holdout_summary["aggregation"] == "global")
+        )
+        summary = holdout_summary[mask].copy()
+    
+    if summary is None or summary.empty:
+        # Fallback to cv_results (legacy or if summary not provided)
+        summary_source = cv_results
+        if "regime" in cv_results.columns:
+            # Use conditional if possible, else realized
+            if (cv_results["regime"] == "conditional").any():
+                summary_source = cv_results[cv_results["regime"] == "conditional"]
+            else:
+                summary_source = cv_results[cv_results["regime"] == "realized"]
 
-    summary = order_models(summary_source.groupby("model")[["MAE", "RMSE", "MAPE"]]
-                            .mean().round(3).reset_index())
+        summary = summary_source.groupby("model")[["MAE", "RMSE", "WAPE", "Bias", "BiasRatio"]] \
+                               .mean(numeric_only=True).round(3).reset_index()
+    
+    summary = order_models(summary)
     summary_idx = summary.set_index("model")
     naive_mae = summary_idx.loc["SeasonalNaive", "MAE"] if "SeasonalNaive" in summary_idx.index else None
     skill_by_model = {}
