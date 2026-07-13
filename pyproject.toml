@@ -23,3 +23,6 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = [".", "ml"]
+markers = [
+    "integration: slower subprocess and native-library integration tests",
+]

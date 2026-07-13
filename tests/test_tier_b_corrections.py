@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from ml.framework import Config, build_direct_panel, compute_metrics
 from ml.models.dynamic_ridge import train_dynamic_ridge, predict_dynamic_ridge
-from ml.pipeline import summarize_oof, run_tree_baselines
+from ml.pipeline import summarize_oof, run_tree_baselines, select_primary_summary
 
 def _add_required_cols(df, cfg):
     from ml.framework import STATIC_NUMERIC_FEATURES, lag_feature_names, SEASONAL_LAG_DAYS, RECENT_POINT_LAGS
@@ -188,8 +188,87 @@ def test_direct_panel_safety():
     with pytest.raises(ValueError, match="future observations"):
         build_direct_panel(train_feat, [100], cfg)
 
-@pytest.mark.skip(reason="Slow and requires actual subprocess environment")
-def test_tree_worker_full_smoke():
+@pytest.mark.integration
+def test_tree_worker_full_smoke(tmp_path):
     """12. Full tree-worker smoke test still returns XGBoost, LightGBM, and DynamicRidge."""
-    # This is partially covered by existing tests, but explicitly mentioned here.
-    pass
+    from ml.framework import prepare_features, add_train_lags, direct_panel_feature_names
+    cfg = Config()
+    
+    # Tiny data that produces at least one trainable row and one eval row
+    df = pd.DataFrame({
+        "ProductId": [1]*20,
+        "DateKey": pd.to_datetime([f"2024-01-{i:02d}" for i in range(1, 21)]),
+        "Quantity": [1.0]*20,
+        "PriceLocalVat": [100.0]*20,
+        "ProductAvailable": [True]*20,
+        "CampaignSubTypeWeb": [None]*20,
+        "CampaignSubTypeApp": [None]*20,
+        "DiscountValueWebRelative": [0.0]*20,
+        "DiscountValueAppRelative": [0.0]*20,
+        "IsSaleOrPromo": [False]*20,
+    })
+    
+    price_ref = df.groupby("ProductId")["PriceLocalVat"].median()
+    first_seen = df.groupby("ProductId")["DateKey"].min()
+    feat = prepare_features(df, price_ref, first_seen)
+    feat = add_train_lags(feat, cfg.lag_windows)
+    
+    # Origin at day 10, predict 2 days ahead
+    origin = pd.to_datetime("2024-01-10")
+    panel = build_direct_panel(feat, [1, 2], cfg)
+    
+    train_panel = panel[panel["TargetDateKey"] <= origin].copy()
+    eval_panel = panel[panel["OriginDateKey"] == origin].copy()
+    
+    # Trees need target_baseline
+    train_panel["target_baseline"] = 1.0
+    eval_panel["target_baseline"] = 1.0
+    
+    models = ("XGBoost", "LightGBM", "DynamicRidge")
+    results = run_tree_baselines(train_panel, eval_panel, cfg, models=models)
+    
+    assert set(results.keys()) == set(models)
+    for name, preds in results.items():
+        assert len(preds) == len(eval_panel)
+        assert np.all(np.isfinite(preds))
+        assert np.all(preds >= 0.0)
+        # Check that we didn't just get zeros
+        assert np.allclose(preds, 1.0, atol=0.1)
+
+
+def test_select_primary_summary_logic():
+    """13. select_primary_summary filters correctly and handles errors."""
+    df = pd.DataFrame([
+        {"model": "M1", "evaluation_regime": "conditional", "comparison_population": "common", "aggregation": "global", "MAE": 1.0},
+        {"model": "M1", "evaluation_regime": "realized", "comparison_population": "common", "aggregation": "global", "MAE": 1.1},
+        {"model": "M2", "evaluation_regime": "conditional", "comparison_population": "common", "aggregation": "global", "MAE": 2.0},
+    ])
+    
+    selected = select_primary_summary(df)
+    assert len(selected) == 2
+    assert set(selected["model"]) == {"M1", "M2"}
+    
+    # Raises when empty
+    with pytest.raises(RuntimeError, match="empty"):
+        select_primary_summary(df, evaluation_regime="nonexistent")
+        
+    # Raises when duplicates
+    df_dup = pd.concat([df, df[df["model"] == "M1"].iloc[:1]])
+    with pytest.raises(RuntimeError, match="duplicate"):
+        select_primary_summary(df_dup)
+
+
+def test_skill_calculation_with_primary_summary():
+    """14. Skill calculation completes without a pandas Series."""
+    df = pd.DataFrame([
+        {"model": "NeuralNet", "evaluation_regime": "conditional", "comparison_population": "common", "aggregation": "global", "MAE": 0.8},
+        {"model": "SeasonalNaive", "evaluation_regime": "conditional", "comparison_population": "common", "aggregation": "global", "MAE": 1.0},
+        {"model": "NeuralNet", "evaluation_regime": "realized", "comparison_population": "common", "aggregation": "global", "MAE": 0.9},
+    ])
+    
+    primary = select_primary_summary(df).set_index("model")
+    nn_mae = float(primary.loc["NeuralNet", "MAE"])
+    naive_mae = float(primary.loc["SeasonalNaive", "MAE"])
+    skill = 1.0 - nn_mae / naive_mae
+    assert isinstance(skill, float)
+    assert skill == pytest.approx(0.2)

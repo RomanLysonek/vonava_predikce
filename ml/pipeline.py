@@ -128,15 +128,23 @@ def run_tree_baselines(train_panel: pd.DataFrame, eval_panel: pd.DataFrame, cfg:
         with open(job_path, "wb") as f:
             pickle.dump(job, f)
 
-        result = subprocess.run(
-            [sys.executable, TREE_WORKER_PATH, job_path, out_path],
-            capture_output=True, text=True,
-            timeout=300,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"tree_worker subprocess failed (exit {result.returncode}):\n{result.stderr}"
+        try:
+            result = subprocess.run(
+                [sys.executable, TREE_WORKER_PATH, job_path, out_path],
+                capture_output=True, text=True,
+                timeout=180,
+                check=True,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"Tree worker timed out after 180 seconds for models {models}.\n"
+                f"Stdout: {exc.stdout}\nStderr: {exc.stderr}"
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Tree worker failed (exit {exc.returncode}) for models {models}.\n"
+                f"Stdout: {exc.stdout}\nStderr: {exc.stderr}"
+            ) from exc
         with open(out_path, "rb") as f:
             results = pickle.load(f)
     return {name: np.asarray(preds, dtype=np.float32) for name, preds in results.items()}
@@ -367,32 +375,46 @@ def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
 
 def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
     """Reshape row-level OOF predictions back into the older
-    fold/model/MAE/RMSE/MAPE(+new metrics) shape the dashboard/export code
-    already understands. Defaults to the 'Realized Sales' (all rows)
-    regime to maintain compatibility with existing dashboard charts, but
-    includes a `regime` column for future-proofing."""
+    fold/model/MAE/RMSE/WAPE/Bias/BiasRatio shape.
+    B4/Fix: Use common populations per fold/regime for fair comparison."""
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    pred_cols = [c for c in pred_columns.values() if c in oof.columns]
+
     origins_sorted = sorted(oof["origin"].unique(), reverse=True)
     fold_of_origin = {origin: i for i, origin in enumerate(origins_sorted)}
 
+    regime_masks_base = {
+        "realized": oof["actual"].notna(),
+        "conditional": (
+            oof["actual"].notna()
+            & oof["ProductAvailable"].fillna(False)
+        ),
+    }
+
     rows = []
     for origin, fold_df in oof.groupby("origin"):
-        for model_name, col in pred_columns.items():
-            if col not in fold_df.columns:
-                continue
-            valid = fold_df.dropna(subset=[col])
-            if valid.empty:
-                continue
+        for regime_name, regime_mask_all in regime_masks_base.items():
+            # Regime mask for THIS fold
+            regime_mask = regime_mask_all.loc[fold_df.index]
 
-            # Realized Sales
-            rows.append({"fold": fold_of_origin[origin], "model": model_name, "regime": "realized",
-                         **compute_metrics(valid["actual"], valid[col])})
+            # Common population: rows where ALL models have finite predictions
+            common_mask = regime_mask & fold_df[pred_cols].apply(np.isfinite).all(axis=1)
 
-            # Conditional Demand
-            available = valid[valid["ProductAvailable"].fillna(False)]
-            if not available.empty:
-                rows.append({"fold": fold_of_origin[origin], "model": model_name, "regime": "conditional",
-                             **compute_metrics(available["actual"], available[col])})
+            for model_name, col in pred_columns.items():
+                if col not in fold_df.columns:
+                    continue
+
+                scored_df = fold_df[common_mask]
+                if scored_df.empty:
+                    continue
+
+                rows.append({
+                    "fold": fold_of_origin[origin],
+                    "model": model_name,
+                    "regime": regime_name,
+                    "comparison_population": "common",
+                    **compute_metrics(scored_df["actual"], scored_df[col])
+                })
     return pd.DataFrame(rows)
 
 
@@ -514,6 +536,35 @@ def _json_safe(obj):
     return obj
 
 
+def select_primary_summary(
+    summary: pd.DataFrame,
+    *,
+    evaluation_regime: str = "conditional",
+    comparison_population: str = "common",
+    aggregation: str = "global",
+) -> pd.DataFrame:
+    """Helper to select a canonical slice of the expanded OOF summary (Tier B Fix)."""
+    selected = summary[
+        (summary["evaluation_regime"] == evaluation_regime)
+        & (summary["comparison_population"] == comparison_population)
+        & (summary["aggregation"] == aggregation)
+    ].copy()
+
+    if selected.empty:
+        raise RuntimeError(
+            f"Primary evaluation summary is empty for "
+            f"{evaluation_regime}/{comparison_population}/{aggregation}"
+        )
+
+    if selected["model"].duplicated().any():
+        raise RuntimeError(
+            f"Primary evaluation summary contains duplicate model rows for "
+            f"{evaluation_regime}/{comparison_population}/{aggregation}"
+        )
+
+    return selected
+
+
 def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submission: pd.DataFrame,
                          final_forecasts: dict, cv_results: pd.DataFrame, cfg: Config = CFG,
                          history_lookback: int = 90, path: str | None = None,
@@ -522,29 +573,23 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
     """
-    # Skill scores and primary summary table. 
+    # Skill scores and primary summary table.
     # Prefer holdout_summary (global/conditional/common) if available.
-    summary = None
     if holdout_summary is not None:
-        mask = (
-            (holdout_summary["evaluation_regime"] == "conditional") &
-            (holdout_summary["comparison_population"] == "common") &
-            (holdout_summary["aggregation"] == "global")
-        )
-        summary = holdout_summary[mask].copy()
-    
-    if summary is None or summary.empty:
+        summary = select_primary_summary(holdout_summary).copy()
+    else:
         # Fallback to cv_results (legacy or if summary not provided)
         summary_source = cv_results
         if "regime" in cv_results.columns:
             # Use conditional if possible, else realized
-            if (cv_results["regime"] == "conditional").any():
-                summary_source = cv_results[cv_results["regime"] == "conditional"]
+            mask = (cv_results["regime"] == "conditional")
+            if mask.any():
+                summary_source = cv_results[mask]
             else:
                 summary_source = cv_results[cv_results["regime"] == "realized"]
 
-        summary = summary_source.groupby("model")[["MAE", "RMSE", "WAPE", "Bias", "BiasRatio"]] \
-                               .mean(numeric_only=True).round(3).reset_index()
+        summary = (summary_source.groupby("model")[["MAE", "RMSE", "WAPE", "Bias", "BiasRatio"]]
+                   .mean(numeric_only=True).round(3).reset_index())
     
     summary = order_models(summary)
     summary_idx = summary.set_index("model")
@@ -668,11 +713,16 @@ def main() -> None:
     print("\nRecent-holdout, per fold:")
     print(order_models(cv_results.round(2)).to_string(index=False))
 
-    holdout_global = holdout_summary[holdout_summary["aggregation"] == "global"].set_index("model")
-    nn_mae = holdout_global.loc["NeuralNet", "MAE"]
-    naive_mae = holdout_global.loc["SeasonalNaive", "MAE"]
-    skill = 1 - nn_mae / naive_mae
-    print(f"\nSkill vs seasonal-naive baseline (holdout, global MAE): {skill:+.1%} (positive = model beats naive)")
+    primary_holdout = select_primary_summary(holdout_summary).set_index("model")
+    nn_mae = float(primary_holdout.loc["NeuralNet", "MAE"])
+    naive_mae = float(primary_holdout.loc["SeasonalNaive", "MAE"])
+    skill = 1.0 - nn_mae / naive_mae
+
+    print(
+        "\nSkill vs seasonal-naive baseline "
+        f"(holdout, conditional/common/global MAE): {skill:+.1%} "
+        "(positive = model beats naive)"
+    )
 
     print("\n=== Training final ensemble on all data (submission model) ===")
     t0 = time.perf_counter()
