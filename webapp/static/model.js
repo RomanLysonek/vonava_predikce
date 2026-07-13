@@ -20,17 +20,19 @@ function renderHero(model) {
   }
 }
 
-function renderKpis(data, model) {
-  const summary = data.cv_summary.find((r) => r.model === model.key && r.aggregation === "global") || {};
+function renderKpis(data, model, regime = "realized") {
+  const suffix = regime === "conditional" ? "_conditional" : "";
+  const agg = `global${suffix}`;
+  const summary = data.cv_summary.find((r) => r.model === model.key && r.aggregation === agg) || {};
   const skill = model.skill_vs_seasonal_naive;
   const cards = [
-    { label: "MAE", value: fmt(summary.MAE), sub: "avg over folds, lower is better" },
-    { label: "RMSE", value: fmt(summary.RMSE), sub: "avg over folds, lower is better" },
-    { label: "MAPE", value: `${fmt(summary.MAPE)}%`, sub: "avg over folds" },
+    { label: "MAE", value: fmt(summary.MAE), sub: "avg over folds" },
+    { label: "RMSE", value: fmt(summary.RMSE), sub: "avg over folds" },
+    { label: "Bias", value: fmt(summary.Bias), sub: "total over/under forecast" },
     {
-      label: "Skill vs. Seasonal-Naive",
-      value: skill !== null && skill !== undefined ? pct(skill) : "—",
-      sub: "MAE improvement over the lag-7 baseline",
+      label: "Skill vs. Naive",
+      value: (regime === 'realized' && skill !== null && skill !== undefined) ? pct(skill) : "—",
+      sub: "MAE improvement over lag-7",
     },
   ];
   const grid = document.getElementById("kpi-grid");
@@ -47,8 +49,8 @@ function renderKpis(data, model) {
   });
 }
 
-function renderFoldChart(data, model) {
-  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === "realized").sort((a, b) => a.fold - b.fold);
+function renderFoldChart(data, model, regime = "realized") {
+  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === regime).sort((a, b) => a.fold - b.fold);
   new Chart(document.getElementById("chart-folds"), {
     type: "bar",
     data: {
@@ -70,9 +72,9 @@ function renderFoldChart(data, model) {
   });
 }
 
-function renderFoldTable(data, model) {
+function renderFoldTable(data, model, regime = "realized") {
   const tbody = document.querySelector("#fold-table tbody");
-  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === "realized").sort((a, b) => a.fold - b.fold);
+  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === regime).sort((a, b) => a.fold - b.fold);
   tbody.innerHTML = rows
     .map(
       (row) => `
@@ -80,7 +82,8 @@ function renderFoldTable(data, model) {
         <td>${row.fold}</td>
         <td>${fmt(row.MAE)}</td>
         <td>${fmt(row.RMSE)}</td>
-        <td>${fmt(row.MAPE)}%</td>
+        <td style="color:${row.Bias >= 0 ? 'var(--bad)' : 'var(--good)'}">${fmt(row.Bias)}</td>
+        <td>${fmt(row.BiasRatio * 100, 1)}%</td>
         <td>${row.n}</td>
       </tr>`
     )
@@ -157,16 +160,24 @@ function renderNotFound(data, slug) {
 async function main() {
   try {
     const data = await loadResults();
-    renderNav(data, currentSlug());
     const model = modelByKey(data, currentSlug());
     if (!model) {
       renderNotFound(data, currentSlug());
       return;
     }
+
+    const regimeSelect = document.getElementById("regime-select");
+    const refresh = () => {
+      const r = regimeSelect.value;
+      renderKpis(data, model, r);
+      renderFoldChart(data, model, r);
+      renderFoldTable(data, model, r);
+    };
+    regimeSelect.addEventListener("change", refresh);
+
+    renderNav(data, currentSlug());
     renderHero(model);
-    renderKpis(data, model);
-    renderFoldChart(data, model);
-    renderFoldTable(data, model);
+    refresh();
     renderProductSelector(data, model);
     document.getElementById("footer-note").innerHTML =
       `Comparing against the other 4 models? See the <a href="/" style="color:${model.color}">Overview page</a>.`;

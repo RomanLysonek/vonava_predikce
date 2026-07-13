@@ -47,9 +47,17 @@
 
     <section class="panel-grid">
       <div class="panel">
-        <div class="panel-header">
-          <h2>Per-fold performance</h2>
-          <p>Walk-forward CV — each fold trains only on data before its 7-day eval window</p>
+        <div class="panel-header row">
+          <div>
+            <h2>Per-fold performance</h2>
+            <p>Walk-forward CV breakdown</p>
+          </div>
+          <div class="controls">
+            <select id="regime-select">
+              <option value="realized">Realized Sales</option>
+              <option value="conditional">Conditional Demand</option>
+            </select>
+          </div>
         </div>
         <div class="chart-wrap">
           <canvas id="chart-folds"></canvas>
@@ -64,7 +72,7 @@
         <div class="table-wrap" id="fold-table-wrap">
           <table class="data-table" id="fold-table">
             <thead>
-              <tr><th>Fold</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>n</th></tr>
+              <tr><th>Fold</th><th>MAE</th><th>RMSE</th><th>Bias</th><th>Bias%</th><th>n</th></tr>
             </thead>
             <tbody></tbody>
           </table>

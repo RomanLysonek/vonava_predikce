@@ -5,11 +5,17 @@ function modelRank(model) {
   return idx === -1 ? MODEL_ORDER.length : idx;
 }
 
-function renderKpis(data) {
+function renderKpis(data, regime = "realized") {
+  const suffix = regime === "conditional" ? "_conditional" : "";
+  const agg = `global${suffix}`;
   const summary = {};
-  data.cv_summary.filter(r => r.aggregation === "global").forEach((row) => (summary[row.model] = row));
-  const bestMae = data.cv_summary.filter(r => r.aggregation === "global").reduce((a, b) => (a.MAE <= b.MAE ? a : b));
-  const bestRmse = data.cv_summary.filter(r => r.aggregation === "global").reduce((a, b) => (a.RMSE <= b.RMSE ? a : b));
+  data.cv_summary.filter(r => r.aggregation === agg).forEach((row) => (summary[row.model] = row));
+  
+  const validSummary = data.cv_summary.filter(r => r.aggregation === agg);
+  if (validSummary.length === 0) return;
+
+  const bestMae = validSummary.reduce((a, b) => (a.MAE <= b.MAE ? a : b));
+  const bestRmse = validSummary.reduce((a, b) => (a.RMSE <= b.RMSE ? a : b));
   const nn = summary["NeuralNet"] || {};
   const nnMeta = modelByKey(data, "NeuralNet") || {};
   const skillPct = nnMeta.skill_vs_seasonal_naive;
@@ -54,16 +60,18 @@ function renderKpis(data) {
   });
 }
 
-function renderColumns(data) {
+function renderColumns(data, regime = "realized") {
   const grid = document.getElementById("columns-grid");
+  const suffix = regime === "conditional" ? "_conditional" : "";
+  const agg = `global${suffix}`;
   const summary = {};
-  data.cv_summary.filter(r => r.aggregation === "global").forEach((row) => (summary[row.model] = row));
+  data.cv_summary.filter(r => r.aggregation === agg).forEach((row) => (summary[row.model] = row));
   const kindLabel = { primary: "Submission", baseline: "Baseline", naive: "Naive" };
 
   grid.innerHTML = data.models
     .map((m) => {
       const s = summary[m.key] || {};
-      const skill = m.skill_vs_seasonal_naive;
+      const skill = m.skill_vs_seasonal_naive; // Note: skill is currently only computed for Realized in JSON
       return `
         <a class="model-column" style="--mc:${m.color}" href="/model/${m.slug}">
           <div class="model-column-header">
@@ -73,9 +81,9 @@ function renderColumns(data) {
           </div>
           <div class="model-stats">
             <div class="model-stat-row"><span>MAE</span><span>${fmt(s.MAE)}</span></div>
-            <div class="model-stat-row"><span>RMSE</span><span>${fmt(s.RMSE)}</span></div>
-            <div class="model-stat-row"><span>MAPE</span><span>${fmt(s.MAPE)}%</span></div>
-            <div class="model-stat-row"><span>vs. Seasonal-Naive</span><span>${skill !== null && skill !== undefined ? pct(skill) : "—"}</span></div>
+            <div class="model-stat-row"><span>Bias</span><span style="color:${s.Bias >= 0 ? 'var(--bad)' : 'var(--good)'}">${fmt(s.Bias)}</span></div>
+            <div class="model-stat-row"><span>BiasRatio</span><span>${fmt(s.BiasRatio, 2)}</span></div>
+            <div class="model-stat-row"><span>vs. Naive</span><span>${regime === 'realized' ? pct(skill) : '—'}</span></div>
           </div>
           <span class="model-column-cta">View details →</span>
         </a>
@@ -84,11 +92,14 @@ function renderColumns(data) {
     .join("");
 }
 
-function renderComparisonChart(data) {
-  const models = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.model);
+function renderComparisonChart(data, regime = "realized") {
+  const suffix = regime === "conditional" ? "_conditional" : "";
+  const agg = `global${suffix}`;
+  const rows = data.cv_summary.filter(r => r.aggregation === agg);
+  const models = rows.map((r) => r.model);
   const colors = models.map((m) => (modelByKey(data, m) || {}).color || "#0a0a0a");
-  const mae = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.MAE);
-  const rmse = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.RMSE);
+  const mae = rows.map((r) => r.MAE);
+  const rmse = rows.map((r) => r.RMSE);
 
   new Chart(document.getElementById("chart-comparison"), {
     type: "bar",
@@ -111,11 +122,11 @@ function renderComparisonChart(data) {
   });
 }
 
-function renderCvTable(data) {
+function renderCvTable(data, regime = "realized") {
   const tbody = document.querySelector("#cv-table tbody");
   tbody.innerHTML = "";
   data.cv_results
-    .filter((r) => r.regime === "realized")
+    .filter((r) => r.regime === regime)
     .slice()
     .sort((a, b) => a.fold - b.fold || modelRank(a.model) - modelRank(b.model))
     .forEach((row) => {
@@ -126,7 +137,8 @@ function renderCvTable(data) {
         <td class="model-cell" style="color:${color}">${row.model}</td>
         <td>${fmt(row.MAE)}</td>
         <td>${fmt(row.RMSE)}</td>
-        <td>${fmt(row.MAPE)}%</td>
+        <td style="color:${row.Bias >= 0 ? 'var(--bad)' : 'var(--good)'}">${fmt(row.Bias)}</td>
+        <td>${fmt(row.BiasRatio * 100, 1)}%</td>
       `;
       tbody.appendChild(tr);
     });
@@ -218,11 +230,19 @@ function renderSubmissionTable(data) {
 async function main() {
   try {
     const data = await loadResults();
+    
+    const regimeSelect = document.getElementById("regime-select");
+    const refresh = () => {
+      const r = regimeSelect.value;
+      renderKpis(data, r);
+      renderColumns(data, r);
+      renderComparisonChart(data, r);
+      renderCvTable(data, r);
+    };
+    regimeSelect.addEventListener("change", refresh);
+
     renderNav(data, "");
-    renderKpis(data);
-    renderColumns(data);
-    renderComparisonChart(data);
-    renderCvTable(data);
+    refresh();
     renderProductSelector(data);
     renderSubmissionTable(data);
   } catch (err) {

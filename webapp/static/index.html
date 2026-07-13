@@ -39,9 +39,18 @@
     </section>
 
     <section class="panel">
-      <div class="panel-header">
-        <h2>Model comparison</h2>
-        <p>Walk-forward CV averages &middot; colors match each project's own branding &middot; click a card for the full breakdown</p>
+      <div class="panel-header row">
+        <div>
+          <h2>Model comparison</h2>
+          <p>Walk-forward CV averages &middot; colors match branding</p>
+        </div>
+        <div class="controls">
+          <label for="regime-select">Evaluation Regime:</label>
+          <select id="regime-select">
+            <option value="realized">Realized Sales (all days)</option>
+            <option value="conditional">Conditional Demand (available days)</option>
+          </select>
+        </div>
       </div>
       <div class="columns-grid" id="columns-grid"></div>
     </section>
@@ -65,7 +74,7 @@
         <div class="table-wrap" id="cv-table-wrap">
           <table class="data-table" id="cv-table">
             <thead>
-              <tr><th>Fold</th><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th></tr>
+              <tr><th>Fold</th><th>Model</th><th>MAE</th><th>RMSE</th><th>Bias</th><th>Bias%</th></tr>
             </thead>
             <tbody></tbody>
           </table>
