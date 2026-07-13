@@ -434,7 +434,7 @@ def direct_panel_tree_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame
 # ---------------------------------------------------------------------------
 # Model registry/metadata & metrics
 # ---------------------------------------------------------------------------
-MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "SeasonalNaive", "MovingAvg28"]
+MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "DynamicRidge", "SeasonalNaive", "MovingAvg28"]
 
 # Colors match each model's own project branding, so the dashboard visually
 # echoes the tool it's describing: PyTorch's site/logo orange for the NN
@@ -469,6 +469,14 @@ MODEL_META = {
         "source_url": "https://lightgbm.readthedocs.io/en/stable/",
         "blurb": ("Gradient-boosted trees with leaf-wise growth (Microsoft). Same role as "
                   "XGBoost: a standard-approach baseline, not the submission."),
+    },
+    "DynamicRidge": {
+        "label": "Dynamic Ridge",
+        "short": "sklearn-ridge",
+        "color": "#10B981",
+        "kind": "baseline",
+        "source_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html",
+        "blurb": "Linear model with L2 regularization, trained on the stacked panel. Represents a 'structured statistical' baseline.",
     },
     "SeasonalNaive": {
         "label": "Seasonal Naive",

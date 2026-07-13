@@ -24,11 +24,20 @@ import pickle
 import sys
 
 from framework import Config
+from models.dynamic_ridge import predict_dynamic_ridge, train_dynamic_ridge
 from models.lightgbm_model import predict_lightgbm, train_lightgbm
 from models.xgboost_model import predict_xgboost, train_xgboost
 
-TRAINERS = {"XGBoost": train_xgboost, "LightGBM": train_lightgbm}
-PREDICTORS = {"XGBoost": predict_xgboost, "LightGBM": predict_lightgbm}
+TRAINERS = {
+    "XGBoost": train_xgboost,
+    "LightGBM": train_lightgbm,
+    "DynamicRidge": train_dynamic_ridge,
+}
+PREDICTORS = {
+    "XGBoost": predict_xgboost,
+    "LightGBM": predict_lightgbm,
+    "DynamicRidge": predict_dynamic_ridge,
+}
 
 
 def run_job(job: dict) -> dict:

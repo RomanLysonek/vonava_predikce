@@ -107,7 +107,7 @@ def recent_holdout_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.Datet
 # XGBoost / LightGBM baselines, run out-of-process (see tree_worker.py)
 # ---------------------------------------------------------------------------
 def run_tree_baselines(train_panel: pd.DataFrame, eval_panel: pd.DataFrame, cfg: Config = CFG,
-                        models: tuple = ("XGBoost", "LightGBM")) -> dict:
+                        models: tuple = ("XGBoost", "LightGBM", "DynamicRidge")) -> dict:
     """Train + predict XGBoost/LightGBM directly on the multi-horizon panel
     (see `framework.build_direct_panel`) in a fresh subprocess (never
     imports torch), and return {model_name: predictions}, aligned with
@@ -255,6 +255,7 @@ def run_walk_forward_cv(hist_df: pd.DataFrame, origins, origin_type: str,
         fold_oof["pred_NeuralNet"] = ensemble_preds
         fold_oof["pred_XGBoost"] = tree_preds["XGBoost"]
         fold_oof["pred_LightGBM"] = tree_preds["LightGBM"]
+        fold_oof["pred_DynamicRidge"] = tree_preds["DynamicRidge"]
         for seed in cfg.seeds:
             fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left")
@@ -278,6 +279,7 @@ OOF_MODEL_COLUMNS = {
     "NeuralNet": "pred_NeuralNet",
     "XGBoost": "pred_XGBoost",
     "LightGBM": "pred_LightGBM",
+    "DynamicRidge": "pred_DynamicRidge",
     "SeasonalNaive": "pred_SeasonalNaive",
     "MovingAvg28": "pred_MovingAvg28",
 }
@@ -288,8 +290,10 @@ def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
     interchangeable: "mean_fold" (macro) averages each origin's own metric
     equally regardless of how many rows it contributed; "global" (micro)
     pools every row across all origins first, then computes the metric
-    once. Rows with a NaN prediction for a given model (e.g. a fold where
-    that model wasn't run) are dropped for that model only.
+    once.
+
+    B4: Each is reported for both "Realized Sales" (all days) and
+    "Conditional Demand" (only days where the product was available).
     """
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
     rows = []
@@ -300,21 +304,34 @@ def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
         if valid.empty:
             continue
 
-        fold_metrics = [compute_metrics(g["actual"], g[col]) for _, g in valid.groupby("origin")]
-        mean_fold = pd.DataFrame(fold_metrics).mean(numeric_only=True).to_dict()
-        rows.append({"model": model_name, "aggregation": "mean_fold", "n_folds": len(fold_metrics), **mean_fold})
+        def add_regime(df, suffix):
+            if df.empty:
+                return
+            fold_metrics = [compute_metrics(g["actual"], g[col]) for _, g in df.groupby("origin")]
+            mean_fold = pd.DataFrame(fold_metrics).mean(numeric_only=True).to_dict()
+            rows.append({"model": model_name, "aggregation": f"mean_fold{suffix}", "n_folds": len(fold_metrics), **mean_fold})
 
-        global_metrics = compute_metrics(valid["actual"], valid[col])
-        rows.append({"model": model_name, "aggregation": "global", "n_folds": len(fold_metrics), **global_metrics})
+            global_metrics = compute_metrics(df["actual"], df[col])
+            rows.append({"model": model_name, "aggregation": f"global{suffix}", "n_folds": len(fold_metrics), **global_metrics})
+
+        # Realized Sales regime (all rows)
+        add_regime(valid, "")
+
+        # Conditional Demand regime (available days only)
+        available = valid[valid["ProductAvailable"].fillna(False)]
+        add_regime(available, "_conditional")
+
     return pd.DataFrame(rows)
 
 
 def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
     """Reshape row-level OOF predictions back into the older
     fold/model/MAE/RMSE/MAPE(+new metrics) shape the dashboard/export code
-    already understands, for a given (single origin_type) OOF slice."""
+    already understands. Defaults to the 'Realized Sales' (all rows)
+    regime to maintain compatibility with existing dashboard charts, but
+    includes a `regime` column for future-proofing."""
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
-    origins_sorted = sorted(oof["origin"].unique(), reverse=True)  # most recent = fold 0, matching the old numbering
+    origins_sorted = sorted(oof["origin"].unique(), reverse=True)
     fold_of_origin = {origin: i for i, origin in enumerate(origins_sorted)}
 
     rows = []
@@ -325,8 +342,16 @@ def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd
             valid = fold_df.dropna(subset=[col])
             if valid.empty:
                 continue
-            rows.append({"fold": fold_of_origin[origin], "model": model_name,
+
+            # Realized Sales
+            rows.append({"fold": fold_of_origin[origin], "model": model_name, "regime": "realized",
                          **compute_metrics(valid["actual"], valid[col])})
+
+            # Conditional Demand
+            available = valid[valid["ProductAvailable"].fillna(False)]
+            if not available.empty:
+                rows.append({"fold": fold_of_origin[origin], "model": model_name, "regime": "conditional",
+                             **compute_metrics(available["actual"], available[col])})
     return pd.DataFrame(rows)
 
 
@@ -452,14 +477,15 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          final_forecasts: dict, cv_results: pd.DataFrame, cfg: Config = CFG,
                          history_lookback: int = 90, path: str | None = None,
                          dev_summary: pd.DataFrame = None, holdout_summary: pd.DataFrame = None) -> dict:
-    """Bundle everything the presentation webapp needs into one JSON file:
-    per-fold CV metrics + averages, per-model skill scores, model metadata
-    (label/brand color/blurb, for the per-model pages), the full submission
-    grid, and shared history + per-model 7-day forecasts for interactive
-    charts (one history series per product, one forecast series per
-    product per model).
+    """Bundle everything the presentation webapp needs into one JSON file.
+    Uses the 'Realized Sales' (all rows) regime for the primary summary
+    table and skill scores.
     """
-    summary = order_models(cv_results.groupby("model")[["MAE", "RMSE", "MAPE"]]
+    summary_source = cv_results
+    if "regime" in cv_results.columns:
+        summary_source = cv_results[cv_results["regime"] == "realized"]
+
+    summary = order_models(summary_source.groupby("model")[["MAE", "RMSE", "MAPE"]]
                             .mean().round(3).reset_index())
     summary_idx = summary.set_index("model")
     naive_mae = summary_idx.loc["SeasonalNaive", "MAE"] if "SeasonalNaive" in summary_idx.index else None
@@ -607,6 +633,7 @@ def main() -> None:
         "NeuralNet": nn_preds,
         "XGBoost": tree_final["XGBoost"],
         "LightGBM": tree_final["LightGBM"],
+        "DynamicRidge": tree_final["DynamicRidge"],
         "SeasonalNaive": naive_final["SeasonalNaive"],
         "MovingAvg28": naive_final["MovingAvg28"],
     }

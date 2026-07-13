@@ -459,7 +459,7 @@ def test_tree_worker_subprocess_smoke(tmp_path):
         "cfg": asdict(cfg),
         "train_panel": train_panel,
         "eval_panel": eval_panel,
-        "models": ["XGBoost", "LightGBM"],
+        "models": ["XGBoost", "LightGBM", "DynamicRidge"],
     }
     job_path = tmp_path / "job.pkl"
     out_path = tmp_path / "out.pkl"
@@ -475,7 +475,7 @@ def test_tree_worker_subprocess_smoke(tmp_path):
     with open(out_path, "rb") as f:
         results = pickle.load(f)
 
-    assert set(results) == {"XGBoost", "LightGBM"}
+    assert set(results) == {"XGBoost", "LightGBM", "DynamicRidge"}
     for preds in results.values():
         preds = np.asarray(preds)
         assert len(preds) == len(eval_panel)
@@ -615,6 +615,32 @@ def test_build_direct_panel_target_baseline_matches_compute_baseline():
     })
     expected = compute_baseline(target_rows, raw)
     assert np.allclose(valid["target_baseline"].to_numpy(dtype=float), expected, equal_nan=True)
+
+
+def test_dynamic_ridge_train_predict():
+    from models.dynamic_ridge import train_dynamic_ridge, predict_dynamic_ridge
+    
+    cfg = Config(lag_windows=(3, 7))
+    raw = _make_synthetic_raw(n_days=60)
+    price_ref = raw.groupby("ProductId")["PriceLocalVat"].median()
+    first_seen = raw.groupby("ProductId")["DateKey"].min()
+    
+    feat = prepare_features(raw, price_ref, first_seen)
+    feat = add_train_lags(feat, cfg.lag_windows)
+    
+    horizons = range(1, cfg.horizon + 1)
+    panel = build_direct_panel(feat, horizons, cfg=cfg)
+    
+    # Train only on rows that have a target
+    train_panel = panel.dropna(subset=["target"]).head(100)
+    
+    model = train_dynamic_ridge(train_panel, cfg)
+    preds = predict_dynamic_ridge(model, train_panel, cfg)
+    
+    assert len(preds) == len(train_panel)
+    assert np.all(preds >= 0)
+    assert np.all(preds <= 500)
+    assert not np.isnan(preds).any()
 
 
 def test_json_safe_replaces_nan_and_inf_but_keeps_other_values():

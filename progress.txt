@@ -134,9 +134,15 @@ STATUS
         derived from train_raw's own max date, which has advanced since that
         run (the dataset keeps growing), so the two runs score different
         calendar weeks, not the same held-out fold.
-[ ] B3 Dynamic Ridge as 3rd model tier (Naive / Structured statistical /
-        Global nonlinear), not auto-blended
-[ ] B4 report conditional-demand vs realized-sales eval regimes where they differ
+[x] B3 Dynamic Ridge as 3rd model tier (Naive / Structured statistical /
+        Global nonlinear), not auto-blended -- ml/models/dynamic_ridge.py
+        using sklearn.Ridge + StandardScaler + OneHotEncoder on the stacked
+        panel; safety cap at 500 (Tier B3 item 32) implemented; integrated
+        into tree_worker.py and pipeline.py.
+[x] B4 report conditional-demand vs realized-sales eval regimes where they differ
+        -- summarize_oof and oof_to_legacy_cv_results now report both;
+        Conditional Demand = available days only, Realized Sales = all days.
+        export_results_json defaults to Realized for backward compatibility.
 
 [ ] C1 recency weighting ablation grid (window x half-life)
 [ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)

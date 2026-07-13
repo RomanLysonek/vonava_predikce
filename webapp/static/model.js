@@ -21,7 +21,7 @@ function renderHero(model) {
 }
 
 function renderKpis(data, model) {
-  const summary = data.cv_summary.find((r) => r.model === model.key) || {};
+  const summary = data.cv_summary.find((r) => r.model === model.key && r.aggregation === "global") || {};
   const skill = model.skill_vs_seasonal_naive;
   const cards = [
     { label: "MAE", value: fmt(summary.MAE), sub: "avg over folds, lower is better" },
@@ -48,7 +48,7 @@ function renderKpis(data, model) {
 }
 
 function renderFoldChart(data, model) {
-  const rows = data.cv_results.filter((r) => r.model === model.key).sort((a, b) => a.fold - b.fold);
+  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === "realized").sort((a, b) => a.fold - b.fold);
   new Chart(document.getElementById("chart-folds"), {
     type: "bar",
     data: {
@@ -72,7 +72,7 @@ function renderFoldChart(data, model) {
 
 function renderFoldTable(data, model) {
   const tbody = document.querySelector("#fold-table tbody");
-  const rows = data.cv_results.filter((r) => r.model === model.key).sort((a, b) => a.fold - b.fold);
+  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === "realized").sort((a, b) => a.fold - b.fold);
   tbody.innerHTML = rows
     .map(
       (row) => `

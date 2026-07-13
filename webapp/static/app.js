@@ -1,4 +1,4 @@
-const MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "SeasonalNaive", "MovingAvg28"];
+const MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "DynamicRidge", "SeasonalNaive", "MovingAvg28"];
 
 function modelRank(model) {
   const idx = MODEL_ORDER.indexOf(model);
@@ -7,9 +7,9 @@ function modelRank(model) {
 
 function renderKpis(data) {
   const summary = {};
-  data.cv_summary.forEach((row) => (summary[row.model] = row));
-  const bestMae = data.cv_summary.reduce((a, b) => (a.MAE <= b.MAE ? a : b));
-  const bestRmse = data.cv_summary.reduce((a, b) => (a.RMSE <= b.RMSE ? a : b));
+  data.cv_summary.filter(r => r.aggregation === "global").forEach((row) => (summary[row.model] = row));
+  const bestMae = data.cv_summary.filter(r => r.aggregation === "global").reduce((a, b) => (a.MAE <= b.MAE ? a : b));
+  const bestRmse = data.cv_summary.filter(r => r.aggregation === "global").reduce((a, b) => (a.RMSE <= b.RMSE ? a : b));
   const nn = summary["NeuralNet"] || {};
   const nnMeta = modelByKey(data, "NeuralNet") || {};
   const skillPct = nnMeta.skill_vs_seasonal_naive;
@@ -57,7 +57,7 @@ function renderKpis(data) {
 function renderColumns(data) {
   const grid = document.getElementById("columns-grid");
   const summary = {};
-  data.cv_summary.forEach((row) => (summary[row.model] = row));
+  data.cv_summary.filter(r => r.aggregation === "global").forEach((row) => (summary[row.model] = row));
   const kindLabel = { primary: "Submission", baseline: "Baseline", naive: "Naive" };
 
   grid.innerHTML = data.models
@@ -85,10 +85,10 @@ function renderColumns(data) {
 }
 
 function renderComparisonChart(data) {
-  const models = data.cv_summary.map((r) => r.model);
+  const models = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.model);
   const colors = models.map((m) => (modelByKey(data, m) || {}).color || "#0a0a0a");
-  const mae = data.cv_summary.map((r) => r.MAE);
-  const rmse = data.cv_summary.map((r) => r.RMSE);
+  const mae = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.MAE);
+  const rmse = data.cv_summary.filter(r => r.aggregation === "global").map((r) => r.RMSE);
 
   new Chart(document.getElementById("chart-comparison"), {
     type: "bar",
@@ -115,6 +115,7 @@ function renderCvTable(data) {
   const tbody = document.querySelector("#cv-table tbody");
   tbody.innerHTML = "";
   data.cv_results
+    .filter((r) => r.regime === "realized")
     .slice()
     .sort((a, b) => a.fold - b.fold || modelRank(a.model) - modelRank(b.model))
     .forEach((row) => {

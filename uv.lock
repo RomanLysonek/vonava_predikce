@@ -684,7 +684,7 @@ wheels = [
 ]
 
 [[package]]
-name = "newshit"
+name = "vonava_predikce"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

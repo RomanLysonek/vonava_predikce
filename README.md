@@ -43,11 +43,11 @@ brief itself frames them as the standard comparison point.
   a final check. Each fold trains only on data strictly before its
   evaluation block, so the reported metrics mirror the real deployment
   scenario (no early-stopping on the eval fold, no leakage).
-- **Baselines**: XGBoost and LightGBM (native categorical support, same
-  feature set, log1p target, same direct multi-horizon panel -- an
-  apples-to-apples comparison) plus two naive baselines: seasonal-naive
-  (value from 7 days prior) and a 28-day moving average. All are evaluated
-  on the same folds.
+- **Baselines**: XGBoost, LightGBM, and Dynamic Ridge (native categorical support or
+  one-hot encoding, same feature set, log1p target, same direct multi-horizon
+  panel -- an apples-to-apples comparison) plus two naive baselines:
+  seasonal-naive (value from 7 days prior) and a 28-day moving average. All
+  are evaluated on the same folds.
 - **Final submission**: an ensemble of 3 NN seeds trained on all available
   history (XGBoost/LightGBM are comparison baselines only, not the
   submission, per the task brief).
@@ -89,10 +89,12 @@ ml/
                           actual submission
     xgboost_model.py        XGBoost: train/predict directly on the panel
     lightgbm_model.py        LightGBM: train/predict directly on the panel
+    dynamic_ridge.py        Dynamic Ridge: sklearn linear baseline with scaling/imputation
     naive_baselines.py        seasonal-naive + 28-day moving average
-  tree_worker.py         thin dispatcher subprocess over xgboost_model.py/
-                          lightgbm_model.py (never imports torch); job
-                          protocol is just {train_panel, eval_panel}
+  tree_worker.py         thin dispatcher subprocess over xgboost_model.py,
+                          lightgbm_model.py, and dynamic_ridge.py (never
+                          imports torch); job protocol is just
+                          {train_panel, eval_panel}
   pipeline.py            CV/training/export orchestrator: walk-forward CV
                           (incl. the tree baselines via tree_worker.py), final
                           ensemble training, direct multi-horizon forecasting,
