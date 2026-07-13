@@ -1,0 +1,261 @@
+{
+  "cv_folds": [
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2022-02-01",
+      "nn_seconds": 6.98,
+      "tree_seconds": 7.23,
+      "fold_seconds": 14.55
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2022-06-15",
+      "nn_seconds": 25.8,
+      "tree_seconds": 5.07,
+      "fold_seconds": 31.31
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2022-11-20",
+      "nn_seconds": 54.71,
+      "tree_seconds": 5.41,
+      "fold_seconds": 60.65
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2023-01-10",
+      "nn_seconds": 62.59,
+      "tree_seconds": 5.42,
+      "fold_seconds": 68.58
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2023-07-01",
+      "nn_seconds": 92.15,
+      "tree_seconds": 5.92,
+      "fold_seconds": 98.77
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2023-11-24",
+      "nn_seconds": 124.95,
+      "tree_seconds": 6.12,
+      "fold_seconds": 131.93
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2023-12-18",
+      "nn_seconds": 129.13,
+      "tree_seconds": 6.03,
+      "fold_seconds": 136.02
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2024-02-14",
+      "nn_seconds": 141.49,
+      "tree_seconds": 6.94,
+      "fold_seconds": 149.28
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2024-06-20",
+      "nn_seconds": 171.02,
+      "tree_seconds": 7.16,
+      "fold_seconds": 179.17
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2024-11-29",
+      "nn_seconds": 205.26,
+      "tree_seconds": 6.93,
+      "fold_seconds": 213.25
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2024-12-20",
+      "nn_seconds": 294.98,
+      "tree_seconds": 10.57,
+      "fold_seconds": 306.64
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "development",
+      "origin": "2025-02-10",
+      "nn_seconds": 335.27,
+      "tree_seconds": 9.95,
+      "fold_seconds": 347.0
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "recent_benchmark",
+      "origin": "2026-01-04",
+      "nn_seconds": 452.59,
+      "tree_seconds": 11.19,
+      "fold_seconds": 465.95
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-28",
+      "nn_seconds": 448.42,
+      "tree_seconds": 11.67,
+      "fold_seconds": 462.26
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-21",
+      "nn_seconds": 440.0,
+      "tree_seconds": 10.79,
+      "fold_seconds": 452.94
+    },
+    {
+      "strategy": "direct",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-14",
+      "nn_seconds": 440.19,
+      "tree_seconds": 11.43,
+      "fold_seconds": 453.73
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2022-02-01",
+      "nn_seconds": 13.05,
+      "tree_seconds": 15.23,
+      "fold_seconds": 28.73
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2022-06-15",
+      "nn_seconds": 20.54,
+      "tree_seconds": 17.32,
+      "fold_seconds": 38.42
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2022-11-20",
+      "nn_seconds": 29.83,
+      "tree_seconds": 20.39,
+      "fold_seconds": 50.93
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2023-01-10",
+      "nn_seconds": 33.34,
+      "tree_seconds": 20.91,
+      "fold_seconds": 54.98
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2023-07-01",
+      "nn_seconds": 44.43,
+      "tree_seconds": 24.92,
+      "fold_seconds": 70.23
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2023-11-24",
+      "nn_seconds": 54.83,
+      "tree_seconds": 27.36,
+      "fold_seconds": 83.22
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2023-12-18",
+      "nn_seconds": 56.24,
+      "tree_seconds": 27.84,
+      "fold_seconds": 85.16
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2024-02-14",
+      "nn_seconds": 58.91,
+      "tree_seconds": 28.87,
+      "fold_seconds": 88.85
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2024-06-20",
+      "nn_seconds": 69.38,
+      "tree_seconds": 31.41,
+      "fold_seconds": 101.97
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2024-11-29",
+      "nn_seconds": 81.06,
+      "tree_seconds": 35.11,
+      "fold_seconds": 117.55
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2024-12-20",
+      "nn_seconds": 83.55,
+      "tree_seconds": 35.2,
+      "fold_seconds": 120.16
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "development",
+      "origin": "2025-02-10",
+      "nn_seconds": 87.0,
+      "tree_seconds": 36.21,
+      "fold_seconds": 124.67
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "recent_benchmark",
+      "origin": "2026-01-04",
+      "nn_seconds": 111.44,
+      "tree_seconds": 41.93,
+      "fold_seconds": 155.07
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-28",
+      "nn_seconds": 110.36,
+      "tree_seconds": 42.0,
+      "fold_seconds": 154.09
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-21",
+      "nn_seconds": 109.08,
+      "tree_seconds": 42.52,
+      "fold_seconds": 153.32
+    },
+    {
+      "strategy": "recursive",
+      "origin_type": "recent_benchmark",
+      "origin": "2025-12-14",
+      "nn_seconds": 110.04,
+      "tree_seconds": 41.97,
+      "fold_seconds": 153.7
+    }
+  ],
+  "total_seconds": 6111.97
+}
