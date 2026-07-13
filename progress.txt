@@ -142,7 +142,7 @@ STATUS
 [x] B4 report conditional-demand vs realized-sales eval regimes where they differ
         -- summarize_oof and oof_to_legacy_cv_results now report both;
         Conditional Demand = available days only, Realized Sales = all days.
-        export_results_json defaults to Realized for backward compatibility.
+        Dashboard updated with a regime toggle and Bias/BiasRatio metrics.
 
 [ ] C1 recency weighting ablation grid (window x half-life)
 [ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)
