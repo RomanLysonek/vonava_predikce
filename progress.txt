@@ -151,28 +151,40 @@ STATUS
 [ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)
 [ ] C3 prediction-cap ablation (measure affected count, capped vs uncapped OOF)
 [ ] C4 OOF-fitted ensemble weight search (dev-fit, holdout-checked once)
-[ ] C5 dashboard: horizon curves, per-product error/bias, top-decile days,
-        ablation showcase section
+[ ] C5 dashboard depth: strategy selector and horizon curves are complete;
+        per-product error/bias, top-decile days, and the ablation showcase
+        remain for Tier C
 [ ] C6 stretch: dual web/app heads + effective price, holiday distance
         features, static results.json for GitHub Pages portability
 
 Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;
-post-Tier-B1 the recursive engine is gone, replaced by the direct panel builder):
-  ml/framework.py          - reindex, availability-aware features, baseline fn, metrics,
-                             build_direct_panel()/direct_panel_feature_names()/
-                             direct_panel_tree_frame() (Tier B1), model registry/metadata
-  ml/models/neural_net.py  - NN model (QuantityNet w/ horizon embedding, train_model,
-                             predict_direct)
-  ml/models/xgboost_model.py, lightgbm_model.py - tree models, train/predict directly
-                             on build_direct_panel()'s output (horizon = plain feature)
+post strategy work both direct and recursive engines are supported):
+  ml/framework.py          - reindex, availability-aware features, baselines, metrics,
+                             direct/one-step panels and recursive state transition
+  ml/models/neural_net.py  - NN model, training and direct/recursive prediction
+  ml/models/xgboost_model.py, lightgbm_model.py - structured model wrappers used
+                             by both strategy-specific worker flows
   ml/models/naive_baselines.py - seasonal-naive + moving-average
   ml/models/dynamic_ridge.py   - linear regression baseline w/ one-hot encoding,
                              trained on baseline-relative log residual (repaired)
-  ml/pipeline.py           - CV loop (3-seed, dev/holdout split, OOF export) + final
-                             forecasts, all panel-based (no recursion); NN residual
-                             target (Tier B2) done; common-population evaluation
-                             logic (B4 repair)
+  ml/pipeline.py           - direct/recursive/both CV, development-only selection,
+                             common-population evaluation and artifact export
   ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py,
                              lightgbm_model.py, and dynamic_ridge.py
   tests/test_pipeline.py   - update + extend
-  webapp/static/*          - Tier A5 metric surfacing, Tier C5 dashboard depth
+  webapp/static/*          - strategy-aware metrics, forecasts, paired comparison
+                             and horizon curves; remaining Tier C5 depth deferred
+
+[x] Direct/recursive/both strategy architecture implemented:
+    - explicit CLI/runtime strategy types
+    - common end-of-origin feature cutoff with qty_lag_0 and inclusive rolling state
+    - genuine one-step recursive training panel and recursive feedback engine
+    - recursive NeuralNet three-seed ensemble
+    - recursive XGBoost, LightGBM, and Dynamic Ridge in isolated worker
+    - strategy-aware B4 summaries and paired direct-vs-recursive diagnostics
+    - development-only strategy selection
+    - strategy-specific submissions and final_forecasts.parquet
+    - artifact-driven export_results.py
+    - direct/recursive leakage and alignment tests
+    - synchronized webapp strategy selector, paired comparison, horizon curves,
+      and strategy-aware model/product pages

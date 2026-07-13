@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="page-title">Model — Notino Quantity Forecast</title>
-  <link rel="stylesheet" href="/static/styles.css?v=7" />
+  <link rel="stylesheet" href="/static/styles.css?v=8" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -12,7 +12,7 @@
 
   <div class="promo-bar">
     <span>30 Product Time Series</span>
-    <span>7-Day Direct Multi-Horizon Forecast</span>
+    <span id="promo-strategy">7-Day Forecast</span>
     <span>6 Models Compared</span>
     <span>Walk-Forward Validated</span>
   </div>
@@ -38,6 +38,26 @@
   </header>
 
   <main id="app">
+    <section class="selection-strip">
+      <div>
+        <span class="selection-label">View</span>
+        <strong id="canonical-selection-text">Canonical submission</strong>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="strategy-select">Forecast strategy</label>
+          <select id="strategy-select"></select>
+        </div>
+        <div class="control-group">
+          <label for="regime-select">Evaluation regime</label>
+          <select id="regime-select">
+            <option value="conditional">Conditional Demand</option>
+            <option value="realized">Realized Sales</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <section class="kpi-grid" id="kpi-grid">
       <div class="kpi-card skeleton"></div>
       <div class="kpi-card skeleton"></div>
@@ -47,17 +67,9 @@
 
     <section class="panel-grid">
       <div class="panel">
-        <div class="panel-header row">
-          <div>
-            <h2>Per-fold performance</h2>
-            <p>Walk-forward CV breakdown</p>
-          </div>
-          <div class="controls">
-            <select id="regime-select">
-              <option value="realized">Realized Sales</option>
-              <option value="conditional">Conditional Demand</option>
-            </select>
-          </div>
+        <div class="panel-header">
+          <h2>Per-fold performance</h2>
+          <p>Walk-forward benchmark · <span id="model-strategy-note">selected strategy</span></p>
         </div>
         <div class="chart-wrap">
           <canvas id="chart-folds"></canvas>
@@ -67,7 +79,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>Fold table</h2>
-          <p>Exact per-fold metrics for this model</p>
+          <p>Exact common-population metrics for this model</p>
         </div>
         <div class="table-wrap" id="fold-table-wrap">
           <table class="data-table" id="fold-table">
@@ -84,7 +96,7 @@
       <div class="panel-header row">
         <div>
           <h2>Product explorer</h2>
-          <p>History (last 90 days) vs. this model's 7-day forecast</p>
+          <p>History vs. this model's selected-strategy seven-day forecast</p>
         </div>
         <select id="product-select"></select>
       </div>
@@ -98,7 +110,7 @@
     <p id="footer-note"></p>
   </footer>
 
-  <script src="/static/common.js?v=7"></script>
-  <script src="/static/model.js?v=7"></script>
+  <script src="/static/common.js?v=8"></script>
+  <script src="/static/model.js?v=8"></script>
 </body>
 </html>

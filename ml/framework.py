@@ -256,7 +256,7 @@ def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.Dat
 # horizon's inputs are always a lookup into already-observed data, never a
 # value that would first need to be predicted.
 # ---------------------------------------------------------------------------
-RECENT_POINT_LAGS = (1, 2, 6, 7)
+RECENT_POINT_LAGS = (0, 1, 2, 6, 7)
 # BASELINE_LAGS first, so `target_baseline` below can always read
 # seasonal_lag_{7,14,21,28} straight off the columns this computes for
 # every horizon -- weekly-seasonal lags plus 3 yearly-seasonal lags.
@@ -291,40 +291,59 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
             + ["target_baseline", "horizon"])
 
 
+def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
+    """Build features known at the end of each origin day.
+
+    Unlike target-row lag features, these include the origin day's observed
+    available demand itself (`qty_lag_0`) and rolling windows ending at the
+    origin. This gives direct and recursive forecasting the same information
+    cutoff: all observations through and including ForecastOrigin are usable.
+    """
+    df = feature_df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True).copy()
+    if "qty_available" not in df.columns:
+        available = df["ProductAvailable"].fillna(False)
+        df["qty_available"] = df["Quantity"].where(available)
+    g = df.groupby("ProductId")["qty_available"]
+    out = df[["ProductId", "DateKey"]].copy()
+    for lag in RECENT_POINT_LAGS:
+        out[f"qty_lag_{lag}"] = g.shift(lag)
+    row_num = df.groupby("ProductId").cumcount() + 1
+    for w in cfg.lag_windows:
+        out[f"qty_roll_mean_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).mean())
+        out[f"qty_roll_std_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).std().fillna(0))
+        out[f"qty_roll_median_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).median())
+        count = g.transform(lambda x: x.rolling(w, min_periods=1).count())
+        out[f"qty_available_count_{w}"] = count
+        window_days = np.minimum(row_num, w).clip(lower=1)
+        out[f"stockout_rate_{w}"] = 1.0 - count / window_days
+    return out
+
+
 def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
                         future_covariates: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Stack (ForecastOrigin x Horizon x ProductId) into one direct-
-    prediction panel.
+    """Stack (ForecastOrigin x Horizon x ProductId) into a direct panel.
+
+    Origin-state features use observations through the origin itself. Target
+    covariates and seasonal lags are aligned to each target date. The horizon
+    guard guarantees every target-relative seasonal lookup remains at or
+    before the origin.
     """
     horizons = tuple(int(h) for h in horizons)
-
     if not horizons:
         raise ValueError("At least one forecast horizon is required")
-
     if min(horizons) < 1:
         raise ValueError("Forecast horizons must be positive")
-
     if max(horizons) > min(SEASONAL_LAG_DAYS):
-        raise ValueError(
-            "Target-relative seasonal lags would require future observations"
-        )
-
+        raise ValueError("Target-relative seasonal lags would require future observations")
     if max(horizons) > cfg.horizon:
-        raise ValueError(
-            "Requested horizon exceeds Config.horizon and the NN horizon embedding domain"
-        )
-    
-    for name, frame in [
-        ("train_feat", train_feat),
-        ("future_covariates", future_covariates),
-    ]:
+        raise ValueError("Requested horizon exceeds Config.horizon and the NN horizon embedding domain")
+    for name, frame in (("train_feat", train_feat), ("future_covariates", future_covariates)):
         if frame is not None and frame.duplicated(["ProductId", "DateKey"]).any():
             raise ValueError(f"{name} contains duplicate ProductId/DateKey keys")
 
     train_feat = train_feat.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     origin_index = pd.MultiIndex.from_frame(train_feat[["ProductId", "DateKey"]])
-
-    combined = train_feat
+    combined = train_feat.copy()
     if future_covariates is not None:
         future_covariates = future_covariates.copy()
         for col in ("Quantity", "ProductAvailable"):
@@ -333,13 +352,15 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         keep = ["ProductId", "DateKey", "Quantity", "ProductAvailable"] + TARGET_COVARIATE_COLUMNS
         combined = pd.concat([train_feat, future_covariates[keep]], ignore_index=True, sort=False)
     combined = combined.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
+    if "qty_available" not in combined.columns:
+        combined["qty_available"] = combined["Quantity"].where(combined["ProductAvailable"].fillna(False))
+    else:
+        # Future rows arrive without lag engineering; derive their value safely.
+        missing = combined["qty_available"].isna()
+        combined.loc[missing, "qty_available"] = combined.loc[missing, "Quantity"].where(
+            combined.loc[missing, "ProductAvailable"].fillna(False))
     g = combined.groupby("ProductId")
-
-    origin = combined[["ProductId", "DateKey"]].copy()
-    for lag in RECENT_POINT_LAGS:
-        origin[f"qty_lag_{lag}"] = g["qty_available"].shift(lag)
-    for col in lag_feature_names(cfg.lag_windows):
-        origin[col] = combined[col]
+    origin = build_origin_state_features(combined, cfg)
 
     frames = []
     for h in horizons:
@@ -354,18 +375,101 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
             panel_h[col] = target[col]
         for lag in SEASONAL_LAG_DAYS:
             panel_h[f"seasonal_lag_{lag}"] = g["qty_available"].shift(lag - h)
-        baseline_lag_matrix = np.column_stack(
-            [panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float) for lag in BASELINE_LAGS])
-        panel_h["target_baseline"] = _weighted_baseline(baseline_lag_matrix)
+        lag_matrix = np.column_stack([
+            panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float)
+            for lag in BASELINE_LAGS
+        ])
+        panel_h["target_baseline"] = _weighted_baseline(lag_matrix)
         frames.append(panel_h)
 
-    panel = pd.concat(frames, ignore_index=True)
-    panel = panel.rename(columns={"DateKey": "OriginDateKey"})
+    panel = pd.concat(frames, ignore_index=True).rename(columns={"DateKey": "OriginDateKey"})
     panel["product_idx"] = panel["ProductId"] - 1
-
     panel_index = pd.MultiIndex.from_arrays([panel["ProductId"], panel["OriginDateKey"]])
-    panel = panel[panel_index.isin(origin_index)].reset_index(drop=True)
-    return panel
+    return panel[panel_index.isin(origin_index)].reset_index(drop=True)
+
+
+def build_one_step_panel(raw_df: pd.DataFrame, price_ref: pd.Series,
+                         first_seen: pd.Series, cfg: Config = CFG) -> pd.DataFrame:
+    """Build one-step-ahead training rows for recursive models."""
+    feat = prepare_features(raw_df, price_ref, first_seen)
+    feat = add_train_lags(feat, cfg.lag_windows)
+    return build_direct_panel(feat, [1], cfg=cfg)
+
+
+KNOWN_FUTURE_RAW_COLUMNS = [
+    "ProductId", "DateKey", "CampaignSubTypeWeb", "CampaignSubTypeApp",
+    "DiscountValueWebRelative", "DiscountValueAppRelative", "IsSaleOrPromo",
+    "PriceLocalVat",
+]
+
+
+def sanitize_future_covariates(df: pd.DataFrame) -> pd.DataFrame:
+    """Return only features legitimately known before future demand occurs."""
+    missing = [c for c in KNOWN_FUTURE_RAW_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"Future covariates are missing required columns: {missing}")
+    out = df[KNOWN_FUTURE_RAW_COLUMNS].copy()
+    if out.duplicated(["ProductId", "DateKey"]).any():
+        raise ValueError("future_covariates contains duplicate ProductId/DateKey keys")
+    return out
+
+
+def build_recursive_step_panel(history_raw: pd.DataFrame, target_covariates: pd.DataFrame,
+                               price_ref: pd.Series, first_seen: pd.Series,
+                               cfg: Config = CFG) -> pd.DataFrame:
+    """Build the one-step panel for the next target day from current history."""
+    future = sanitize_future_covariates(target_covariates)
+    future["Quantity"] = np.nan
+    future["ProductAvailable"] = pd.Series([pd.NA] * len(future), dtype="boolean")
+    history_feat = prepare_features(history_raw, price_ref, first_seen)
+    history_feat = add_train_lags(history_feat, cfg.lag_windows)
+    future_feat = prepare_features(future, price_ref, first_seen)
+    panel = build_direct_panel(history_feat, [1], cfg=cfg, future_covariates=future_feat)
+    origin = history_raw["DateKey"].max()
+    step = panel[panel["OriginDateKey"].eq(origin)].reset_index(drop=True)
+    step["horizon"] = 1
+    return step
+
+
+def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFrame,
+                       predict_step, price_ref: pd.Series, first_seen: pd.Series,
+                       cfg: Config = CFG) -> pd.DataFrame:
+    """Forecast future dates sequentially, feeding predictions into history."""
+    history = history_raw.copy().sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
+    future = sanitize_future_covariates(future_covariates)
+    dates = sorted(pd.to_datetime(future["DateKey"].drop_duplicates()))
+    if len(dates) != cfg.horizon:
+        raise ValueError(f"Expected {cfg.horizon} future dates, got {len(dates)}")
+    results = []
+    for forecast_horizon, target_date in enumerate(dates, start=1):
+        current = future[future["DateKey"].eq(target_date)].copy()
+        step_panel = build_recursive_step_panel(history, current, price_ref, first_seen, cfg)
+        if not step_panel["horizon"].eq(1).all():
+            raise AssertionError("Recursive model input horizon must always equal 1")
+        prediction = np.asarray(predict_step(step_panel), dtype=float)
+        if len(prediction) != len(step_panel):
+            raise ValueError("predict_step returned a prediction vector with the wrong length")
+        baseline = step_panel["target_baseline"].to_numpy(dtype=float)
+        fallback = ~np.isfinite(prediction)
+        prediction = np.where(fallback, baseline, prediction)
+        prediction = np.nan_to_num(prediction, nan=0.0, posinf=0.0, neginf=0.0)
+        prediction = np.clip(prediction, 0.0, None)
+        result = step_panel[["ProductId", "TargetDateKey"]].copy()
+        result["forecast_horizon"] = forecast_horizon
+        result["prediction"] = prediction
+        result["fallback_used"] = fallback
+        results.append(result)
+
+        generated = current.merge(
+            result[["ProductId", "prediction"]], on="ProductId", how="left", validate="one_to_one"
+        )
+        generated["Quantity"] = generated.pop("prediction")
+        generated["ProductAvailable"] = True
+        # Keep raw-schema compatibility for downstream data preparation.
+        generated["QuantityApp"] = generated["Quantity"]
+        generated["QuantityWeb"] = 0.0
+        history = pd.concat([history, generated], ignore_index=True, sort=False)
+    return pd.concat(results, ignore_index=True)
 
 
 # ---------------------------------------------------------------------------

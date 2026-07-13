@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Notino Quantity Forecast — Model Comparison</title>
-  <link rel="stylesheet" href="/static/styles.css?v=7" />
+  <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
+  <link rel="stylesheet" href="/static/styles.css?v=8" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -12,7 +12,7 @@
 
   <div class="promo-bar">
     <span>30 Product Time Series</span>
-    <span>7-Day Direct Multi-Horizon Forecast</span>
+    <span id="promo-strategy">7-Day Forecast</span>
     <span>6 Models Compared</span>
     <span>Walk-Forward Validated</span>
   </div>
@@ -31,6 +31,26 @@
   </header>
 
   <main id="app">
+    <section class="selection-strip">
+      <div>
+        <span class="selection-label">View</span>
+        <strong id="canonical-selection-text">Canonical submission</strong>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="strategy-select">Forecast strategy</label>
+          <select id="strategy-select"></select>
+        </div>
+        <div class="control-group">
+          <label for="regime-select">Evaluation regime</label>
+          <select id="regime-select">
+            <option value="conditional">Conditional Demand</option>
+            <option value="realized">Realized Sales</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <section class="kpi-grid" id="kpi-grid">
       <div class="kpi-card skeleton"></div>
       <div class="kpi-card skeleton"></div>
@@ -42,14 +62,7 @@
       <div class="panel-header row">
         <div>
           <h2>Model comparison</h2>
-          <p>Walk-forward CV averages &middot; colors match branding</p>
-        </div>
-        <div class="controls">
-          <label for="regime-select">Evaluation Regime:</label>
-          <select id="regime-select">
-            <option value="realized">Realized Sales (all days)</option>
-            <option value="conditional">Conditional Demand (available days)</option>
-          </select>
+          <p>Recent-benchmark OOF · conditional/common/global is the primary view</p>
         </div>
       </div>
       <div class="columns-grid" id="columns-grid"></div>
@@ -59,7 +72,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>MAE &amp; RMSE by model</h2>
-          <p>Average across all walk-forward folds — lower is better</p>
+          <p>Selected strategy and evaluation regime — lower is better</p>
         </div>
         <div class="chart-wrap">
           <canvas id="chart-comparison"></canvas>
@@ -68,8 +81,8 @@
 
       <div class="panel">
         <div class="panel-header">
-          <h2>Walk-forward CV results</h2>
-          <p>Each fold trains only on data before its 7-day eval window</p>
+          <h2>Walk-forward benchmark folds</h2>
+          <p>Every model is scored on the same common population</p>
         </div>
         <div class="table-wrap" id="cv-table-wrap">
           <table class="data-table" id="cv-table">
@@ -82,11 +95,64 @@
       </div>
     </section>
 
+    <section class="panel" id="strategy-comparison-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Direct vs. recursive — paired development OOF</h2>
+          <p>Same products, origins, dates and horizons for both strategies</p>
+        </div>
+        <div class="control-group">
+          <label for="pair-metric-select">Metric</label>
+          <select id="pair-metric-select">
+            <option value="WAPE">WAPE</option>
+            <option value="MAE">MAE</option>
+            <option value="RMSE">RMSE</option>
+            <option value="Bias">Bias</option>
+            <option value="BiasRatio">Bias ratio</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="strategy-comparison-table">
+          <thead>
+            <tr><th>Model</th><th>Direct</th><th>Recursive</th><th>Recursive − Direct</th><th>Winner</th><th>Paired rows</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Error by forecast horizon</h2>
+          <p>Development OOF · use this to inspect recursive error propagation</p>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <label for="horizon-model-select">Model</label>
+            <select id="horizon-model-select"></select>
+          </div>
+          <div class="control-group">
+            <label for="horizon-metric-select">Metric</label>
+            <select id="horizon-metric-select">
+              <option value="WAPE">WAPE</option>
+              <option value="MAE">MAE</option>
+              <option value="RMSE">RMSE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-horizon"></canvas>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-header row">
         <div>
           <h2>Product explorer — all models</h2>
-          <p>History (last 90 days) vs. every model's 7-day forecast, overlaid for comparison</p>
+          <p>History vs. <span id="product-strategy-note">selected</span> forecasts</p>
         </div>
         <select id="product-select"></select>
       </div>
@@ -97,22 +163,18 @@
 
     <section class="panel">
       <div class="panel-header">
-        <h2>Submission grid</h2>
-        <p>NeuralNet final predictions — the actual submission (non-tree, per the task brief)</p>
+        <h2>Canonical submission grid</h2>
+        <p>The table below always remains the selected submission, independent of the dashboard view.</p>
       </div>
       <div class="table-wrap tall" id="submission-table-wrap"></div>
     </section>
   </main>
 
   <footer>
-    <p>
-      Submission is a non-tree-based approach (PyTorch MLP + product/campaign embeddings), direct
-      multi-horizon forecasting, walk-forward validated against XGBoost, LightGBM and two naive baselines.
-      See <code>README.md</code> for methodology details.
-    </p>
+    <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=7"></script>
-  <script src="/static/app.js?v=7"></script>
+  <script src="/static/common.js?v=8"></script>
+  <script src="/static/app.js?v=8"></script>
 </body>
 </html>

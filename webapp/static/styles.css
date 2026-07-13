@@ -142,7 +142,7 @@ nav.site-nav {
 /* ---------------------------------------------------------------------- */
 .columns-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0;
   border: 1px solid var(--ink);
   border-right: none;
@@ -358,4 +358,83 @@ footer code { background: #2a2a2a; color: #fff; padding: 2px 6px; border-radius:
   .panel-grid .panel + .panel { border-left: 1px solid var(--ink); border-top: none; margin-top: -1px; }
   .promo-bar, header.hero, main#app, footer p, .model-hero { padding-left: 24px; padding-right: 24px; }
   .hero-title-block { text-align: left; }
+}
+
+
+/* Strategy-aware dashboard controls */
+.selection-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--ink);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.selection-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-group label,
+.controls > label {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+select:disabled {
+  cursor: default;
+  opacity: 0.65;
+  background: var(--surface);
+}
+
+.winner-badge {
+  display: inline-block;
+  min-width: 74px;
+  padding: 4px 8px;
+  border: 1px solid var(--ink);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+[hidden] { display: none !important; }
+
+@media (max-width: 700px) {
+  .selection-strip,
+  .controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .control-group,
+  .control-group select {
+    width: 100%;
+  }
 }

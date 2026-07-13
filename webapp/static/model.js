@@ -20,44 +20,61 @@ function renderHero(model) {
   }
 }
 
-function renderKpis(data, model, regime = "realized") {
-  const suffix = regime === "conditional" ? "_conditional" : "";
-  const agg = `global${suffix}`;
-  const summary = data.cv_summary.find((r) => r.model === model.key && r.aggregation === agg) || {};
-  const skill = model.skill_vs_seasonal_naive;
+function modelSkill(summary, modelName) {
+  const modelMae = summary[modelName]?.MAE;
+  const naiveMae = summary.SeasonalNaive?.MAE;
+  if (!Number.isFinite(Number(modelMae)) || !Number.isFinite(Number(naiveMae)) || Number(naiveMae) === 0) {
+    return null;
+  }
+  return 1 - Number(modelMae) / Number(naiveMae);
+}
+
+function renderKpis(data, model, strategy, regime) {
+  const rows = summaryRows(data, { strategy, regime });
+  const byModel = Object.fromEntries(rows.map((row) => [row.model, row]));
+  const summary = byModel[model.key] || {};
+  const skill = modelSkill(byModel, model.key);
   const cards = [
-    { label: "MAE", value: fmt(summary.MAE), sub: "avg over folds" },
-    { label: "RMSE", value: fmt(summary.RMSE), sub: "avg over folds" },
-    { label: "Bias", value: fmt(summary.Bias), sub: "total over/under forecast" },
+    { label: "MAE", value: fmt(summary.MAE), sub: "global common population" },
+    { label: "WAPE", value: ratePct(summary.WAPE), sub: `${regime} demand` },
+    { label: "Bias", value: fmt(summary.Bias), sub: "positive = over-forecast" },
     {
       label: "Skill vs. Naive",
-      value: (regime === 'realized' && skill !== null && skill !== undefined) ? pct(skill) : "—",
-      sub: "MAE improvement over lag-7",
+      value: skill === null ? "—" : pct(skill),
+      sub: `${strategyLabel(strategy)} · MAE improvement`,
     },
   ];
   const grid = document.getElementById("kpi-grid");
-  grid.innerHTML = "";
-  cards.forEach((c) => {
-    const div = document.createElement("div");
-    div.className = "kpi-card";
-    div.innerHTML = `
-      <p class="kpi-label">${c.label}</p>
-      <p class="kpi-value model-accent">${c.value}</p>
-      <p class="kpi-sub">${c.sub}</p>
-    `;
-    grid.appendChild(div);
-  });
+  grid.innerHTML = cards.map((card) => `
+    <div class="kpi-card">
+      <p class="kpi-label">${card.label}</p>
+      <p class="kpi-value model-accent">${card.value}</p>
+      <p class="kpi-sub">${card.sub}</p>
+    </div>
+  `).join("");
 }
 
-function renderFoldChart(data, model, regime = "realized") {
-  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === regime).sort((a, b) => a.fold - b.fold);
-  new Chart(document.getElementById("chart-folds"), {
+let foldChart = null;
+function renderFoldChart(data, model, strategy, regime) {
+  const rows = cvRows(data, { strategy, regime })
+    .filter((row) => row.model === model.key)
+    .sort((a, b) => a.fold - b.fold);
+
+  if (foldChart) foldChart.destroy();
+  foldChart = new Chart(document.getElementById("chart-folds"), {
     type: "bar",
     data: {
-      labels: rows.map((r) => `Fold ${r.fold}`),
+      labels: rows.map((row) => `Fold ${row.fold}`),
       datasets: [
-        { label: "MAE", data: rows.map((r) => r.MAE), backgroundColor: model.color, borderRadius: 0 },
-        { label: "RMSE", data: rows.map((r) => r.RMSE), backgroundColor: `${model.color}66`, borderColor: model.color, borderWidth: 1, borderRadius: 0 },
+        { label: "MAE", data: rows.map((row) => row.MAE), backgroundColor: model.color, borderRadius: 0 },
+        {
+          label: "RMSE",
+          data: rows.map((row) => row.RMSE),
+          backgroundColor: `${model.color}66`,
+          borderColor: model.color,
+          borderWidth: 1,
+          borderRadius: 0,
+        },
       ],
     },
     options: {
@@ -72,33 +89,30 @@ function renderFoldChart(data, model, regime = "realized") {
   });
 }
 
-function renderFoldTable(data, model, regime = "realized") {
-  const tbody = document.querySelector("#fold-table tbody");
-  const rows = data.cv_results.filter((r) => r.model === model.key && r.regime === regime).sort((a, b) => a.fold - b.fold);
-  tbody.innerHTML = rows
-    .map(
-      (row) => `
-      <tr>
-        <td>${row.fold}</td>
-        <td>${fmt(row.MAE)}</td>
-        <td>${fmt(row.RMSE)}</td>
-        <td style="color:${row.Bias >= 0 ? 'var(--bad)' : 'var(--good)'}">${fmt(row.Bias)}</td>
-        <td>${fmt(row.BiasRatio * 100, 1)}%</td>
-        <td>${row.n}</td>
-      </tr>`
-    )
-    .join("");
+function renderFoldTable(data, model, strategy, regime) {
+  const rows = cvRows(data, { strategy, regime })
+    .filter((row) => row.model === model.key)
+    .sort((a, b) => a.fold - b.fold);
+  document.querySelector("#fold-table tbody").innerHTML = rows.map((row) => `
+    <tr>
+      <td>${row.fold}</td>
+      <td>${fmt(row.MAE)}</td>
+      <td>${fmt(row.RMSE)}</td>
+      <td style="color:${Number(row.Bias) >= 0 ? "var(--bad)" : "var(--good)"}">${fmt(row.Bias)}</td>
+      <td>${pct(row.BiasRatio)}</td>
+      <td>${row.n ?? row.n_scored ?? "—"}</td>
+    </tr>
+  `).join("");
 }
 
 let productChart = null;
-
-function renderProductChart(data, model, productId) {
+function renderProductChart(data, model, productId, strategy) {
   const hist = data.history[productId];
-  const fc = (data.forecasts[model.key] || {})[productId] || { dates: [], quantity: [] };
-  const labels = [...hist.dates, ...fc.dates];
-  const historyData = [...hist.quantity, ...fc.dates.map(() => null)];
+  const forecast = forecastsFor(data, strategy)[model.key]?.[productId] || { dates: [], quantity: [] };
+  const labels = [...hist.dates, ...forecast.dates];
+  const historyData = [...hist.quantity, ...forecast.dates.map(() => null)];
   const bridge = hist.quantity[hist.quantity.length - 1];
-  const forecastData = [...hist.dates.slice(0, -1).map(() => null), bridge, ...fc.quantity];
+  const forecastData = [...hist.dates.slice(0, -1).map(() => null), bridge, ...forecast.quantity];
 
   if (productChart) productChart.destroy();
   productChart = new Chart(document.getElementById("chart-product"), {
@@ -116,11 +130,11 @@ function renderProductChart(data, model, productId) {
           borderWidth: 2,
         },
         {
-          label: `${model.label} · 7-day forecast`,
+          label: `${model.label} · ${strategyLabel(strategy)}`,
           data: forecastData,
           borderColor: model.color,
           backgroundColor: "transparent",
-          borderDash: [6, 4],
+          borderDash: strategy === "recursive" ? [7, 4] : [6, 4],
           tension: 0.25,
           pointRadius: 3,
           borderWidth: 2,
@@ -140,19 +154,18 @@ function renderProductChart(data, model, productId) {
   });
 }
 
-function renderProductSelector(data, model) {
+function populateProductSelector(data) {
   const select = document.getElementById("product-select");
-  const ids = Object.keys(data.history).sort((a, b) => Number(a) - Number(b));
+  const ids = Object.keys(data.history || {}).sort((a, b) => Number(a) - Number(b));
   select.innerHTML = ids.map((id) => `<option value="${id}">Product ${id}</option>`).join("");
-  select.addEventListener("change", () => renderProductChart(data, model, select.value));
-  renderProductChart(data, model, ids[0]);
+  return ids[0];
 }
 
 function renderNotFound(data, slug) {
   document.getElementById("app").innerHTML = `
     <div class="panel">
       <div class="panel-header"><h2>Unknown model "${slug}"</h2></div>
-      <p style="color:var(--text-dim)">Try one of: ${data.models.map((m) => `<a href="/model/${m.slug}" style="color:${m.color}">${m.label}</a>`).join(", ")}</p>
+      <p style="color:var(--text-dim)">Try one of: ${(data.models || []).map((model) => `<a href="/model/${model.slug}" style="color:${model.color}">${model.label}</a>`).join(", ")}</p>
     </div>`;
   document.getElementById("model-hero").style.display = "none";
 }
@@ -166,26 +179,37 @@ async function main() {
       return;
     }
 
+    const strategySelect = document.getElementById("strategy-select");
     const regimeSelect = document.getElementById("regime-select");
-    const refresh = () => {
-      const r = regimeSelect.value;
-      renderKpis(data, model, r);
-      renderFoldChart(data, model, r);
-      renderFoldTable(data, model, r);
-    };
-    regimeSelect.addEventListener("change", refresh);
+    const productSelect = document.getElementById("product-select");
+    const firstProduct = populateProductSelector(data);
+
+    configureStrategySelect(data, strategySelect, refresh);
+    regimeSelect.value = data.config?.primary_evaluation_regime || "conditional";
+
+    function refresh() {
+      const strategy = strategySelect.value || canonicalStrategy(data);
+      const regime = regimeSelect.value || "conditional";
+      updateStrategyCopy(data, strategy);
+      renderKpis(data, model, strategy, regime);
+      renderFoldChart(data, model, strategy, regime);
+      renderFoldTable(data, model, strategy, regime);
+      renderProductChart(data, model, productSelect.value || firstProduct, strategy);
+      document.getElementById("model-strategy-note").textContent = strategyLabel(strategy);
+    }
+
+    [regimeSelect, productSelect].forEach((select) => select.addEventListener("change", refresh));
 
     renderNav(data, currentSlug());
     renderHero(model);
     refresh();
-    renderProductSelector(data, model);
     document.getElementById("footer-note").innerHTML =
-      `Comparing against the other 4 models? See the <a href="/" style="color:${model.color}">Overview page</a>.`;
+      `Comparing against the other ${(data.models || []).length - 1} models? See the <a href="/" style="color:${model.color}">Overview page</a>.`;
   } catch (err) {
     document.getElementById("app").innerHTML = `
       <div class="panel">
         <div class="panel-header"><h2>Could not load results</h2></div>
-        <p style="color:#f87171">${err.message}</p>
+        <p style="color:var(--bad)">${err.message}</p>
       </div>`;
   }
 }

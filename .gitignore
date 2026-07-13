@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
-.idea/
-*.egg-info/
-.DS_Store
-*.log

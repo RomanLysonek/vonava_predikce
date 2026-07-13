@@ -23,22 +23,19 @@ brief itself frames them as the standard comparison point.
   Trained with Huber loss.
 - **Seeds**: random seeds for both the NN ensemble and the tree-based baselines are
   fixed (`Config.seeds`) to ensure reproducibility.
-- **Direct multi-horizon forecasting**: all 7 horizon days are predicted in
-  a single pass from a stacked (ForecastOrigin x Horizon x ProductId) panel
-  (`framework.build_direct_panel`) instead of recursively, one day at a
-  time. Every horizon's inputs -- origin-relative rolling lags plus
-  target-relative seasonal lags (7/14/21/28/364/365/371 days back) -- are
-  always a lookup into already-observed data, never a value that would
-  first need to be predicted, so there's no feedback loop and no risk of
-  the old recursive shortcut (freezing lag features at the last known
-  training value, making every horizon day look identical). `horizon`
-  itself is fed in through its own embedding (NN) / as a plain feature
-  (trees).
-- **Training data**: rows where `ProductAvailable == False` (~2.9% of rows,
-  with anomalous demand) are excluded from the supervised examples, since
-  the forecast period is implicitly "available" days — but they're kept
-  when computing rolling lag history, since that history should reflect
-  what actually happened.
+- **Two forecast strategies**: **direct** predicts all seven target days
+  from a stacked `(ForecastOrigin, Horizon, ProductId)` panel, while
+  **recursive** trains genuine one-step models and feeds each generated
+  prediction into the next step's history. Both strategies share the same
+  end-of-origin information cutoff and are trained independently. `both`
+  mode evaluates them on paired development OOF keys and selects the
+  canonical strategy using development-only `conditional/common/global`
+  metrics.
+- **Training data**: rows where `ProductAvailable == False` are excluded
+  from supervised targets. Their quantities are censored from lag and
+  rolling-demand features rather than being treated as genuine zero demand.
+  Recursive synthetic future rows are marked available, matching the
+  conditional-demand forecast contract.
 - **Validation**: walk-forward (rolling-origin) cross-validation over two
   labeled sets of origins -- a broader, seasonally-scattered `development`
   set used to make modeling decisions, and a `recent_benchmark` set (the last
@@ -46,8 +43,9 @@ brief itself frames them as the standard comparison point.
   a final benchmark of recent performance. Each fold trains only on data
   strictly before its evaluation block, so the reported metrics mirror the
   real deployment scenario (no early-stopping on the eval fold, no leakage).
-- **Baselines**: XGBoost, LightGBM, and Dynamic Ridge (native categorical support or
-  one-hot encoding, same feature set, same direct multi-horizon panel). 
+- **Baselines**: XGBoost, LightGBM, and Dynamic Ridge use the same
+  strategy-specific feature contracts as the NN (native categorical support
+  or one-hot encoding as appropriate). 
   **NeuralNet** and **Dynamic Ridge** predict a baseline-relative log residual, 
   while **XGBoost** and **LightGBM** predict `log1p(Quantity)` directly. 
   Two naive baselines are also included: seasonal-naive (value from 7 days prior) 
@@ -57,9 +55,10 @@ brief itself frames them as the standard comparison point.
   was available in stock) is the primary evaluation regime, as it measures the
   true demand the model is meant to capture. **Realized Sales** (all days,
   including stockouts) is available as a diagnostic toggle.
-- **Final submission**: an ensemble of 3 NN seeds trained on all available
-  history (XGBoost/LightGBM are comparison baselines only, not the
-  submission, per the task brief).
+- **Final submission**: by default, an ensemble of three NN seeds trained
+  under the development-selected direct or recursive strategy. XGBoost,
+  LightGBM and Dynamic Ridge remain comparison models unless
+  `--submission-model` explicitly selects otherwise.
 
 ## Results (walk-forward CV, 4 folds x 7 days, Conditional Demand)
 
@@ -79,48 +78,42 @@ raw error (though all three comfortably beat the naive baselines -- **NN is
 tabular, ~50k-row dataset -- exactly the regime the task brief itself says
 trees are the standard choice for. The NN remains the submission because the
 brief explicitly asked for a non-tree approach; the tree numbers are here so
-that trade-off is transparent rather than hidden. Exact numbers regenerate
-into `cv_results.csv` each run and will vary slightly run-to-run (no fixed
-seed across folds' data-dependent init) but the ranking is stable. Note: 
-these benchmarks use the most recent history available at training time.
+that trade-off is transparent rather than hidden. Exact numbers regenerate into `cv_results.csv` each run. Seeds are fixed;
+small differences can still arise across hardware/library backends. These
+benchmarks use the most recent history available at training time.
 
 ## Repo layout
 
 ```
 data/                    train_data.parquet, test_data.parquet (inputs)
 ml/
-  framework.py           torch-free: config, feature engineering, the direct
-                          multi-horizon panel builder (build_direct_panel +
-                          direct_panel_feature_names/direct_panel_tree_frame),
+  framework.py           torch-free: config, feature engineering, direct and
+                          one-step panel builders, recursive state transition,
                           model registry/metadata, metrics. Shared by every
                           model under models/ and by pipeline.py (see "macOS
                           note" below for why the torch-free split exists).
   models/
     neural_net.py          NN model: QuantityNet (w/ horizon embedding),
-                          training, direct multi-horizon predict -- the
-                          actual submission
+                          shared training and direct/recursive prediction
     xgboost_model.py        XGBoost: train/predict directly on the panel
     lightgbm_model.py        LightGBM: train/predict directly on the panel
     dynamic_ridge.py        Dynamic Ridge: sklearn linear baseline with scaling/imputation
     naive_baselines.py        seasonal-naive + 28-day moving average
-  tree_worker.py         thin dispatcher subprocess over xgboost_model.py,
-                          lightgbm_model.py, and dynamic_ridge.py (never
-                          imports torch); job protocol is just
-                          {train_panel, eval_panel}
-  pipeline.py            CV/training/export orchestrator: walk-forward CV
-                          (incl. the tree baselines via tree_worker.py), final
-                          ensemble training, direct multi-horizon forecasting,
-                          submission + results.json export -- no recursion
-                          anywhere in this file
-  export_results.py      rebuild outputs/results.json without the CV/NN retrain
-                          (still retrains XGBoost/LightGBM's final forecast --
-                          cheap relative to the full walk-forward CV)
-outputs/                 submission.csv/.parquet, cv_results.csv, forecast_plot.png,
-                          results.json (generated by ml/pipeline.py)
+  tree_worker.py         isolated structured-model dispatcher for direct and
+                          recursive XGBoost, LightGBM and Dynamic Ridge jobs
+  pipeline.py            strategy-aware CV/training/export orchestrator,
+                          development-only selection and artifact generation
+  export_results.py      rebuilds results.json exclusively from persisted
+                          artifacts; it never retrains models
+outputs/                 canonical and strategy-specific submissions, OOF and
+                          final forecasts, strategy summaries, horizon metrics,
+                          timings and results.json
 tests/
-  test_pipeline.py       unit tests: feature engineering, baselines, metrics,
-                          direct-panel leakage-safety/offset correctness,
-                          tree_worker subprocess smoke test
+  test_pipeline.py       feature engineering, baselines and metric tests
+  test_direct_recursive_strategies.py
+                          strategy alignment, feedback and leakage tests
+  test_webapp_strategy_sync.py
+                          JSON contract and frontend smoke checks
 webapp/
   server.py              FastAPI app serving the dashboard + /api/results,
                           plus /model/{slug} for the per-model pages
@@ -155,9 +148,9 @@ module together.
 
 ## Interactive results dashboard
 
-A local FastAPI + vanilla-JS/Chart.js dashboard presents the walk-forward CV
-comparison, per-fold table, a per-product history-vs-forecast chart, and the
-full submission grid.
+A local FastAPI + vanilla-JS/Chart.js dashboard presents strategy-aware
+walk-forward comparisons, per-fold tables, paired direct-vs-recursive results,
+horizon curves, per-product forecasts, and the canonical submission grid.
 
 ```bash
 uv run python webapp/server.py       # http://127.0.0.1:8999 (port set in webapp/server.py)
@@ -171,16 +164,48 @@ static HTML/CSS/JS with no build step — edit `webapp/static/*` and refresh
 the browser to iterate on the presentation.
 
 **Pages:**
-- `/` — overview: all 5 models side by side (one column each), MAE/RMSE bar
-  chart, the full CV fold table, and a multi-model forecast-vs-history chart
-  per product.
+- `/` — overview with direct/recursive and conditional/realized selectors,
+  all six models, paired strategy comparison, development horizon curves,
+  benchmark fold metrics, product explorer and canonical submission.
 - `/model/<slug>` — one page per model (`neuralnet`, `xgboost`, `lightgbm`,
-  `seasonalnaive`, `movingavg28`) with its own metrics, per-fold chart, and
-  product explorer. `webapp/static/model.html` is one shared template;
-  `model.js` reads the slug from the URL.
+  `dynamicridge`, `seasonalnaive`, `movingavg28`) with strategy-aware metrics,
+  folds and product forecasts. `model.html` is shared and `model.js` reads the
+  slug from the URL.
 
 Each model's color is its own project's real brand color (PyTorch orange for
 the NN, XGBoost's brandfetch.com purple, the `sphinx_rtd_theme` blue LightGBM's
 own readthedocs page uses), defined once in `ml/framework.py::MODEL_META` and
 served to the frontend via `results.json["models"]` -- not hand-picked or
 duplicated in CSS/JS.
+
+## Forecast strategy modes
+
+The pipeline now supports two separately trained multi-step strategies and a
+comparison mode:
+
+```bash
+uv run python ml/pipeline.py --forecast-strategy direct
+uv run python ml/pipeline.py --forecast-strategy recursive
+uv run python ml/pipeline.py --forecast-strategy both \
+  --primary-strategy auto \
+  --submission-model NeuralNet \
+  --selection-metric WAPE
+```
+
+- **Direct** trains on the stacked `(ForecastOrigin, Horizon, ProductId)`
+  panel and predicts the complete seven-day horizon in one batch.
+- **Recursive** trains genuine one-step models and then predicts one day at a
+  time, appending each prediction to history before building the next step.
+- **Both** evaluates and exports both strategies independently. Automatic
+  strategy selection uses development OOF metrics from the
+  `conditional/common/global` population; the recent benchmark is reporting
+  only and never changes the selection.
+
+All model families—NeuralNet, XGBoost, LightGBM, and Dynamic Ridge—are trained
+separately for direct and recursive use. Recursive inference receives only an
+explicit allowlist of future-known covariates and treats generated future rows
+as available, matching the conditional-demand forecast contract.
+
+The unrounded model-strategy forecasts are stored in
+`outputs/final_forecasts.parquet`. Strategy-specific submissions and paired
+strategy diagnostics are written alongside the canonical submission.
