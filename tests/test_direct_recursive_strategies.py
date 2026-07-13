@@ -125,3 +125,59 @@ def test_resolve_both_strategy():
         ForecastStrategy.DIRECT,
         ForecastStrategy.RECURSIVE,
     )
+
+
+def test_recursive_catastrophic_prediction_uses_recorded_baseline_fallback():
+    cfg = Config(num_products=2, horizon=3)
+    history = _raw(periods=35)
+    future = _raw(periods=35, future=3)
+    future = future[future["DateKey"] > history["DateKey"].max()].copy()
+    price_ref = history.groupby("ProductId")["PriceLocalVat"].median()
+    first_seen = history.groupby("ProductId")["DateKey"].min()
+
+    path = forecast_recursive(
+        history,
+        future,
+        lambda panel: np.full(len(panel), 1e100),
+        price_ref,
+        first_seen,
+        cfg,
+    )
+
+    assert np.isfinite(path["prediction"]).all()
+    assert path["fallback_used"].all()
+    assert (path["prediction"] < cfg.recursive_safety_floor).all()
+
+
+def test_recursive_dynamic_ridge_worker_path_is_finite_on_synthetic_history():
+    from dataclasses import asdict
+
+    from ml.framework import direct_panel_feature_names
+    from ml.tree_worker import run_job
+
+    cfg = Config(num_products=2, horizon=3)
+    history = _raw(periods=400)
+    future = _raw(periods=400, future=3)
+    future = future[future["DateKey"] > history["DateKey"].max()].copy()
+    price_ref = history.groupby("ProductId")["PriceLocalVat"].median()
+    first_seen = history.groupby("ProductId")["DateKey"].min()
+    panel = build_one_step_panel(history, price_ref, first_seen, cfg)
+    train_panel = panel[
+        panel["TargetDateKey"].le(history["DateKey"].max())
+        & panel["TargetProductAvailable"].fillna(False)
+    ].dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True)
+
+    result = run_job({
+        "cfg": asdict(cfg),
+        "strategy": "recursive",
+        "models": ["DynamicRidge"],
+        "train_panel": train_panel,
+        "history_raw": history,
+        "future_covariates": sanitize_future_covariates(future),
+        "price_ref": price_ref,
+        "first_seen": first_seen,
+    })
+    path = pd.DataFrame(result["DynamicRidge"])
+    assert len(path) == cfg.num_products * cfg.horizon
+    assert np.isfinite(path["prediction"]).all()
+    assert (path["prediction"] >= 0.0).all()

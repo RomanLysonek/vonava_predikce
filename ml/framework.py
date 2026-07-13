@@ -47,6 +47,11 @@ class Config:
     seed: int = 42
     ridge_alpha: float = 10.0
     ridge_prediction_cap: float | None = None
+    # Numerical guard only: recursive feedback values above this data-scaled
+    # threshold are replaced by the baseline rather than fed back. This is
+    # deliberately much looser than any model cap considered in Tier C3.
+    recursive_safety_multiplier: float = 1000.0
+    recursive_safety_floor: float = 1_000_000.0
 
 
 CFG = Config()
@@ -450,8 +455,47 @@ def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFram
         if len(prediction) != len(step_panel):
             raise ValueError("predict_step returned a prediction vector with the wrong length")
         baseline = step_panel["target_baseline"].to_numpy(dtype=float)
-        fallback = ~np.isfinite(prediction)
-        prediction = np.where(fallback, baseline, prediction)
+
+        # A recursive model can turn one extreme but finite extrapolation into
+        # progressively larger lag features.  Treat only catastrophic values
+        # as numerical failures; this guard is intentionally orders of
+        # magnitude looser than any prediction cap considered in Tier C3.
+        history_quantity = pd.to_numeric(history["Quantity"], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        )
+        history_max = history.assign(_finite_quantity=history_quantity).groupby(
+            "ProductId"
+        )["_finite_quantity"].max()
+        observed_scale = step_panel["ProductId"].map(history_max).to_numpy(dtype=float)
+        lag0 = step_panel.get(
+            "qty_lag_0", pd.Series(np.nan, index=step_panel.index)
+        ).to_numpy(dtype=float)
+        reference_scale = np.nanmax(
+            np.column_stack([
+                np.where(np.isfinite(observed_scale), observed_scale, 0.0),
+                np.where(np.isfinite(baseline), baseline, 0.0),
+                np.where(np.isfinite(lag0), lag0, 0.0),
+                np.ones(len(step_panel), dtype=float),
+            ]),
+            axis=1,
+        )
+        safety_limit = np.maximum(
+            cfg.recursive_safety_floor,
+            cfg.recursive_safety_multiplier * reference_scale,
+        )
+        catastrophic = np.isfinite(prediction) & (prediction > safety_limit)
+        fallback = ~np.isfinite(prediction) | catastrophic
+
+        fallback_value = np.where(
+            np.isfinite(baseline) & (baseline >= 0.0),
+            baseline,
+            np.where(
+                np.isfinite(lag0) & (lag0 >= 0.0),
+                lag0,
+                0.0,
+            ),
+        )
+        prediction = np.where(fallback, fallback_value, prediction)
         prediction = np.nan_to_num(prediction, nan=0.0, posinf=0.0, neginf=0.0)
         prediction = np.clip(prediction, 0.0, None)
         result = step_panel[["ProductId", "TargetDateKey"]].copy()

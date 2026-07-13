@@ -36,10 +36,15 @@ def run_job(job: dict) -> dict:
             preds = PREDICTORS[name](model, job["eval_panel"], cfg)
             results[name] = preds.tolist()
         elif strategy == "recursive":
+            def predict_recursive_step(panel, *, model=model, name=name):
+                if name == "DynamicRidge":
+                    return predict_dynamic_ridge(model, panel, cfg, recursive=True)
+                return PREDICTORS[name](model, panel, cfg)
+
             recursive = forecast_recursive(
                 history_raw=job["history_raw"].copy(),
                 future_covariates=job["future_covariates"],
-                predict_step=lambda panel, model=model, name=name: PREDICTORS[name](model, panel, cfg),
+                predict_step=predict_recursive_step,
                 price_ref=job["price_ref"],
                 first_seen=job["first_seen"],
                 cfg=cfg,

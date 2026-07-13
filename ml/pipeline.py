@@ -44,6 +44,7 @@ import argparse
 import json
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -110,6 +111,9 @@ class RuntimeOptions:
     primary_strategy: PrimaryStrategy = PrimaryStrategy.AUTO
     submission_model: SubmissionModel = SubmissionModel.NEURAL_NET
     selection_metric: str = "WAPE"
+    resume: bool = False
+    reset_checkpoints: bool = False
+    checkpoint_dir: str = "outputs/checkpoints"
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -124,15 +128,108 @@ def parse_args(argv=None) -> RuntimeOptions:
     parser.add_argument("--primary-strategy", choices=[s.value for s in PrimaryStrategy], default="auto")
     parser.add_argument("--submission-model", choices=[s.value for s in SubmissionModel], default="NeuralNet")
     parser.add_argument("--selection-metric", choices=["WAPE", "MAE", "RMSE"], default="WAPE")
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Reuse completed per-fold CV checkpoints from an interrupted run",
+    )
+    parser.add_argument(
+        "--reset-checkpoints", action="store_true",
+        help="Delete existing CV checkpoints before starting",
+    )
+    parser.add_argument(
+        "--checkpoint-dir", default="outputs/checkpoints",
+        help="Directory used for atomic per-fold CV checkpoints",
+    )
     args = parser.parse_args(argv)
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
         submission_model=SubmissionModel(args.submission_model),
         selection_metric=args.selection_metric,
+        resume=args.resume,
+        reset_checkpoints=args.reset_checkpoints,
+        checkpoint_dir=args.checkpoint_dir,
     )
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
+
+CHECKPOINT_SCHEMA_VERSION = "direct-recursive-v3-ridge-stability"
+
+
+def _fold_checkpoint_path(
+    checkpoint_dir: str | None,
+    strategy: str,
+    origin_type: str,
+    origin: pd.Timestamp,
+) -> str | None:
+    if not checkpoint_dir:
+        return None
+    filename = f"{pd.Timestamp(origin).date().isoformat()}.pkl"
+    return os.path.join(checkpoint_dir, strategy, origin_type, filename)
+
+
+def _fold_checkpoint_signature(
+    cfg: Config, strategy: str, origin_type: str, origin: pd.Timestamp
+) -> dict:
+    return {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "strategy": strategy,
+        "origin_type": origin_type,
+        "origin": pd.Timestamp(origin).isoformat(),
+        "cfg": asdict(cfg),
+    }
+
+
+def _load_fold_checkpoint(
+    checkpoint_dir: str | None,
+    strategy: str,
+    origin_type: str,
+    origin: pd.Timestamp,
+    cfg: Config,
+) -> dict | None:
+    path = _fold_checkpoint_path(checkpoint_dir, strategy, origin_type, origin)
+    if path is None or not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as f:
+            payload = pickle.load(f)
+    except Exception as exc:
+        print(f"    [checkpoint] ignoring unreadable {path}: {exc}")
+        return None
+    expected = _fold_checkpoint_signature(cfg, strategy, origin_type, origin)
+    if payload.get("signature") != expected:
+        print(f"    [checkpoint] ignoring stale checkpoint {path}")
+        return None
+    frame = payload.get("oof")
+    if not isinstance(frame, pd.DataFrame) or frame.empty:
+        print(f"    [checkpoint] ignoring invalid checkpoint {path}")
+        return None
+    return payload
+
+
+def _save_fold_checkpoint(
+    checkpoint_dir: str | None,
+    strategy: str,
+    origin_type: str,
+    origin: pd.Timestamp,
+    cfg: Config,
+    oof: pd.DataFrame,
+    timing: dict,
+) -> None:
+    path = _fold_checkpoint_path(checkpoint_dir, strategy, origin_type, origin)
+    if path is None:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    payload = {
+        "signature": _fold_checkpoint_signature(cfg, strategy, origin_type, origin),
+        "oof": oof,
+        "timing": timing,
+    }
+    tmp_path = f"{path}.tmp-{os.getpid()}"
+    with open(tmp_path, "wb") as f:
+        pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp_path, path)
+
 
 # Broader, seasonally-scattered origins used to make modeling/feature
 # decisions (spring/summer lulls, several Januaries, Black Friday windows,
@@ -248,8 +345,11 @@ def _reindex_predictions(panel: pd.DataFrame, preds: np.ndarray, date_col: str,
 # ---------------------------------------------------------------------------
 # Walk-forward cross-validation
 # ---------------------------------------------------------------------------
-def run_walk_forward_cv_direct(hist_df: pd.DataFrame, origins, origin_type: str,
-                         cfg: Config = CFG, timings: list[dict] | None = None) -> pd.DataFrame:
+def run_walk_forward_cv_direct(
+    hist_df: pd.DataFrame, origins, origin_type: str, cfg: Config = CFG,
+    timings: list[dict] | None = None, *, checkpoint_dir: str | None = None,
+    resume: bool = False,
+) -> pd.DataFrame:
     """Evaluate at each `origin` date (the last training day): trains only
     on data up to and including `origin` (no leakage) and predicts all
     `cfg.horizon` days directly from the multi-horizon panel (see
@@ -288,6 +388,20 @@ def run_walk_forward_cv_direct(hist_df: pd.DataFrame, origins, origin_type: str,
         fold_eval_raw = hist_df[(hist_df["DateKey"] >= eval_start) & (hist_df["DateKey"] <= eval_end)].copy()
         if fold_train_raw.empty or fold_eval_raw.empty:
             continue
+
+        if resume:
+            cached = _load_fold_checkpoint(
+                checkpoint_dir, "direct", origin_type, origin, cfg
+            )
+            if cached is not None:
+                print(
+                    f"  [{origin_type}] origin {origin.date()}: "
+                    "loaded completed direct fold checkpoint"
+                )
+                fold_frames.append(cached["oof"])
+                if timings is not None and cached.get("timing"):
+                    timings.append(cached["timing"])
+                continue
 
         print(f"  [{origin_type}] origin {origin.date()}: eval {eval_start.date()}..{eval_end.date()}")
 
@@ -356,14 +470,20 @@ def run_walk_forward_cv_direct(hist_df: pd.DataFrame, origins, origin_type: str,
         fold_frames.append(fold_oof)
 
         fold_seconds = time.perf_counter() - fold_start
+        timing_record = {
+            "strategy": "direct", "origin_type": origin_type,
+            "origin": str(origin.date()),
+            "nn_seconds": round(nn_seconds, 2),
+            "tree_seconds": round(tree_seconds, 2),
+            "fold_seconds": round(fold_seconds, 2),
+        }
         print(f"    [timing] {origin_type} {origin.date()}: NN {nn_seconds:.1f}s | "
               f"trees {tree_seconds:.1f}s | fold total {fold_seconds:.1f}s")
         if timings is not None:
-            timings.append({
-                "origin_type": origin_type, "origin": str(origin.date()),
-                "nn_seconds": round(nn_seconds, 2), "tree_seconds": round(tree_seconds, 2),
-                "fold_seconds": round(fold_seconds, 2),
-            })
+            timings.append(timing_record)
+        _save_fold_checkpoint(
+            checkpoint_dir, "direct", origin_type, origin, cfg, fold_oof, timing_record
+        )
 
     return pd.concat(fold_frames, ignore_index=True) if fold_frames else pd.DataFrame()
 
@@ -412,8 +532,11 @@ def _recursive_nn_predictions(
     return ensemble_path, seed_paths, scaler, seed_models
 
 
-def run_walk_forward_cv_recursive(hist_df: pd.DataFrame, origins, origin_type: str,
-                                  cfg: Config = CFG, timings: list[dict] | None = None) -> pd.DataFrame:
+def run_walk_forward_cv_recursive(
+    hist_df: pd.DataFrame, origins, origin_type: str, cfg: Config = CFG,
+    timings: list[dict] | None = None, *, checkpoint_dir: str | None = None,
+    resume: bool = False,
+) -> pd.DataFrame:
     """One-step training plus genuine recursive seven-day inference."""
     first_seen = hist_df.groupby("ProductId")["DateKey"].min()
     fold_frames = []
@@ -425,6 +548,19 @@ def run_walk_forward_cv_recursive(hist_df: pd.DataFrame, origins, origin_type: s
         fold_eval_raw = hist_df[hist_df["DateKey"].between(eval_start, eval_end)].copy()
         if fold_train_raw.empty or fold_eval_raw.empty:
             continue
+        if resume:
+            cached = _load_fold_checkpoint(
+                checkpoint_dir, "recursive", origin_type, origin, cfg
+            )
+            if cached is not None:
+                print(
+                    f"  [{origin_type}/recursive] origin {origin.date()}: "
+                    "loaded completed fold checkpoint"
+                )
+                fold_frames.append(cached["oof"])
+                if timings is not None and cached.get("timing"):
+                    timings.append(cached["timing"])
+                continue
         print(f"  [{origin_type}/recursive] origin {origin.date()}: eval {eval_start.date()}..{eval_end.date()}")
         price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
         train_panel = _recursive_panel_training_data(fold_train_raw, price_ref, first_seen, cfg)
@@ -472,23 +608,43 @@ def run_walk_forward_cv_recursive(hist_df: pd.DataFrame, origins, origin_type: s
         fold_frames.append(fold_oof)
 
         fold_seconds = time.perf_counter() - fold_start
+        timing_record = {
+            "strategy": "recursive", "origin_type": origin_type,
+            "origin": str(origin.date()),
+            "nn_seconds": round(nn_seconds, 2),
+            "tree_seconds": round(tree_seconds, 2),
+            "fold_seconds": round(fold_seconds, 2),
+        }
+        print(
+            f"    [timing] {origin_type}/recursive {origin.date()}: "
+            f"NN {nn_seconds:.1f}s | structured {tree_seconds:.1f}s | "
+            f"fold total {fold_seconds:.1f}s"
+        )
         if timings is not None:
-            timings.append({
-                "strategy": "recursive", "origin_type": origin_type, "origin": str(origin.date()),
-                "nn_seconds": round(nn_seconds, 2), "tree_seconds": round(tree_seconds, 2),
-                "fold_seconds": round(fold_seconds, 2),
-            })
+            timings.append(timing_record)
+        _save_fold_checkpoint(
+            checkpoint_dir, "recursive", origin_type, origin, cfg, fold_oof, timing_record
+        )
     return pd.concat(fold_frames, ignore_index=True) if fold_frames else pd.DataFrame()
 
 
-def run_walk_forward_cv(hist_df: pd.DataFrame, origins, origin_type: str,
-                        cfg: Config = CFG, timings: list[dict] | None = None,
-                        strategy: ForecastStrategy | str = ForecastStrategy.DIRECT) -> pd.DataFrame:
+def run_walk_forward_cv(
+    hist_df: pd.DataFrame, origins, origin_type: str, cfg: Config = CFG,
+    timings: list[dict] | None = None,
+    strategy: ForecastStrategy | str = ForecastStrategy.DIRECT, *,
+    checkpoint_dir: str | None = None, resume: bool = False,
+) -> pd.DataFrame:
     strategy = ForecastStrategy(strategy)
     if strategy is ForecastStrategy.DIRECT:
-        return run_walk_forward_cv_direct(hist_df, origins, origin_type, cfg, timings)
+        return run_walk_forward_cv_direct(
+            hist_df, origins, origin_type, cfg, timings,
+            checkpoint_dir=checkpoint_dir, resume=resume,
+        )
     if strategy is ForecastStrategy.RECURSIVE:
-        return run_walk_forward_cv_recursive(hist_df, origins, origin_type, cfg, timings)
+        return run_walk_forward_cv_recursive(
+            hist_df, origins, origin_type, cfg, timings,
+            checkpoint_dir=checkpoint_dir, resume=resume,
+        )
     raise ValueError("run_walk_forward_cv accepts one concrete strategy, not 'both'")
 
 
@@ -1107,6 +1263,11 @@ def main(argv=None) -> None:
     cfg = CFG
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
+    if options.reset_checkpoints and os.path.exists(options.checkpoint_dir):
+        shutil.rmtree(options.checkpoint_dir)
+        print(f"Removed checkpoints: {options.checkpoint_dir}")
+    if options.resume:
+        print(f"CV resume enabled: {options.checkpoint_dir}")
     run_start = time.perf_counter()
     timings: dict = {"cv_folds": []}
 
@@ -1121,12 +1282,14 @@ def main(argv=None) -> None:
         dev = run_walk_forward_cv(
             train_raw, DEVELOPMENT_ORIGINS, "development", cfg,
             timings=timings["cv_folds"], strategy=strategy,
+            checkpoint_dir=options.checkpoint_dir, resume=options.resume,
         )
         dev_frames.append(dev)
         print(f"\n=== {strategy.value.upper()} recent-benchmark CV ===")
         benchmark = run_walk_forward_cv(
             train_raw, benchmark_origins, "recent_benchmark", cfg,
             timings=timings["cv_folds"], strategy=strategy,
+            checkpoint_dir=options.checkpoint_dir, resume=options.resume,
         )
         benchmark_frames.append(benchmark)
 

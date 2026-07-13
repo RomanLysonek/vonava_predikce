@@ -209,3 +209,42 @@ as available, matching the conditional-demand forecast contract.
 The unrounded model-strategy forecasts are stored in
 `outputs/final_forecasts.parquet`. Strategy-specific submissions and paired
 strategy diagnostics are written alongside the canonical submission.
+
+## Interrupted-run recovery and recursive stability
+
+Every completed CV fold is now written atomically to:
+
+```text
+outputs/checkpoints/<strategy>/<origin_type>/<origin>.pkl
+```
+
+Resume an interrupted run with:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy both \
+  --primary-strategy auto \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --resume \
+  2>&1 | tee pipeline_both.log
+```
+
+Use `--reset-checkpoints` after changing model or feature semantics. Each
+checkpoint includes a schema/config signature, so incompatible checkpoints
+are ignored rather than silently mixed into a new experiment.
+
+Before committing to the full run, the regression test for the previously
+failing recursive Dynamic Ridge fold can be executed directly:
+
+```bash
+uv run pytest -q \
+  tests/test_recursive_dynamic_ridge_real_fold.py::test_recursive_dynamic_ridge_real_2024_11_29_fold_is_finite
+```
+
+Recursive Dynamic Ridge constrains only its recursive residual extrapolation
+to the residual support observed during training. The generic recursive engine
+also replaces non-finite or catastrophically large numerical outputs with the
+recorded same-weekday baseline before they can contaminate later lag features.
+This is a numerical stability guard, not the prediction-cap optimization left
+for Tier C3.
