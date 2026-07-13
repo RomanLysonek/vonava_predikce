@@ -6,9 +6,10 @@ the same process crashes the interpreter (segfault) as soon as either one
 actually runs its native training code. This module has NO torch import (and
 must never gain one), so running it as a child process keeps it fully
 isolated from `pipeline.py`'s torch usage -- the two runtimes never share a
-process. Each model's actual train/predict/recursive-forecast definition
-lives in its own file under `models/` (`models/xgboost_model.py`,
-`models/lightgbm_model.py`); this module just dispatches to them.
+process. Each model's actual train/predict definition (direct on the
+multi-horizon panel, no recursion) lives in its own file under `models/`
+(`models/xgboost_model.py`, `models/lightgbm_model.py`); this module just
+dispatches to them.
 
 Protocol: the caller pickles a job dict (see `run_job`) to a temp file,
 invokes this script with `<job_path> <output_path>`, and reads back a
@@ -23,36 +24,33 @@ import pickle
 import sys
 
 from framework import Config
-from models.lightgbm_model import recursive_forecast_lightgbm, train_lightgbm
-from models.xgboost_model import recursive_forecast_xgboost, train_xgboost
+from models.lightgbm_model import predict_lightgbm, train_lightgbm
+from models.xgboost_model import predict_xgboost, train_xgboost
 
 TRAINERS = {"XGBoost": train_xgboost, "LightGBM": train_lightgbm}
-RECURSIVE_FORECASTERS = {"XGBoost": recursive_forecast_xgboost, "LightGBM": recursive_forecast_lightgbm}
+PREDICTORS = {"XGBoost": predict_xgboost, "LightGBM": predict_lightgbm}
 
 
 def run_job(job: dict) -> dict:
     """job = {
         "cfg": {... Config field overrides ...},
-        "train_examples": pd.DataFrame,
-        "static_eval": pd.DataFrame,
-        "history": {product_id: [floats]},   # shared *starting* history per model
+        "train_panel": pd.DataFrame,   # build_direct_panel() training rows
+        "eval_panel": pd.DataFrame,    # build_direct_panel() rows to predict for
         "models": ["XGBoost", "LightGBM"],   # optional, defaults to both
     }
-    Returns {model_name: [predictions aligned with static_eval row order]}.
+    Returns {model_name: [predictions aligned with eval_panel row order]}.
+    No recursive state needed -- every horizon's features in `eval_panel`
+    are already lookups into observed data (see `framework.build_direct_panel`),
+    so one `.predict()` call per model covers every horizon at once.
     """
     cfg = Config(**job["cfg"])
-    train_examples = job["train_examples"]
-    static_eval = job["static_eval"]
-    history_seed = job["history"]
+    train_panel = job["train_panel"]
+    eval_panel = job["eval_panel"]
 
     results = {}
     for name in job.get("models", list(TRAINERS)):
-        model = TRAINERS[name](train_examples, cfg)
-        # Fresh copy per model: recursion mutates history in place with that
-        # model's own predictions, so sharing one dict across models would
-        # leak one model's forecasts into another's lag features.
-        history = {k: list(v) for k, v in history_seed.items()}
-        preds = RECURSIVE_FORECASTERS[name](model, static_eval, history, cfg)
+        model = TRAINERS[name](train_panel, cfg)
+        preds = PREDICTORS[name](model, eval_panel, cfg)
         results[name] = preds.tolist()
     return results
 

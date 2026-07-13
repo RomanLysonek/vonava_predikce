@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-12T13:17:51.838425+00:00",
+  "generated_at": "2026-07-13T06:58:48.898265+00:00",
   "config": {
     "horizon": 7,
     "lag_windows": [
@@ -22,7 +22,7 @@
     {
       "key": "NeuralNet",
       "slug": "neuralnet",
-      "skill_vs_seasonal_naive": 0.5070464896450975,
+      "skill_vs_seasonal_naive": 0.5562000515596803,
       "label": "Neural Net",
       "short": "PyTorch",
       "color": "#EE4C2C",
@@ -33,7 +33,7 @@
     {
       "key": "XGBoost",
       "slug": "xgboost",
-      "skill_vs_seasonal_naive": 0.6578155882100198,
+      "skill_vs_seasonal_naive": 0.6675259946721663,
       "label": "XGBoost",
       "short": "xgboost.ai",
       "color": "#7A43B6",
@@ -44,7 +44,7 @@
     {
       "key": "LightGBM",
       "slug": "lightgbm",
-      "skill_vs_seasonal_naive": 0.6523158889748217,
+      "skill_vs_seasonal_naive": 0.6653776746584171,
       "label": "LightGBM",
       "short": "readthedocs",
       "color": "#2980B9",
@@ -79,157 +79,157 @@
     {
       "fold": 3,
       "model": "NeuralNet",
-      "MAE": 18.939,
-      "RMSE": 28.813,
-      "MAPE": 59.416,
-      "WAPE": 0.324,
-      "sMAPE": 0.382,
-      "RMSLE": 0.509,
-      "Bias": 5.969,
-      "BiasRatio": 0.102,
-      "n": 210
+      "MAE": 18.043,
+      "RMSE": 28.651,
+      "MAPE": 60.075,
+      "WAPE": 0.31,
+      "sMAPE": 0.364,
+      "RMSLE": 0.488,
+      "Bias": 10.926,
+      "BiasRatio": 0.188,
+      "n": 209
     },
     {
       "fold": 2,
       "model": "NeuralNet",
-      "MAE": 12.951,
-      "RMSE": 20.198,
-      "MAPE": 195.377,
-      "WAPE": 0.873,
-      "sMAPE": 0.73,
-      "RMSLE": 0.961,
-      "Bias": 10.992,
-      "BiasRatio": 0.741,
+      "MAE": 10.228,
+      "RMSE": 14.282,
+      "MAPE": 166.357,
+      "WAPE": 0.689,
+      "sMAPE": 0.7,
+      "RMSLE": 0.881,
+      "Bias": 7.613,
+      "BiasRatio": 0.513,
       "n": 210
     },
     {
       "fold": 1,
       "model": "NeuralNet",
-      "MAE": 6.88,
-      "RMSE": 9.58,
-      "MAPE": 76.197,
-      "WAPE": 0.382,
-      "sMAPE": 0.535,
-      "RMSLE": 0.64,
-      "Bias": -2.449,
-      "BiasRatio": -0.136,
+      "MAE": 5.929,
+      "RMSE": 9.222,
+      "MAPE": 66.263,
+      "WAPE": 0.329,
+      "sMAPE": 0.453,
+      "RMSLE": 0.57,
+      "Bias": -0.041,
+      "BiasRatio": -0.002,
       "n": 210
     },
     {
       "fold": 0,
       "model": "NeuralNet",
-      "MAE": 7.121,
-      "RMSE": 9.174,
-      "MAPE": 39.856,
+      "MAE": 7.117,
+      "RMSE": 9.604,
+      "MAPE": 39.356,
       "WAPE": 0.312,
-      "sMAPE": 0.41,
-      "RMSLE": 0.533,
-      "Bias": -3.816,
-      "BiasRatio": -0.167,
+      "sMAPE": 0.395,
+      "RMSLE": 0.584,
+      "Bias": -2.475,
+      "BiasRatio": -0.108,
       "n": 210
     },
     {
       "fold": 3,
       "model": "XGBoost",
-      "MAE": 11.835,
-      "RMSE": 17.483,
-      "MAPE": 28.076,
-      "WAPE": 0.203,
-      "sMAPE": 0.275,
-      "RMSLE": 0.312,
-      "Bias": -1.03,
-      "BiasRatio": -0.018,
+      "MAE": 12.334,
+      "RMSE": 20.671,
+      "MAPE": 29.918,
+      "WAPE": 0.211,
+      "sMAPE": 0.271,
+      "RMSLE": 0.32,
+      "Bias": -2.88,
+      "BiasRatio": -0.049,
       "n": 210
     },
     {
       "fold": 2,
       "model": "XGBoost",
-      "MAE": 6.071,
-      "RMSE": 10.108,
-      "MAPE": 84.367,
-      "WAPE": 0.409,
-      "sMAPE": 0.56,
-      "RMSLE": 0.661,
-      "Bias": -1.723,
-      "BiasRatio": -0.116,
+      "MAE": 5.898,
+      "RMSE": 8.52,
+      "MAPE": 99.446,
+      "WAPE": 0.397,
+      "sMAPE": 0.557,
+      "RMSLE": 0.668,
+      "Bias": 1.962,
+      "BiasRatio": 0.132,
       "n": 210
     },
     {
       "fold": 1,
       "model": "XGBoost",
-      "MAE": 6.794,
-      "RMSE": 10.429,
-      "MAPE": 57.773,
-      "WAPE": 0.377,
-      "sMAPE": 0.492,
-      "RMSLE": 0.541,
-      "Bias": 1.044,
-      "BiasRatio": 0.058,
+      "MAE": 5.439,
+      "RMSE": 7.584,
+      "MAPE": 57.988,
+      "WAPE": 0.302,
+      "sMAPE": 0.418,
+      "RMSLE": 0.521,
+      "Bias": -0.623,
+      "BiasRatio": -0.035,
       "n": 210
     },
     {
       "fold": 0,
       "model": "XGBoost",
-      "MAE": 7.156,
-      "RMSE": 9.789,
-      "MAPE": 34.138,
-      "WAPE": 0.313,
-      "sMAPE": 0.393,
-      "RMSLE": 0.652,
-      "Bias": -3.863,
-      "BiasRatio": -0.169,
+      "MAE": 7.28,
+      "RMSE": 9.965,
+      "MAPE": 36.484,
+      "WAPE": 0.319,
+      "sMAPE": 0.399,
+      "RMSLE": 0.582,
+      "Bias": -2.998,
+      "BiasRatio": -0.131,
       "n": 210
     },
     {
       "fold": 3,
       "model": "LightGBM",
-      "MAE": 12.582,
-      "RMSE": 20.484,
-      "MAPE": 28.272,
-      "WAPE": 0.216,
-      "sMAPE": 0.267,
-      "RMSLE": 0.311,
-      "Bias": -1.189,
-      "BiasRatio": -0.02,
+      "MAE": 11.77,
+      "RMSE": 19.856,
+      "MAPE": 32.765,
+      "WAPE": 0.202,
+      "sMAPE": 0.271,
+      "RMSLE": 0.344,
+      "Bias": -0.586,
+      "BiasRatio": -0.01,
       "n": 210
     },
     {
       "fold": 2,
       "model": "LightGBM",
-      "MAE": 5.953,
-      "RMSE": 9.787,
-      "MAPE": 83.5,
-      "WAPE": 0.401,
-      "sMAPE": 0.535,
-      "RMSLE": 0.656,
-      "Bias": -1.067,
-      "BiasRatio": -0.072,
+      "MAE": 6.237,
+      "RMSE": 9.19,
+      "MAPE": 101.015,
+      "WAPE": 0.42,
+      "sMAPE": 0.559,
+      "RMSLE": 0.67,
+      "Bias": 1.851,
+      "BiasRatio": 0.125,
       "n": 210
     },
     {
       "fold": 1,
       "model": "LightGBM",
-      "MAE": 6.367,
-      "RMSE": 9.191,
-      "MAPE": 60.35,
-      "WAPE": 0.354,
-      "sMAPE": 0.482,
-      "RMSLE": 0.546,
-      "Bias": 0.151,
-      "BiasRatio": 0.008,
+      "MAE": 5.962,
+      "RMSE": 8.274,
+      "MAPE": 64.291,
+      "WAPE": 0.331,
+      "sMAPE": 0.472,
+      "RMSLE": 0.563,
+      "Bias": -0.736,
+      "BiasRatio": -0.041,
       "n": 210
     },
     {
       "fold": 0,
       "model": "LightGBM",
-      "MAE": 7.468,
-      "RMSE": 10.378,
-      "MAPE": 35.669,
-      "WAPE": 0.327,
-      "sMAPE": 0.406,
-      "RMSLE": 0.659,
-      "Bias": -4.235,
-      "BiasRatio": -0.186,
+      "MAE": 7.182,
+      "RMSE": 9.889,
+      "MAPE": 36.77,
+      "WAPE": 0.315,
+      "sMAPE": 0.399,
+      "RMSLE": 0.604,
+      "Bias": -3.22,
+      "BiasRatio": -0.141,
       "n": 210
     },
     {
@@ -340,21 +340,21 @@
   "cv_summary": [
     {
       "model": "NeuralNet",
-      "MAE": 11.473,
-      "RMSE": 16.941,
-      "MAPE": 92.711
+      "MAE": 10.329,
+      "RMSE": 15.44,
+      "MAPE": 83.013
     },
     {
       "model": "XGBoost",
-      "MAE": 7.964,
-      "RMSE": 11.952,
-      "MAPE": 51.089
+      "MAE": 7.738,
+      "RMSE": 11.685,
+      "MAPE": 55.959
     },
     {
       "model": "LightGBM",
-      "MAE": 8.092,
-      "RMSE": 12.46,
-      "MAPE": 51.948
+      "MAE": 7.788,
+      "RMSE": 11.802,
+      "MAPE": 58.71
     },
     {
       "model": "SeasonalNaive",
@@ -369,729 +369,1011 @@
       "MAPE": 509.254
     }
   ],
-  "skill_vs_seasonal_naive": 0.5070464896450975,
-  "holdout_summary": null,
-  "dev_summary": null,
+  "skill_vs_seasonal_naive": 0.5562000515596803,
+  "holdout_summary": [
+    {
+      "model": "NeuralNet",
+      "aggregation": "mean_fold",
+      "n_folds": 4,
+      "MAE": 10.329,
+      "RMSE": 15.44,
+      "MAPE": 83.013,
+      "WAPE": 0.41,
+      "sMAPE": 0.478,
+      "RMSLE": 0.631,
+      "Bias": 4.006,
+      "BiasRatio": 0.148,
+      "n": 209.75
+    },
+    {
+      "model": "NeuralNet",
+      "aggregation": "global",
+      "n_folds": 4,
+      "MAE": 10.32,
+      "RMSE": 17.318,
+      "MAPE": 83.04,
+      "WAPE": 0.363,
+      "sMAPE": 0.478,
+      "RMSLE": 0.648,
+      "Bias": 3.997,
+      "BiasRatio": 0.141,
+      "n": 839.0
+    },
+    {
+      "model": "XGBoost",
+      "aggregation": "mean_fold",
+      "n_folds": 4,
+      "MAE": 7.738,
+      "RMSE": 11.685,
+      "MAPE": 55.959,
+      "WAPE": 0.307,
+      "sMAPE": 0.411,
+      "RMSLE": 0.523,
+      "Bias": -1.135,
+      "BiasRatio": -0.021,
+      "n": 210.0
+    },
+    {
+      "model": "XGBoost",
+      "aggregation": "global",
+      "n_folds": 4,
+      "MAE": 7.738,
+      "RMSE": 12.813,
+      "MAPE": 55.959,
+      "WAPE": 0.271,
+      "sMAPE": 0.411,
+      "RMSLE": 0.538,
+      "Bias": -1.135,
+      "BiasRatio": -0.04,
+      "n": 840.0
+    },
+    {
+      "model": "LightGBM",
+      "aggregation": "mean_fold",
+      "n_folds": 4,
+      "MAE": 7.788,
+      "RMSE": 11.802,
+      "MAPE": 58.71,
+      "WAPE": 0.317,
+      "sMAPE": 0.425,
+      "RMSLE": 0.545,
+      "Bias": -0.673,
+      "BiasRatio": -0.017,
+      "n": 210.0
+    },
+    {
+      "model": "LightGBM",
+      "aggregation": "global",
+      "n_folds": 4,
+      "MAE": 7.788,
+      "RMSE": 12.698,
+      "MAPE": 58.71,
+      "WAPE": 0.273,
+      "sMAPE": 0.425,
+      "RMSLE": 0.559,
+      "Bias": -0.673,
+      "BiasRatio": -0.024,
+      "n": 840.0
+    },
+    {
+      "model": "SeasonalNaive",
+      "aggregation": "mean_fold",
+      "n_folds": 4,
+      "MAE": 23.274,
+      "RMSE": 34.617,
+      "MAPE": 214.62,
+      "WAPE": 1.111,
+      "sMAPE": 0.732,
+      "RMSLE": 1.019,
+      "Bias": 12.057,
+      "BiasRatio": 0.691,
+      "n": 210.0
+    },
+    {
+      "model": "SeasonalNaive",
+      "aggregation": "global",
+      "n_folds": 4,
+      "MAE": 23.274,
+      "RMSE": 40.991,
+      "MAPE": 214.62,
+      "WAPE": 0.816,
+      "sMAPE": 0.732,
+      "RMSLE": 1.093,
+      "Bias": 12.057,
+      "BiasRatio": 0.423,
+      "n": 840.0
+    },
+    {
+      "model": "MovingAvg28",
+      "aggregation": "mean_fold",
+      "n_folds": 4,
+      "MAE": 37.169,
+      "RMSE": 49.971,
+      "MAPE": 509.254,
+      "WAPE": 1.804,
+      "sMAPE": 0.899,
+      "RMSLE": 1.369,
+      "Bias": 31.32,
+      "BiasRatio": 1.649,
+      "n": 210.0
+    },
+    {
+      "model": "MovingAvg28",
+      "aggregation": "global",
+      "n_folds": 4,
+      "MAE": 37.169,
+      "RMSE": 51.205,
+      "MAPE": 509.254,
+      "WAPE": 1.304,
+      "sMAPE": 0.899,
+      "RMSLE": 1.42,
+      "Bias": 31.32,
+      "BiasRatio": 1.099,
+      "n": 840.0
+    }
+  ],
+  "dev_summary": [
+    {
+      "model": "NeuralNet",
+      "aggregation": "mean_fold",
+      "n_folds": 12,
+      "MAE": 15.795,
+      "RMSE": 22.237,
+      "MAPE": 87.442,
+      "WAPE": 0.423,
+      "sMAPE": 0.423,
+      "RMSLE": 0.576,
+      "Bias": 1.059,
+      "BiasRatio": 0.156,
+      "n": 180.583
+    },
+    {
+      "model": "NeuralNet",
+      "aggregation": "global",
+      "n_folds": 12,
+      "MAE": 15.978,
+      "RMSE": 26.995,
+      "MAPE": 86.082,
+      "WAPE": 0.38,
+      "sMAPE": 0.419,
+      "RMSLE": 0.628,
+      "Bias": 1.095,
+      "BiasRatio": 0.026,
+      "n": 2167.0
+    },
+    {
+      "model": "XGBoost",
+      "aggregation": "mean_fold",
+      "n_folds": 12,
+      "MAE": 17.216,
+      "RMSE": 27.386,
+      "MAPE": 182.677,
+      "WAPE": 0.447,
+      "sMAPE": 0.441,
+      "RMSLE": 0.711,
+      "Bias": 1.215,
+      "BiasRatio": 0.162,
+      "n": 202.25
+    },
+    {
+      "model": "XGBoost",
+      "aggregation": "global",
+      "n_folds": 12,
+      "MAE": 17.21,
+      "RMSE": 33.247,
+      "MAPE": 178.768,
+      "WAPE": 0.425,
+      "sMAPE": 0.439,
+      "RMSLE": 0.755,
+      "Bias": 1.327,
+      "BiasRatio": 0.033,
+      "n": 2427.0
+    },
+    {
+      "model": "LightGBM",
+      "aggregation": "mean_fold",
+      "n_folds": 12,
+      "MAE": 15.469,
+      "RMSE": 22.392,
+      "MAPE": 74.312,
+      "WAPE": 0.37,
+      "sMAPE": 0.436,
+      "RMSLE": 0.599,
+      "Bias": -3.132,
+      "BiasRatio": 0.015,
+      "n": 202.25
+    },
+    {
+      "model": "LightGBM",
+      "aggregation": "global",
+      "n_folds": 12,
+      "MAE": 15.502,
+      "RMSE": 30.316,
+      "MAPE": 74.061,
+      "WAPE": 0.383,
+      "sMAPE": 0.435,
+      "RMSLE": 0.617,
+      "Bias": -2.994,
+      "BiasRatio": -0.074,
+      "n": 2427.0
+    },
+    {
+      "model": "SeasonalNaive",
+      "aggregation": "mean_fold",
+      "n_folds": 12,
+      "MAE": 30.299,
+      "RMSE": 42.742,
+      "MAPE": 203.548,
+      "WAPE": 0.889,
+      "sMAPE": 0.639,
+      "RMSLE": 0.913,
+      "Bias": 13.092,
+      "BiasRatio": 0.564,
+      "n": 200.25
+    },
+    {
+      "model": "SeasonalNaive",
+      "aggregation": "global",
+      "n_folds": 12,
+      "MAE": 30.824,
+      "RMSE": 51.465,
+      "MAPE": 209.612,
+      "WAPE": 0.756,
+      "sMAPE": 0.644,
+      "RMSLE": 0.992,
+      "Bias": 14.035,
+      "BiasRatio": 0.344,
+      "n": 2403.0
+    },
+    {
+      "model": "MovingAvg28",
+      "aggregation": "mean_fold",
+      "n_folds": 12,
+      "MAE": 29.032,
+      "RMSE": 39.188,
+      "MAPE": 194.092,
+      "WAPE": 0.848,
+      "sMAPE": 0.639,
+      "RMSLE": 0.897,
+      "Bias": 5.819,
+      "BiasRatio": 0.464,
+      "n": 200.5
+    },
+    {
+      "model": "MovingAvg28",
+      "aggregation": "global",
+      "n_folds": 12,
+      "MAE": 29.385,
+      "RMSE": 48.002,
+      "MAPE": 199.007,
+      "WAPE": 0.72,
+      "sMAPE": 0.643,
+      "RMSLE": 0.98,
+      "Bias": 6.461,
+      "BiasRatio": 0.158,
+      "n": 2406.0
+    }
+  ],
   "submission": [
     {
       "ProductId": 1,
       "DateKey": "2026-01-12",
-      "Quantity": 7
+      "Quantity": 12
     },
     {
       "ProductId": 1,
       "DateKey": "2026-01-13",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 1,
+      "DateKey": "2026-01-14",
+      "Quantity": 8
+    },
+    {
+      "ProductId": 1,
+      "DateKey": "2026-01-15",
       "Quantity": 6
     },
     {
       "ProductId": 1,
+      "DateKey": "2026-01-16",
+      "Quantity": 7
+    },
+    {
+      "ProductId": 1,
+      "DateKey": "2026-01-17",
+      "Quantity": 7
+    },
+    {
+      "ProductId": 1,
+      "DateKey": "2026-01-18",
+      "Quantity": 8
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-12",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-13",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 2,
       "DateKey": "2026-01-14",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-15",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-16",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-17",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 2,
+      "DateKey": "2026-01-18",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-12",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-13",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-14",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-15",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-16",
+      "Quantity": 9
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-17",
+      "Quantity": 8
+    },
+    {
+      "ProductId": 3,
+      "DateKey": "2026-01-18",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 4,
+      "DateKey": "2026-01-12",
       "Quantity": 6
     },
     {
-      "ProductId": 1,
-      "DateKey": "2026-01-15",
-      "Quantity": 7
-    },
-    {
-      "ProductId": 1,
-      "DateKey": "2026-01-16",
-      "Quantity": 7
-    },
-    {
-      "ProductId": 1,
-      "DateKey": "2026-01-17",
-      "Quantity": 7
-    },
-    {
-      "ProductId": 1,
-      "DateKey": "2026-01-18",
-      "Quantity": 7
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-12",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 2,
+      "ProductId": 4,
       "DateKey": "2026-01-13",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-14",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-15",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-16",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-17",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 2,
-      "DateKey": "2026-01-18",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-12",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-13",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-14",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-15",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-16",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-17",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 3,
-      "DateKey": "2026-01-18",
-      "Quantity": 19
+      "Quantity": 5
     },
     {
       "ProductId": 4,
-      "DateKey": "2026-01-12",
-      "Quantity": 2
+      "DateKey": "2026-01-14",
+      "Quantity": 5
     },
     {
       "ProductId": 4,
-      "DateKey": "2026-01-13",
+      "DateKey": "2026-01-15",
+      "Quantity": 4
+    },
+    {
+      "ProductId": 4,
+      "DateKey": "2026-01-16",
+      "Quantity": 4
+    },
+    {
+      "ProductId": 4,
+      "DateKey": "2026-01-17",
       "Quantity": 3
     },
     {
       "ProductId": 4,
-      "DateKey": "2026-01-14",
-      "Quantity": 4
-    },
-    {
-      "ProductId": 4,
-      "DateKey": "2026-01-15",
-      "Quantity": 4
-    },
-    {
-      "ProductId": 4,
-      "DateKey": "2026-01-16",
-      "Quantity": 4
-    },
-    {
-      "ProductId": 4,
-      "DateKey": "2026-01-17",
-      "Quantity": 4
-    },
-    {
-      "ProductId": 4,
       "DateKey": "2026-01-18",
-      "Quantity": 5
+      "Quantity": 3
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-12",
-      "Quantity": 20
+      "Quantity": 24
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-13",
-      "Quantity": 20
+      "Quantity": 22
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-14",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 5,
+      "DateKey": "2026-01-15",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 5,
+      "DateKey": "2026-01-16",
+      "Quantity": 22
+    },
+    {
+      "ProductId": 5,
+      "DateKey": "2026-01-17",
       "Quantity": 18
     },
     {
       "ProductId": 5,
-      "DateKey": "2026-01-15",
+      "DateKey": "2026-01-18",
+      "Quantity": 30
+    },
+    {
+      "ProductId": 6,
+      "DateKey": "2026-01-12",
       "Quantity": 17
     },
     {
-      "ProductId": 5,
-      "DateKey": "2026-01-16",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 5,
-      "DateKey": "2026-01-17",
+      "ProductId": 6,
+      "DateKey": "2026-01-13",
       "Quantity": 15
     },
     {
-      "ProductId": 5,
-      "DateKey": "2026-01-18",
-      "Quantity": 20
-    },
-    {
       "ProductId": 6,
-      "DateKey": "2026-01-12",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-13",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-14",
-      "Quantity": 12
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-15",
-      "Quantity": 11
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-16",
-      "Quantity": 11
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-17",
-      "Quantity": 11
-    },
-    {
-      "ProductId": 6,
-      "DateKey": "2026-01-18",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 7,
-      "DateKey": "2026-01-12",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 7,
-      "DateKey": "2026-01-13",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 7,
       "DateKey": "2026-01-14",
       "Quantity": 13
     },
     {
-      "ProductId": 7,
+      "ProductId": 6,
       "DateKey": "2026-01-15",
       "Quantity": 12
     },
     {
-      "ProductId": 7,
+      "ProductId": 6,
       "DateKey": "2026-01-16",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 6,
+      "DateKey": "2026-01-17",
       "Quantity": 9
     },
     {
+      "ProductId": 6,
+      "DateKey": "2026-01-18",
+      "Quantity": 15
+    },
+    {
       "ProductId": 7,
-      "DateKey": "2026-01-17",
+      "DateKey": "2026-01-12",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 7,
+      "DateKey": "2026-01-13",
+      "Quantity": 16
+    },
+    {
+      "ProductId": 7,
+      "DateKey": "2026-01-14",
+      "Quantity": 16
+    },
+    {
+      "ProductId": 7,
+      "DateKey": "2026-01-15",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 7,
+      "DateKey": "2026-01-16",
       "Quantity": 7
     },
     {
       "ProductId": 7,
+      "DateKey": "2026-01-17",
+      "Quantity": 5
+    },
+    {
+      "ProductId": 7,
+      "DateKey": "2026-01-18",
+      "Quantity": 8
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-12",
+      "Quantity": 48
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-13",
+      "Quantity": 41
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-14",
+      "Quantity": 41
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-15",
+      "Quantity": 42
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-16",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-17",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-18",
+      "Quantity": 30
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-12",
+      "Quantity": 27
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-13",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-14",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-15",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-16",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-17",
+      "Quantity": 16
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-18",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-12",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-13",
+      "Quantity": 22
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-14",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-15",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-16",
+      "Quantity": 15
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-17",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-18",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-12",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-13",
+      "Quantity": 14
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-14",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-15",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-16",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-17",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 11,
       "DateKey": "2026-01-18",
       "Quantity": 11
     },
     {
-      "ProductId": 8,
+      "ProductId": 12,
+      "DateKey": "2026-01-12",
+      "Quantity": 42
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-13",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-14",
+      "Quantity": 29
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-15",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-16",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-17",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-18",
+      "Quantity": 35
+    },
+    {
+      "ProductId": 13,
       "DateKey": "2026-01-12",
       "Quantity": 35
     },
     {
-      "ProductId": 8,
+      "ProductId": 13,
       "DateKey": "2026-01-13",
-      "Quantity": 33
+      "Quantity": 44
     },
     {
-      "ProductId": 8,
+      "ProductId": 13,
       "DateKey": "2026-01-14",
-      "Quantity": 33
+      "Quantity": 46
     },
     {
-      "ProductId": 8,
+      "ProductId": 13,
       "DateKey": "2026-01-15",
-      "Quantity": 31
+      "Quantity": 40
     },
     {
-      "ProductId": 8,
+      "ProductId": 13,
       "DateKey": "2026-01-16",
-      "Quantity": 26
+      "Quantity": 35
     },
     {
-      "ProductId": 8,
+      "ProductId": 13,
+      "DateKey": "2026-01-17",
+      "Quantity": 34
+    },
+    {
+      "ProductId": 13,
+      "DateKey": "2026-01-18",
+      "Quantity": 49
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-12",
+      "Quantity": 57
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-13",
+      "Quantity": 44
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-14",
+      "Quantity": 44
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-15",
+      "Quantity": 38
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-16",
+      "Quantity": 27
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-17",
+      "Quantity": 32
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-18",
+      "Quantity": 46
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-12",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-13",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-14",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-15",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-16",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-17",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-18",
+      "Quantity": 16
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-12",
+      "Quantity": 48
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-13",
+      "Quantity": 52
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-14",
+      "Quantity": 51
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-15",
+      "Quantity": 45
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-16",
+      "Quantity": 34
+    },
+    {
+      "ProductId": 16,
       "DateKey": "2026-01-17",
       "Quantity": 25
     },
     {
-      "ProductId": 8,
+      "ProductId": 16,
       "DateKey": "2026-01-18",
-      "Quantity": 33
+      "Quantity": 38
     },
     {
-      "ProductId": 9,
+      "ProductId": 17,
       "DateKey": "2026-01-12",
-      "Quantity": 20
+      "Quantity": 21
     },
     {
-      "ProductId": 9,
+      "ProductId": 17,
       "DateKey": "2026-01-13",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-14",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-15",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-16",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-17",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-18",
-      "Quantity": 23
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-12",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-13",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-14",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-15",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-16",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-17",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-18",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-12",
-      "Quantity": 28
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-13",
-      "Quantity": 24
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-14",
       "Quantity": 22
     },
     {
-      "ProductId": 11,
-      "DateKey": "2026-01-15",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-16",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-17",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 11,
-      "DateKey": "2026-01-18",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-12",
+      "ProductId": 17,
+      "DateKey": "2026-01-14",
       "Quantity": 23
     },
     {
-      "ProductId": 12,
+      "ProductId": 17,
+      "DateKey": "2026-01-15",
+      "Quantity": 18
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-16",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-17",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-18",
+      "Quantity": 15
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-12",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-13",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-14",
+      "Quantity": 18
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-15",
+      "Quantity": 23
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-16",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-17",
+      "Quantity": 14
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-18",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-12",
+      "Quantity": 22
+    },
+    {
+      "ProductId": 19,
       "DateKey": "2026-01-13",
       "Quantity": 21
     },
     {
-      "ProductId": 12,
+      "ProductId": 19,
       "DateKey": "2026-01-14",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-15",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-16",
       "Quantity": 17
     },
     {
-      "ProductId": 12,
-      "DateKey": "2026-01-17",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-18",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-12",
-      "Quantity": 30
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-13",
-      "Quantity": 37
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-14",
-      "Quantity": 40
-    },
-    {
-      "ProductId": 13,
+      "ProductId": 19,
       "DateKey": "2026-01-15",
-      "Quantity": 37
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-16",
-      "Quantity": 31
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-17",
-      "Quantity": 28
-    },
-    {
-      "ProductId": 13,
-      "DateKey": "2026-01-18",
-      "Quantity": 44
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-12",
-      "Quantity": 56
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-13",
-      "Quantity": 47
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-14",
-      "Quantity": 45
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-15",
-      "Quantity": 44
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-16",
-      "Quantity": 40
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-17",
-      "Quantity": 40
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-18",
-      "Quantity": 63
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-12",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-13",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-14",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-15",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-16",
-      "Quantity": 12
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-17",
-      "Quantity": 12
-    },
-    {
-      "ProductId": 15,
-      "DateKey": "2026-01-18",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-12",
-      "Quantity": 43
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-13",
-      "Quantity": 42
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-14",
-      "Quantity": 40
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-15",
-      "Quantity": 37
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-16",
-      "Quantity": 31
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-17",
       "Quantity": 29
     },
     {
-      "ProductId": 16,
-      "DateKey": "2026-01-18",
-      "Quantity": 41
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-12",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-13",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-14",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-15",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 17,
+      "ProductId": 19,
       "DateKey": "2026-01-16",
-      "Quantity": 11
+      "Quantity": 30
     },
     {
-      "ProductId": 17,
+      "ProductId": 19,
       "DateKey": "2026-01-17",
-      "Quantity": 11
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-18",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-12",
-      "Quantity": 24
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-13",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-14",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-15",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-16",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-17",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-18",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-12",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-13",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-14",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-15",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-16",
       "Quantity": 18
     },
     {
       "ProductId": 19,
-      "DateKey": "2026-01-17",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 19,
       "DateKey": "2026-01-18",
-      "Quantity": 22
+      "Quantity": 31
     },
     {
       "ProductId": 20,
       "DateKey": "2026-01-12",
-      "Quantity": 23
+      "Quantity": 22
     },
     {
       "ProductId": 20,
       "DateKey": "2026-01-13",
-      "Quantity": 24
+      "Quantity": 22
     },
     {
       "ProductId": 20,
       "DateKey": "2026-01-14",
-      "Quantity": 23
+      "Quantity": 22
     },
     {
       "ProductId": 20,
       "DateKey": "2026-01-15",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-16",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-17",
       "Quantity": 16
     },
     {
       "ProductId": 20,
+      "DateKey": "2026-01-16",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-17",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 20,
       "DateKey": "2026-01-18",
-      "Quantity": 24
+      "Quantity": 20
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-12",
-      "Quantity": 8
+      "Quantity": 9
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-13",
-      "Quantity": 7
+      "Quantity": 9
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-14",
-      "Quantity": 7
+      "Quantity": 8
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-15",
-      "Quantity": 6
+      "Quantity": 7
     },
     {
       "ProductId": 21,
@@ -1101,7 +1383,7 @@
     {
       "ProductId": 21,
       "DateKey": "2026-01-17",
-      "Quantity": 6
+      "Quantity": 5
     },
     {
       "ProductId": 21,
@@ -1116,20 +1398,20 @@
     {
       "ProductId": 22,
       "DateKey": "2026-01-13",
-      "Quantity": 11
+      "Quantity": 12
     },
     {
       "ProductId": 22,
       "DateKey": "2026-01-14",
+      "Quantity": 11
+    },
+    {
+      "ProductId": 22,
+      "DateKey": "2026-01-15",
       "Quantity": 10
     },
     {
       "ProductId": 22,
-      "DateKey": "2026-01-15",
-      "Quantity": 9
-    },
-    {
-      "ProductId": 22,
       "DateKey": "2026-01-16",
       "Quantity": 9
     },
@@ -1141,127 +1423,127 @@
     {
       "ProductId": 22,
       "DateKey": "2026-01-18",
-      "Quantity": 11
+      "Quantity": 12
     },
     {
       "ProductId": 23,
       "DateKey": "2026-01-12",
-      "Quantity": 29
+      "Quantity": 40
     },
     {
       "ProductId": 23,
       "DateKey": "2026-01-13",
-      "Quantity": 26
+      "Quantity": 34
     },
     {
       "ProductId": 23,
       "DateKey": "2026-01-14",
-      "Quantity": 23
+      "Quantity": 32
     },
     {
       "ProductId": 23,
       "DateKey": "2026-01-15",
+      "Quantity": 31
+    },
+    {
+      "ProductId": 23,
+      "DateKey": "2026-01-16",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 23,
+      "DateKey": "2026-01-17",
       "Quantity": 22
     },
     {
       "ProductId": 23,
-      "DateKey": "2026-01-16",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 23,
-      "DateKey": "2026-01-17",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 23,
       "DateKey": "2026-01-18",
-      "Quantity": 27
+      "Quantity": 31
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-12",
-      "Quantity": 61
+      "Quantity": 57
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-13",
-      "Quantity": 56
+      "Quantity": 52
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-14",
-      "Quantity": 50
+      "Quantity": 47
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-15",
-      "Quantity": 46
+      "Quantity": 41
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-16",
-      "Quantity": 43
+      "Quantity": 41
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-17",
-      "Quantity": 44
+      "Quantity": 40
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-18",
-      "Quantity": 62
+      "Quantity": 58
     },
     {
       "ProductId": 25,
       "DateKey": "2026-01-12",
-      "Quantity": 48
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-13",
-      "Quantity": 57
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-14",
-      "Quantity": 57
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-15",
       "Quantity": 54
     },
     {
       "ProductId": 25,
+      "DateKey": "2026-01-13",
+      "Quantity": 65
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-14",
+      "Quantity": 67
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-15",
+      "Quantity": 64
+    },
+    {
+      "ProductId": 25,
       "DateKey": "2026-01-16",
-      "Quantity": 48
+      "Quantity": 52
     },
     {
       "ProductId": 25,
       "DateKey": "2026-01-17",
-      "Quantity": 45
+      "Quantity": 53
     },
     {
       "ProductId": 25,
       "DateKey": "2026-01-18",
-      "Quantity": 65
+      "Quantity": 80
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-12",
-      "Quantity": 25
+      "Quantity": 29
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-13",
-      "Quantity": 21
+      "Quantity": 22
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-14",
-      "Quantity": 18
+      "Quantity": 21
     },
     {
       "ProductId": 26,
@@ -1271,17 +1553,17 @@
     {
       "ProductId": 26,
       "DateKey": "2026-01-16",
-      "Quantity": 23
+      "Quantity": 31
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-17",
-      "Quantity": 22
+      "Quantity": 31
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-18",
-      "Quantity": 30
+      "Quantity": 41
     },
     {
       "ProductId": 27,
@@ -1291,42 +1573,42 @@
     {
       "ProductId": 27,
       "DateKey": "2026-01-13",
-      "Quantity": 15
+      "Quantity": 14
     },
     {
       "ProductId": 27,
       "DateKey": "2026-01-14",
-      "Quantity": 13
+      "Quantity": 14
     },
     {
       "ProductId": 27,
       "DateKey": "2026-01-15",
-      "Quantity": 12
+      "Quantity": 14
     },
     {
       "ProductId": 27,
       "DateKey": "2026-01-16",
-      "Quantity": 11
+      "Quantity": 13
     },
     {
       "ProductId": 27,
       "DateKey": "2026-01-17",
-      "Quantity": 11
+      "Quantity": 14
     },
     {
       "ProductId": 27,
       "DateKey": "2026-01-18",
-      "Quantity": 14
+      "Quantity": 20
     },
     {
       "ProductId": 28,
       "DateKey": "2026-01-12",
-      "Quantity": 30
+      "Quantity": 27
     },
     {
       "ProductId": 28,
       "DateKey": "2026-01-13",
-      "Quantity": 29
+      "Quantity": 25
     },
     {
       "ProductId": 28,
@@ -1341,7 +1623,7 @@
     {
       "ProductId": 28,
       "DateKey": "2026-01-16",
-      "Quantity": 22
+      "Quantity": 21
     },
     {
       "ProductId": 28,
@@ -1351,77 +1633,77 @@
     {
       "ProductId": 28,
       "DateKey": "2026-01-18",
-      "Quantity": 31
+      "Quantity": 30
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-12",
-      "Quantity": 69
+      "Quantity": 61
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-13",
-      "Quantity": 63
+      "Quantity": 56
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-14",
-      "Quantity": 57
+      "Quantity": 51
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-15",
-      "Quantity": 52
-    },
-    {
-      "ProductId": 29,
-      "DateKey": "2026-01-16",
-      "Quantity": 46
-    },
-    {
-      "ProductId": 29,
-      "DateKey": "2026-01-17",
       "Quantity": 48
     },
     {
       "ProductId": 29,
+      "DateKey": "2026-01-16",
+      "Quantity": 39
+    },
+    {
+      "ProductId": 29,
+      "DateKey": "2026-01-17",
+      "Quantity": 41
+    },
+    {
+      "ProductId": 29,
       "DateKey": "2026-01-18",
-      "Quantity": 66
+      "Quantity": 57
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-12",
-      "Quantity": 50
+      "Quantity": 52
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-13",
-      "Quantity": 44
+      "Quantity": 50
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-14",
-      "Quantity": 37
+      "Quantity": 44
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-15",
-      "Quantity": 32
+      "Quantity": 36
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-16",
-      "Quantity": 29
+      "Quantity": 30
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-17",
-      "Quantity": 31
+      "Quantity": 29
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-18",
-      "Quantity": 45
+      "Quantity": 48
     }
   ],
   "history": {
@@ -7019,13 +7301,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          7.0,
-          6.0,
-          6.0,
-          7.0,
-          7.0,
-          7.0,
-          7.0
+          12.415973663330078,
+          9.526873588562012,
+          8.026213645935059,
+          6.491919040679932,
+          7.355770111083984,
+          7.169454097747803,
+          7.878833770751953
         ]
       },
       "2": {
@@ -7039,13 +7321,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          14.0,
-          13.0,
-          13.0,
-          14.0,
-          14.0,
-          13.0,
-          15.0
+          13.251873970031738,
+          11.902897834777832,
+          10.720985412597656,
+          10.491247177124023,
+          10.533896446228027,
+          10.02616024017334,
+          11.733201026916504
         ]
       },
       "3": {
@@ -7059,13 +7341,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.0,
-          18.0,
-          17.0,
-          18.0,
-          17.0,
-          14.0,
-          19.0
+          16.980491638183594,
+          13.079272270202637,
+          12.904213905334473,
+          10.534700393676758,
+          8.732659339904785,
+          8.410484313964844,
+          11.696520805358887
         ]
       },
       "4": {
@@ -7079,13 +7361,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          2.0,
-          3.0,
-          4.0,
-          4.0,
-          4.0,
-          4.0,
-          5.0
+          5.515253067016602,
+          5.447668075561523,
+          5.309023380279541,
+          3.972476005554199,
+          3.6737024784088135,
+          2.9107179641723633,
+          3.46553897857666
         ]
       },
       "5": {
@@ -7099,13 +7381,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.0,
-          20.0,
-          18.0,
-          17.0,
-          16.0,
-          15.0,
-          20.0
+          23.758729934692383,
+          22.490304946899414,
+          20.47911262512207,
+          26.06891441345215,
+          22.196359634399414,
+          18.39175033569336,
+          29.910932540893555
         ]
       },
       "6": {
@@ -7119,13 +7401,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          16.0,
-          14.0,
-          12.0,
-          11.0,
-          11.0,
-          11.0,
-          14.0
+          17.496980667114258,
+          15.329752922058105,
+          13.420047760009766,
+          12.207308769226074,
+          10.467131614685059,
+          9.479632377624512,
+          14.96323013305664
         ]
       },
       "7": {
@@ -7139,13 +7421,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.0,
-          14.0,
-          13.0,
-          12.0,
-          9.0,
-          7.0,
-          11.0
+          18.66141700744629,
+          15.681724548339844,
+          15.743556022644043,
+          12.59277629852295,
+          6.988941669464111,
+          4.559569835662842,
+          8.142614364624023
         ]
       },
       "8": {
@@ -7159,13 +7441,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          35.0,
-          33.0,
-          33.0,
-          31.0,
-          26.0,
-          25.0,
-          33.0
+          47.5730094909668,
+          41.24271011352539,
+          40.69369888305664,
+          41.646846771240234,
+          25.38429832458496,
+          19.933931350708008,
+          30.348556518554688
         ]
       },
       "9": {
@@ -7179,13 +7461,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.0,
-          17.0,
-          16.0,
-          16.0,
-          18.0,
-          18.0,
-          23.0
+          27.151185989379883,
+          20.1424503326416,
+          19.533021926879883,
+          17.40195655822754,
+          17.187280654907227,
+          15.943954467773438,
+          25.487661361694336
         ]
       },
       "10": {
@@ -7199,13 +7481,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.0,
-          18.0,
-          16.0,
-          15.0,
-          14.0,
-          13.0,
-          18.0
+          19.823984146118164,
+          22.153640747070312,
+          21.09588623046875,
+          20.03285026550293,
+          15.071513175964355,
+          12.75441837310791,
+          21.10120391845703
         ]
       },
       "11": {
@@ -7219,13 +7501,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.0,
-          24.0,
-          22.0,
-          21.0,
-          19.0,
-          17.0,
-          19.0
+          20.984939575195312,
+          14.295798301696777,
+          11.87423038482666,
+          10.676182746887207,
+          11.964149475097656,
+          11.292542457580566,
+          11.311492919921875
         ]
       },
       "12": {
@@ -7239,13 +7521,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          23.0,
-          21.0,
-          20.0,
-          19.0,
-          17.0,
-          17.0,
-          20.0
+          41.942901611328125,
+          26.41154670715332,
+          28.802841186523438,
+          25.544992446899414,
+          21.321544647216797,
+          19.257108688354492,
+          34.997074127197266
         ]
       },
       "13": {
@@ -7259,13 +7541,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          30.0,
-          37.0,
-          40.0,
-          37.0,
-          31.0,
-          28.0,
-          44.0
+          34.922935485839844,
+          43.737213134765625,
+          45.56863021850586,
+          40.21519088745117,
+          35.17534255981445,
+          34.22136688232422,
+          48.7716178894043
         ]
       },
       "14": {
@@ -7279,13 +7561,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          56.0,
-          47.0,
-          45.0,
-          44.0,
-          40.0,
-          40.0,
-          63.0
+          57.35197067260742,
+          44.159942626953125,
+          44.253849029541016,
+          38.126956939697266,
+          26.72051429748535,
+          31.85478401184082,
+          46.200252532958984
         ]
       },
       "15": {
@@ -7299,13 +7581,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          19.0,
-          16.0,
-          15.0,
-          14.0,
-          12.0,
-          12.0,
-          15.0
+          21.263933181762695,
+          20.263139724731445,
+          17.067058563232422,
+          19.3122615814209,
+          13.187271118164062,
+          12.381999969482422,
+          15.737746238708496
         ]
       },
       "16": {
@@ -7319,13 +7601,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          43.0,
-          42.0,
-          40.0,
-          37.0,
-          31.0,
-          29.0,
-          41.0
+          48.37654113769531,
+          52.4502067565918,
+          50.73079299926758,
+          45.23368453979492,
+          33.640193939208984,
+          25.362144470214844,
+          37.78020095825195
         ]
       },
       "17": {
@@ -7339,13 +7621,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.0,
-          17.0,
-          15.0,
-          13.0,
-          11.0,
-          11.0,
-          14.0
+          21.056699752807617,
+          22.088022232055664,
+          22.987045288085938,
+          17.89914894104004,
+          12.587627410888672,
+          11.637686729431152,
+          15.204285621643066
         ]
       },
       "18": {
@@ -7359,13 +7641,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          24.0,
-          22.0,
-          19.0,
-          17.0,
-          15.0,
-          14.0,
-          20.0
+          25.98169708251953,
+          25.097326278686523,
+          18.07872200012207,
+          22.78057289123535,
+          17.331497192382812,
+          13.9833402633667,
+          23.96024513244629
         ]
       },
       "19": {
@@ -7379,13 +7661,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.0,
-          19.0,
-          19.0,
-          19.0,
-          18.0,
-          15.0,
-          22.0
+          22.412490844726562,
+          20.68440055847168,
+          16.626808166503906,
+          28.560958862304688,
+          30.174829483032227,
+          17.9758358001709,
+          30.685697555541992
         ]
       },
       "20": {
@@ -7399,13 +7681,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          23.0,
-          24.0,
-          23.0,
-          21.0,
-          17.0,
-          16.0,
-          24.0
+          22.422815322875977,
+          21.98070526123047,
+          21.643125534057617,
+          15.95648193359375,
+          10.838470458984375,
+          12.297401428222656,
+          19.859846115112305
         ]
       },
       "21": {
@@ -7419,13 +7701,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          8.0,
-          7.0,
-          7.0,
-          6.0,
-          6.0,
-          6.0,
-          8.0
+          9.34515380859375,
+          8.689435005187988,
+          8.479601860046387,
+          6.524381637573242,
+          5.800900936126709,
+          4.708364009857178,
+          8.040291786193848
         ]
       },
       "22": {
@@ -7439,13 +7721,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          13.0,
-          11.0,
-          10.0,
-          9.0,
-          9.0,
-          9.0,
-          11.0
+          13.017287254333496,
+          12.13791275024414,
+          11.02010726928711,
+          9.550889015197754,
+          8.55690860748291,
+          9.06985092163086,
+          12.33887004852295
         ]
       },
       "23": {
@@ -7459,13 +7741,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          29.0,
-          26.0,
-          23.0,
-          22.0,
-          20.0,
-          20.0,
-          27.0
+          39.649322509765625,
+          34.13795471191406,
+          31.567567825317383,
+          30.94017791748047,
+          23.976892471313477,
+          21.96405601501465,
+          31.261037826538086
         ]
       },
       "24": {
@@ -7479,13 +7761,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          61.0,
-          56.0,
-          50.0,
-          46.0,
-          43.0,
-          44.0,
-          62.0
+          56.501163482666016,
+          51.574981689453125,
+          47.05941390991211,
+          41.2047119140625,
+          41.13407897949219,
+          40.05279541015625,
+          57.7861328125
         ]
       },
       "25": {
@@ -7499,13 +7781,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          48.0,
-          57.0,
-          57.0,
-          54.0,
-          48.0,
-          45.0,
-          65.0
+          53.50221633911133,
+          65.29981994628906,
+          67.33016204833984,
+          64.3428726196289,
+          52.137577056884766,
+          53.048065185546875,
+          80.48235321044922
         ]
       },
       "26": {
@@ -7519,13 +7801,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          25.0,
-          21.0,
-          18.0,
-          18.0,
-          23.0,
-          22.0,
-          30.0
+          28.680696487426758,
+          21.99308967590332,
+          21.264528274536133,
+          18.446134567260742,
+          30.60320281982422,
+          30.6328067779541,
+          40.66045379638672
         ]
       },
       "27": {
@@ -7539,13 +7821,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          19.0,
-          15.0,
-          13.0,
-          12.0,
-          11.0,
-          11.0,
-          14.0
+          18.76224708557129,
+          14.111174583435059,
+          14.366294860839844,
+          13.619891166687012,
+          12.642619132995605,
+          14.258219718933105,
+          19.922090530395508
         ]
       },
       "28": {
@@ -7559,13 +7841,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          30.0,
-          29.0,
-          26.0,
-          23.0,
-          22.0,
-          23.0,
-          31.0
+          26.764448165893555,
+          25.276487350463867,
+          26.12322425842285,
+          22.793676376342773,
+          21.402191162109375,
+          22.897253036499023,
+          29.6689395904541
         ]
       },
       "29": {
@@ -7579,13 +7861,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          69.0,
-          63.0,
-          57.0,
-          52.0,
-          46.0,
-          48.0,
-          66.0
+          60.9661750793457,
+          55.51765441894531,
+          51.4359130859375,
+          48.00471878051758,
+          38.7606315612793,
+          41.179466247558594,
+          57.11671447753906
         ]
       },
       "30": {
@@ -7599,13 +7881,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          50.0,
-          44.0,
-          37.0,
-          32.0,
-          29.0,
-          31.0,
-          45.0
+          52.32637405395508,
+          49.74871826171875,
+          43.74481201171875,
+          35.86623764038086,
+          29.564834594726562,
+          29.45317268371582,
+          48.019290924072266
         ]
       }
     },
@@ -7621,13 +7903,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          11.960330963134766,
-          10.868478775024414,
-          9.993824005126953,
-          8.740694046020508,
-          6.601728439331055,
-          5.63235330581665,
-          8.178550720214844
+          9.795312881469727,
+          10.081591606140137,
+          7.674107551574707,
+          7.5906291007995605,
+          6.361012935638428,
+          6.184040546417236,
+          7.191257476806641
         ]
       },
       "2": {
@@ -7641,13 +7923,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          16.69243621826172,
-          15.946671485900879,
-          14.268854141235352,
-          12.504627227783203,
-          9.158506393432617,
-          8.327160835266113,
-          12.276333808898926
+          16.178504943847656,
+          15.618108749389648,
+          14.481539726257324,
+          14.458694458007812,
+          12.008271217346191,
+          10.66407585144043,
+          13.47508430480957
         ]
       },
       "3": {
@@ -7661,13 +7943,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.5712833404541,
-          24.55453872680664,
-          19.856250762939453,
-          16.709613800048828,
-          12.511422157287598,
-          10.500842094421387,
-          18.432619094848633
+          17.142019271850586,
+          16.15866470336914,
+          14.10214900970459,
+          13.65780258178711,
+          10.848583221435547,
+          8.585031509399414,
+          14.352534294128418
         ]
       },
       "4": {
@@ -7681,13 +7963,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          3.369495391845703,
-          4.849409103393555,
-          4.628489017486572,
-          4.0884246826171875,
-          2.9351630210876465,
-          2.279226779937744,
-          3.139842987060547
+          2.662388324737549,
+          4.817965984344482,
+          3.9027044773101807,
+          3.8625669479370117,
+          4.75767183303833,
+          2.7413716316223145,
+          3.1716647148132324
         ]
       },
       "5": {
@@ -7701,13 +7983,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.915897369384766,
-          21.825387954711914,
-          19.8445987701416,
-          16.714599609375,
-          12.716064453125,
-          10.963266372680664,
-          16.480915069580078
+          21.209569931030273,
+          22.581953048706055,
+          17.732873916625977,
+          18.943756103515625,
+          16.03659439086914,
+          12.58753490447998,
+          19.210596084594727
         ]
       },
       "6": {
@@ -7721,13 +8003,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          14.027556419372559,
-          13.3002347946167,
-          11.59097671508789,
-          9.959561347961426,
-          6.7689619064331055,
-          6.766258239746094,
-          9.804478645324707
+          12.587255477905273,
+          11.891825675964355,
+          9.51845932006836,
+          9.74636173248291,
+          8.343624114990234,
+          7.344184875488281,
+          10.575655937194824
         ]
       },
       "7": {
@@ -7741,13 +8023,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          16.64455795288086,
-          14.866174697875977,
-          14.258329391479492,
-          10.98949909210205,
-          7.4082417488098145,
-          5.374454975128174,
-          9.699176788330078
+          15.336478233337402,
+          11.951765060424805,
+          13.419885635375977,
+          10.972397804260254,
+          8.019913673400879,
+          5.91467809677124,
+          9.598475456237793
         ]
       },
       "8": {
@@ -7761,13 +8043,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          33.22572708129883,
-          28.993135452270508,
-          30.95104217529297,
-          26.692100524902344,
-          20.231861114501953,
-          15.84282112121582,
-          24.308561325073242
+          35.00668716430664,
+          30.728862762451172,
+          29.48857307434082,
+          28.308895111083984,
+          19.514677047729492,
+          16.883827209472656,
+          26.089582443237305
         ]
       },
       "9": {
@@ -7781,13 +8063,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.450828552246094,
-          21.30301856994629,
-          19.98847007751465,
-          16.467300415039062,
-          13.906907081604004,
-          12.173917770385742,
-          16.953874588012695
+          19.21719741821289,
+          21.940492630004883,
+          18.440269470214844,
+          16.176998138427734,
+          14.129780769348145,
+          13.260882377624512,
+          20.5095272064209
         ]
       },
       "10": {
@@ -7801,13 +8083,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          14.537705421447754,
-          15.680071830749512,
-          14.544382095336914,
-          12.030312538146973,
-          9.330083847045898,
-          7.18678617477417,
-          11.772283554077148
+          13.802570343017578,
+          15.858867645263672,
+          15.580329895019531,
+          13.775582313537598,
+          12.842453002929688,
+          8.95322036743164,
+          16.119142532348633
         ]
       },
       "11": {
@@ -7821,13 +8103,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.9287109375,
-          27.245880126953125,
-          25.919719696044922,
-          22.27053451538086,
-          17.03635597229004,
-          14.238929748535156,
-          22.28866195678711
+          22.486570358276367,
+          18.042333602905273,
+          16.6390380859375,
+          16.835430145263672,
+          13.230100631713867,
+          10.745945930480957,
+          14.746689796447754
         ]
       },
       "12": {
@@ -7841,13 +8123,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          26.632638931274414,
-          24.99506378173828,
-          24.997419357299805,
-          24.815771102905273,
-          20.682069778442383,
-          16.11670684814453,
-          27.494054794311523
+          23.77643394470215,
+          26.446266174316406,
+          24.36705780029297,
+          16.299795150756836,
+          13.849594116210938,
+          14.118368148803711,
+          19.89761734008789
         ]
       },
       "13": {
@@ -7861,13 +8143,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          26.130504608154297,
-          27.372520446777344,
-          26.633337020874023,
-          23.763093948364258,
-          18.532440185546875,
-          17.14139747619629,
-          27.608373641967773
+          36.83861541748047,
+          39.388484954833984,
+          37.24759292602539,
+          34.3532600402832,
+          25.02237319946289,
+          24.742250442504883,
+          37.57111740112305
         ]
       },
       "14": {
@@ -7881,13 +8163,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          44.8432731628418,
-          40.6771125793457,
-          41.61930847167969,
-          37.701969146728516,
-          33.932960510253906,
-          33.05732727050781,
-          46.18500518798828
+          42.951534271240234,
+          41.28064727783203,
+          41.21257781982422,
+          34.87059783935547,
+          28.412601470947266,
+          28.0911922454834,
+          43.59662628173828
         ]
       },
       "15": {
@@ -7901,13 +8183,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.259428024291992,
-          17.156824111938477,
-          15.652761459350586,
-          14.36196231842041,
-          10.073795318603516,
-          8.393595695495605,
-          12.664124488830566
+          18.78422737121582,
+          18.36250877380371,
+          15.091750144958496,
+          16.030160903930664,
+          11.019674301147461,
+          11.059881210327148,
+          16.12909698486328
         ]
       },
       "16": {
@@ -7921,13 +8203,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          38.41965866088867,
-          41.23444366455078,
-          42.08106994628906,
-          35.25290298461914,
-          28.1887149810791,
-          24.4500675201416,
-          35.226470947265625
+          36.29033279418945,
+          43.36650466918945,
+          39.77070236206055,
+          38.440528869628906,
+          27.898839950561523,
+          20.85466766357422,
+          32.26298904418945
         ]
       },
       "17": {
@@ -7941,13 +8223,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.32201385498047,
-          17.01145362854004,
-          13.990029335021973,
-          12.63677978515625,
-          9.62367057800293,
-          8.778332710266113,
-          12.764823913574219
+          16.65558624267578,
+          16.712133407592773,
+          12.907903671264648,
+          12.58796215057373,
+          9.462717056274414,
+          8.76563549041748,
+          13.681329727172852
         ]
       },
       "18": {
@@ -7961,13 +8243,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.42241096496582,
-          19.29201889038086,
-          18.289655685424805,
-          15.011486053466797,
-          11.372334480285645,
-          8.47632884979248,
-          14.380663871765137
+          19.973386764526367,
+          20.147920608520508,
+          16.45075035095215,
+          17.201148986816406,
+          12.66882610321045,
+          11.30204963684082,
+          18.05657196044922
         ]
       },
       "19": {
@@ -7981,13 +8263,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.77304458618164,
-          22.033634185791016,
-          20.669248580932617,
-          17.250282287597656,
-          13.566877365112305,
-          10.38754653930664,
-          17.446779251098633
+          17.960729598999023,
+          17.675445556640625,
+          15.906900405883789,
+          15.034255027770996,
+          17.00113296508789,
+          11.699241638183594,
+          19.864421844482422
         ]
       },
       "20": {
@@ -8001,13 +8283,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.389968872070312,
-          21.704586029052734,
-          19.157045364379883,
-          16.983888626098633,
-          11.423547744750977,
-          10.627923965454102,
-          18.246963500976562
+          19.011676788330078,
+          20.645980834960938,
+          20.388805389404297,
+          17.281890869140625,
+          12.651552200317383,
+          12.369794845581055,
+          19.66273307800293
         ]
       },
       "21": {
@@ -8021,13 +8303,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          9.071568489074707,
-          7.9292826652526855,
-          7.221364498138428,
-          6.323470592498779,
-          4.8191046714782715,
-          4.377383708953857,
-          5.760277271270752
+          7.1875457763671875,
+          6.785976886749268,
+          7.052601337432861,
+          5.831436634063721,
+          5.322816848754883,
+          4.601378440856934,
+          5.97039794921875
         ]
       },
       "22": {
@@ -8041,13 +8323,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          13.47061538696289,
-          12.885148048400879,
-          11.587396621704102,
-          9.906045913696289,
-          7.741441249847412,
-          7.00065803527832,
-          9.882891654968262
+          12.727049827575684,
+          12.852317810058594,
+          11.317856788635254,
+          9.681875228881836,
+          8.40457820892334,
+          8.14588451385498,
+          11.046929359436035
         ]
       },
       "23": {
@@ -8061,13 +8343,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.501493453979492,
-          27.995800018310547,
-          26.417057037353516,
-          22.541893005371094,
-          17.92569923400879,
-          15.398384094238281,
-          23.704313278198242
+          30.95758628845215,
+          29.233816146850586,
+          27.044584274291992,
+          24.524499893188477,
+          19.8095703125,
+          19.91362762451172,
+          29.029449462890625
         ]
       },
       "24": {
@@ -8081,13 +8363,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          60.86910629272461,
-          59.16703414916992,
-          53.158721923828125,
-          47.73643493652344,
-          40.47002410888672,
-          37.77759552001953,
-          55.509544372558594
+          63.33148193359375,
+          55.81062698364258,
+          50.820167541503906,
+          40.10453796386719,
+          41.18109893798828,
+          39.252227783203125,
+          56.11642074584961
         ]
       },
       "25": {
@@ -8101,13 +8383,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          38.83769989013672,
-          40.3836669921875,
-          45.24051284790039,
-          38.48236083984375,
-          30.183881759643555,
-          26.238605499267578,
-          40.14836120605469
+          48.90021896362305,
+          57.167945861816406,
+          52.59389114379883,
+          49.27538299560547,
+          35.96246337890625,
+          32.70937728881836,
+          48.5757942199707
         ]
       },
       "26": {
@@ -8121,13 +8403,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          19.74677085876465,
-          17.538114547729492,
-          15.453140258789062,
-          12.747103691101074,
-          12.847311019897461,
-          12.159261703491211,
-          17.712804794311523
+          20.717269897460938,
+          20.80733299255371,
+          17.915874481201172,
+          17.494762420654297,
+          21.852275848388672,
+          20.53736114501953,
+          26.40814781188965
         ]
       },
       "27": {
@@ -8141,13 +8423,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.429954528808594,
-          17.546966552734375,
-          16.527080535888672,
-          13.726241111755371,
-          10.77772045135498,
-          9.435919761657715,
-          14.198596954345703
+          20.266508102416992,
+          17.49225425720215,
+          16.29324722290039,
+          15.937280654907227,
+          13.949617385864258,
+          11.58240032196045,
+          16.6375675201416
         ]
       },
       "28": {
@@ -8161,13 +8443,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.189619064331055,
-          27.135652542114258,
-          24.71292495727539,
-          20.467241287231445,
-          16.283893585205078,
-          15.080228805541992,
-          22.023334503173828
+          27.955705642700195,
+          26.578655242919922,
+          27.887901306152344,
+          25.874553680419922,
+          22.104524612426758,
+          21.79163360595703,
+          28.730104446411133
         ]
       },
       "29": {
@@ -8181,13 +8463,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          66.13634490966797,
-          63.78449249267578,
-          60.89613723754883,
-          53.14761734008789,
-          45.63608169555664,
-          43.57004165649414,
-          60.88507080078125
+          71.75568389892578,
+          66.55996704101562,
+          64.08412170410156,
+          51.98771667480469,
+          43.38560104370117,
+          41.458030700683594,
+          55.22120666503906
         ]
       },
       "30": {
@@ -8201,13 +8483,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          48.67997741699219,
-          47.43012237548828,
-          42.926055908203125,
-          34.821678161621094,
-          28.206201553344727,
-          28.680946350097656,
-          42.8668098449707
+          47.12965393066406,
+          43.81951904296875,
+          42.43587875366211,
+          35.95423126220703,
+          28.776931762695312,
+          30.115097045898438,
+          43.28036880493164
         ]
       }
     },
@@ -8223,13 +8505,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          11.089272499084473,
-          10.114068984985352,
-          9.96977424621582,
-          7.929566383361816,
-          6.04765510559082,
-          5.760000705718994,
-          7.758920192718506
+          10.869624137878418,
+          11.07331657409668,
+          9.605152130126953,
+          7.815208435058594,
+          5.961967468261719,
+          5.093554973602295,
+          7.525232791900635
         ]
       },
       "2": {
@@ -8243,13 +8525,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          15.356032371520996,
-          14.189411163330078,
-          13.901802062988281,
-          10.42147159576416,
-          8.544535636901855,
-          7.764066219329834,
-          11.059488296508789
+          15.455565452575684,
+          15.229623794555664,
+          14.717425346374512,
+          13.285736083984375,
+          10.174381256103516,
+          9.055060386657715,
+          12.38081169128418
         ]
       },
       "3": {
@@ -8263,13 +8545,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.119718551635742,
-          21.778026580810547,
-          20.846471786499023,
-          14.633636474609375,
-          10.24270248413086,
-          9.743398666381836,
-          14.876486778259277
+          15.541169166564941,
+          15.726056098937988,
+          14.54885196685791,
+          14.194239616394043,
+          10.688457489013672,
+          9.095800399780273,
+          13.871882438659668
         ]
       },
       "4": {
@@ -8283,13 +8565,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          3.702665328979492,
-          4.21315336227417,
-          3.903883934020996,
-          3.1288859844207764,
-          2.7532572746276855,
-          1.9684690237045288,
-          2.4730682373046875
+          2.893127202987671,
+          3.850128412246704,
+          3.3575632572174072,
+          3.7332355976104736,
+          2.4385130405426025,
+          2.3954193592071533,
+          3.232381582260132
         ]
       },
       "5": {
@@ -8303,13 +8585,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.99679946899414,
-          20.983179092407227,
-          15.79134750366211,
-          14.082335472106934,
-          11.904729843139648,
-          10.176218032836914,
-          14.445587158203125
+          24.46204948425293,
+          25.015419006347656,
+          15.362491607666016,
+          19.34661293029785,
+          15.04472541809082,
+          12.403874397277832,
+          21.037109375
         ]
       },
       "6": {
@@ -8323,13 +8605,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          13.391806602478027,
-          12.604196548461914,
-          11.245627403259277,
-          8.725109100341797,
-          6.9203572273254395,
-          6.67753791809082,
-          8.997326850891113
+          14.703426361083984,
+          13.866975784301758,
+          11.138997077941895,
+          10.771223068237305,
+          8.40595817565918,
+          7.089358806610107,
+          11.10033893585205
         ]
       },
       "7": {
@@ -8343,13 +8625,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          15.230303764343262,
-          13.25135326385498,
-          13.422118186950684,
-          9.8236083984375,
-          6.589012622833252,
-          5.406099796295166,
-          8.031180381774902
+          17.126161575317383,
+          13.99258804321289,
+          16.058218002319336,
+          12.323308944702148,
+          8.325990676879883,
+          6.5634765625,
+          9.801299095153809
         ]
       },
       "8": {
@@ -8363,13 +8645,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          35.273353576660156,
-          32.14828872680664,
-          30.062776565551758,
-          25.204811096191406,
-          19.16477394104004,
-          15.373896598815918,
-          23.871522903442383
+          33.966041564941406,
+          30.107559204101562,
+          29.45479393005371,
+          23.918045043945312,
+          17.11868667602539,
+          16.790061950683594,
+          24.73238182067871
         ]
       },
       "9": {
@@ -8383,13 +8665,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.685222625732422,
-          21.664464950561523,
-          16.848390579223633,
-          14.53323745727539,
-          11.86233901977539,
-          11.564563751220703,
-          14.298535346984863
+          19.01704978942871,
+          21.855493545532227,
+          18.58651351928711,
+          13.832459449768066,
+          13.635892868041992,
+          12.242021560668945,
+          19.61767578125
         ]
       },
       "10": {
@@ -8403,13 +8685,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          14.199626922607422,
-          14.446992874145508,
-          12.910157203674316,
-          10.804924011230469,
-          8.467276573181152,
-          7.111049175262451,
-          10.631157875061035
+          14.944942474365234,
+          18.559310913085938,
+          17.63034439086914,
+          14.627589225769043,
+          11.716851234436035,
+          8.729060173034668,
+          16.479341506958008
         ]
       },
       "11": {
@@ -8423,13 +8705,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          26.730308532714844,
-          23.92274284362793,
-          20.04395294189453,
-          17.999595642089844,
-          13.638221740722656,
-          12.167437553405762,
-          16.10972785949707
+          22.714818954467773,
+          19.843664169311523,
+          19.390064239501953,
+          14.439318656921387,
+          12.23265266418457,
+          11.039912223815918,
+          14.920796394348145
         ]
       },
       "12": {
@@ -8443,13 +8725,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          26.096139907836914,
-          24.341354370117188,
-          15.454623222351074,
-          15.3234224319458,
-          14.364346504211426,
-          13.184250831604004,
-          18.848438262939453
+          23.753469467163086,
+          25.889999389648438,
+          23.286306381225586,
+          19.078699111938477,
+          16.120664596557617,
+          13.501262664794922,
+          22.56328582763672
         ]
       },
       "13": {
@@ -8463,13 +8745,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          26.315431594848633,
-          27.60415267944336,
-          21.761613845825195,
-          19.585899353027344,
-          16.511554718017578,
-          15.150975227355957,
-          21.01453971862793
+          37.88166809082031,
+          40.838844299316406,
+          40.12157440185547,
+          34.616390228271484,
+          26.949462890625,
+          23.588178634643555,
+          37.81242370605469
         ]
       },
       "14": {
@@ -8483,13 +8765,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          41.576019287109375,
-          38.19725036621094,
-          35.5191650390625,
-          31.849437713623047,
-          28.634754180908203,
-          25.496383666992188,
-          43.2675895690918
+          42.63530349731445,
+          40.20975875854492,
+          43.813270568847656,
+          27.465978622436523,
+          24.596467971801758,
+          23.30238151550293,
+          45.45814514160156
         ]
       },
       "15": {
@@ -8503,13 +8785,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.128246307373047,
-          15.894818305969238,
-          14.234750747680664,
-          11.7659273147583,
-          9.039097785949707,
-          8.825493812561035,
-          11.77379322052002
+          18.771574020385742,
+          18.361446380615234,
+          15.42780876159668,
+          15.615878105163574,
+          9.938821792602539,
+          11.088934898376465,
+          15.59424114227295
         ]
       },
       "16": {
@@ -8523,13 +8805,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          45.10255813598633,
-          43.5514030456543,
-          35.74056625366211,
-          29.462018966674805,
-          25.720394134521484,
-          21.84333610534668,
-          37.31285095214844
+          37.23466491699219,
+          46.09859085083008,
+          41.70868682861328,
+          38.33881378173828,
+          27.126760482788086,
+          20.765188217163086,
+          30.868440628051758
         ]
       },
       "17": {
@@ -8543,13 +8825,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.473142623901367,
-          14.881373405456543,
-          13.04026985168457,
-          10.507928848266602,
-          7.98344087600708,
-          7.873969078063965,
-          10.225542068481445
+          17.920217514038086,
+          17.97295379638672,
+          13.032970428466797,
+          12.635985374450684,
+          9.782482147216797,
+          8.485064506530762,
+          12.230504989624023
         ]
       },
       "18": {
@@ -8563,13 +8845,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.76022720336914,
-          19.038408279418945,
-          14.51726245880127,
-          12.817688941955566,
-          9.812747955322266,
-          8.136310577392578,
-          12.82601547241211
+          22.134119033813477,
+          21.84359359741211,
+          18.724472045898438,
+          17.107769012451172,
+          11.194583892822266,
+          10.436118125915527,
+          18.387874603271484
         ]
       },
       "19": {
@@ -8583,13 +8865,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.944395065307617,
-          22.302955627441406,
-          17.5502986907959,
-          15.711686134338379,
-          12.397109985351562,
-          9.854650497436523,
-          14.268513679504395
+          21.48799705505371,
+          19.294023513793945,
+          18.89556121826172,
+          17.663890838623047,
+          15.754406929016113,
+          11.590108871459961,
+          19.642990112304688
         ]
       },
       "20": {
@@ -8603,13 +8885,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.654499053955078,
-          20.13688087463379,
-          18.631227493286133,
-          14.148514747619629,
-          11.220521926879883,
-          10.333946228027344,
-          15.804824829101562
+          20.78117561340332,
+          19.955059051513672,
+          19.811742782592773,
+          16.17852783203125,
+          12.157342910766602,
+          11.62113094329834,
+          18.428253173828125
         ]
       },
       "21": {
@@ -8623,13 +8905,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          8.472275733947754,
-          7.912502765655518,
-          7.381036758422852,
-          6.048404216766357,
-          5.1193695068359375,
-          4.509845733642578,
-          6.172832012176514
+          7.543527126312256,
+          7.782310485839844,
+          7.733732223510742,
+          6.5932297706604,
+          5.683871746063232,
+          5.573486804962158,
+          6.502480983734131
         ]
       },
       "22": {
@@ -8643,13 +8925,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          13.037285804748535,
-          12.377354621887207,
-          11.671648025512695,
-          9.03157901763916,
-          7.486090183258057,
-          6.831322193145752,
-          9.83446216583252
+          15.00521183013916,
+          14.8627347946167,
+          12.715412139892578,
+          11.041637420654297,
+          8.415260314941406,
+          8.092096328735352,
+          12.349181175231934
         ]
       },
       "23": {
@@ -8663,13 +8945,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.9060115814209,
-          27.90782928466797,
-          20.326335906982422,
-          18.97250747680664,
-          14.940948486328125,
-          13.904332160949707,
-          19.2646541595459
+          29.808155059814453,
+          29.533817291259766,
+          26.00867462158203,
+          23.143695831298828,
+          19.2083797454834,
+          17.159156799316406,
+          28.119182586669922
         ]
       },
       "24": {
@@ -8683,13 +8965,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          60.70447540283203,
-          57.45697021484375,
-          55.601593017578125,
-          46.40780258178711,
-          39.79370880126953,
-          35.21084976196289,
-          55.36745834350586
+          62.05465316772461,
+          56.03942108154297,
+          50.08015060424805,
+          38.05591583251953,
+          38.97853469848633,
+          38.95494842529297,
+          54.74822998046875
         ]
       },
       "25": {
@@ -8703,13 +8985,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          39.30985641479492,
-          41.98081588745117,
-          45.71238708496094,
-          37.935028076171875,
-          31.57373809814453,
-          26.645397186279297,
-          45.076786041259766
+          49.00714874267578,
+          53.973236083984375,
+          50.4710807800293,
+          46.74502944946289,
+          38.41276931762695,
+          33.62958526611328,
+          49.21525573730469
         ]
       },
       "26": {
@@ -8723,13 +9005,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          19.72677230834961,
-          15.745224952697754,
-          14.599639892578125,
-          11.117770195007324,
-          12.060526847839355,
-          11.721405982971191,
-          18.57843780517578
+          20.522764205932617,
+          19.891939163208008,
+          16.43123435974121,
+          15.518609046936035,
+          23.658893585205078,
+          20.606895446777344,
+          28.894298553466797
         ]
       },
       "27": {
@@ -8743,13 +9025,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.000709533691406,
-          17.158615112304688,
-          17.103809356689453,
-          13.383188247680664,
-          11.076099395751953,
-          9.992673873901367,
-          14.386191368103027
+          21.4212646484375,
+          18.052026748657227,
+          16.875205993652344,
+          14.040597915649414,
+          13.238357543945312,
+          11.389542579650879,
+          17.966859817504883
         ]
       },
       "28": {
@@ -8763,13 +9045,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          28.167768478393555,
-          27.540786743164062,
-          26.540864944458008,
-          20.080842971801758,
-          15.548195838928223,
-          14.592756271362305,
-          21.88058853149414
+          27.33055877685547,
+          26.560379028320312,
+          26.14859962463379,
+          23.827041625976562,
+          20.510650634765625,
+          19.951902389526367,
+          27.966140747070312
         ]
       },
       "29": {
@@ -8783,13 +9065,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          66.86133575439453,
-          64.47049713134766,
-          60.64204788208008,
-          50.0565299987793,
-          42.669551849365234,
-          38.26927185058594,
-          58.95098876953125
+          68.2366714477539,
+          63.726287841796875,
+          56.75035095214844,
+          47.465728759765625,
+          41.31048583984375,
+          41.51676559448242,
+          56.76592254638672
         ]
       },
       "30": {
@@ -8803,13 +9085,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          47.475242614746094,
-          46.01413345336914,
-          41.93680953979492,
-          33.1678466796875,
-          28.39401626586914,
-          26.31985092163086,
-          40.14826965332031
+          47.58602523803711,
+          46.146522521972656,
+          40.58893966674805,
+          32.66170120239258,
+          26.205692291259766,
+          28.386856079101562,
+          43.3467903137207
         ]
       }
     },

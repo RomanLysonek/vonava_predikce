@@ -63,10 +63,77 @@ STATUS
     import smoke-tested, dashboard verified live (/ and /api/results both 200),
     git commit done before starting Tier B
 
-[ ] B1 stacked (ForecastOrigin x Horizon x ProductId) direct panel, kills
-        recursion for NN/XGBoost/LightGBM
-[ ] B2 weighted same-weekday baseline as NN input feature + skip-connection
-        residual target (predict log-residual, not raw log1p(Quantity))
+[x] B1 stacked (ForecastOrigin x Horizon x ProductId) direct panel, kills
+        recursion for NN/XGBoost/LightGBM -- build_direct_panel() +
+        direct_panel_feature_names()/direct_panel_tree_frame() in
+        ml/framework.py; models/neural_net.py gets a horizon embedding
+        (QuantityNet) + predict_direct(); models/xgboost_model.py,
+        lightgbm_model.py train/predict straight on the panel (horizon as
+        a plain feature); tree_worker.py job protocol simplified to
+        {train_panel, eval_panel} (no more history dict); pipeline.py's
+        run_walk_forward_cv/run_final_forecast/run_final_tree_forecast
+        rewritten around the panel, dead recursive code removed
+        (recursive_forecast_generic, init_history, _nan_safe_window_stats,
+        old feature_columns/tree_feature_frame). Caught + fixed 3 real
+        bugs along the way: (1) TARGET_COVARIATE_COLUMNS leaking
+        campaign_idx_web/app into direct_panel_feature_names, so trees
+        saw those columns twice; (2) shift(-h) upcasting the int
+        campaign_idx columns to float at series edges, which this
+        xgboost rejects as category codes; (3) plain .astype("category")
+        inferring per-DataFrame categories, so train/eval panels (built
+        independently) disagreed on which product/campaign ids exist --
+        fixed with a fixed cfg-derived category domain. Verified: full
+        pytest suite (21/21) green, a reduced end-to-end smoke run
+        (dev+holdout CV, final NN/tree/naive forecasts, JSON export) hit
+        zero errors/NaNs, and the full real `python ml/pipeline.py` run
+        (12 dev + 4 holdout origins x 3 seeds, final 3-seed ensemble)
+        completed clean end-to-end (survived the machine sleeping mid-run)
+        -- outputs/results.json regenerated, live dashboard confirmed
+        serving it fresh (no restart needed, per server.py's per-request
+        read). New recent-holdout numbers (README updated too): NeuralNet
+        MAE 9.60/RMSE 13.89, XGBoost 7.85/12.26, LightGBM 7.79/11.86,
+        SeasonalNaive 23.27/34.62, MovingAvg28 37.17/49.97; skill vs
+        seasonal-naive (holdout, global MAE) +58.8%. Trees still edge out
+        the NN on raw error (unsurprising/expected, see README) but the
+        NN's skill margin over naive improved a lot vs the pre-B1 number
+        (+47.8% -> +58.8%).
+[x] B2 weighted same-weekday baseline as NN input feature + skip-connection
+        residual target (predict log-residual, not raw log1p(Quantity)) --
+        target_baseline column added to build_direct_panel() (framework.py),
+        computed off the panel's own already-shifted seasonal_lag_{7,14,21,28}
+        columns via a vectorized weighted-4:3:2:1 helper (_weighted_baseline),
+        verified to agree exactly with the standalone compute_baseline()
+        hist_df lookup for the same target dates. Given to the NN both as a
+        plain input feature (numeric_feature_columns) and as the reference
+        value its residual target is defined against: train_model now trains
+        on residual_log1p_target() = log1p(target) - log1p(target_baseline)
+        (models/neural_net.py), and predict_ensemble adds the baseline back
+        (expm1(pred + log1p(baseline))) per seed at inference, before
+        averaging across seeds in the natural (post-expm1) scale, not before.
+        Trees get target_baseline as an extra input column only, no residual
+        target (direct_panel_tree_frame already picks it up automatically via
+        direct_panel_feature_names). Added 8 new tests (tests/test_pipeline.py,
+        27/27 green): target_baseline schema + cross-check against
+        compute_baseline, the residual formula, and 3 predict_ensemble
+        skip-connection round-trip tests (perfect-residual exact target
+        reconstruction, zero-residual -> baseline fallback, natural-scale-not
+        -log-scale ensembling order). Also added timing instrumentation
+        (ml/pipeline.py: time.perf_counter() checkpoints per CV fold (NN vs
+        tree split) + per phase (dev CV, holdout CV, final NN, final trees,
+        export), printed live and dumped to outputs/timings.json) ahead of
+        the full run, since training time keeps growing release over
+        release. Full `python ml/pipeline.py` run verified clean (0 NaN in
+        the real final forecast; the pre-existing ~18% NaN rate in the
+        earliest dev-CV fold's NN predictions is from the yearly
+        seasonal_lag_364/365/371 features needing ~1y of history, present
+        since Tier B1, NOT from target_baseline, which was 0% NaN in the same
+        check) -- total wall time 3408s/56.8min (dev CV 1563s, holdout CV
+        1229s, final NN ensemble 607s, final trees 8s). Holdout skill vs
+        seasonal-naive (global MAE): +55.7%. NOTE: not a controlled A/B
+        against the +58.8% Tier B1 number above -- recent_holdout_origins is
+        derived from train_raw's own max date, which has advanced since that
+        run (the dataset keeps growing), so the two runs score different
+        calendar weeks, not the same held-out fold.
 [ ] B3 Dynamic Ridge as 3rd model tier (Naive / Structured statistical /
         Global nonlinear), not auto-blended
 [ ] B4 report conditional-demand vs realized-sales eval regimes where they differ
@@ -80,14 +147,22 @@ STATUS
 [ ] C6 stretch: dual web/app heads + effective price, holiday distance
         features, static results.json for GitHub Pages portability
 
-Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py):
+Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;
+post-Tier-B1 the recursive engine is gone, replaced by the direct panel builder):
   ml/framework.py          - reindex, availability-aware features, baseline fn, metrics,
-                             recursive_forecast_generic engine, model registry/metadata
-  ml/models/neural_net.py  - NN model (QuantityNet, train/predict/recursive_forecast)
-  ml/models/xgboost_model.py, lightgbm_model.py - tree models, direct-panel path (Tier B) goes here
+                             build_direct_panel()/direct_panel_feature_names()/
+                             direct_panel_tree_frame() (Tier B1), model registry/metadata
+  ml/models/neural_net.py  - NN model (QuantityNet w/ horizon embedding, train_model,
+                             predict_direct)
+  ml/models/xgboost_model.py, lightgbm_model.py - tree models, train/predict directly
+                             on build_direct_panel()'s output (horizon = plain feature)
   ml/models/naive_baselines.py - seasonal-naive + moving-average
   ml/models/dynamic_ridge.py   - NEW, Tier B3 (not yet created)
-  ml/pipeline.py           - CV loop (3-seed, dev/holdout split, OOF export), NN residual target
-  ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py, lightgbm_model.py
+  ml/pipeline.py           - CV loop (3-seed, dev/holdout split, OOF export) + final
+                             forecasts, all panel-based (no recursion); NN residual
+                             target (Tier B2) done; time.perf_counter() timing
+                             checkpoints per fold/phase -> outputs/timings.json
+  ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py,
+                             lightgbm_model.py; job protocol = {train_panel, eval_panel}
   tests/test_pipeline.py   - update + extend
   webapp/static/*          - Tier A5 metric surfacing, Tier C5 dashboard depth

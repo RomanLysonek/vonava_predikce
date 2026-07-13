@@ -20,26 +20,34 @@ brief itself frames them as the standard comparison point.
 - **Model**: an MLP (256→128→64) with BatchNorm/GELU/Dropout, taking the
   numeric features plus product, campaign-web and campaign-app embeddings.
   Target is `log1p`-transformed; trained with Huber loss.
-- **Recursive multi-step forecasting**: the 7-day horizon is predicted one
-  day at a time. Each day's (ensemble-averaged) prediction is appended to
-  that product's history before computing the next day's lag features.
-  This matters a lot here — freezing the lag features at the last known
-  training value (a common shortcut) makes every day of the horizon look
-  identical to the model, which defeats the purpose of a 7-day forecast.
+- **Direct multi-horizon forecasting**: all 7 horizon days are predicted in
+  a single pass from a stacked (ForecastOrigin x Horizon x ProductId) panel
+  (`framework.build_direct_panel`) instead of recursively, one day at a
+  time. Every horizon's inputs -- origin-relative rolling lags plus
+  target-relative seasonal lags (7/14/21/28/364/365/371 days back) -- are
+  always a lookup into already-observed data, never a value that would
+  first need to be predicted, so there's no feedback loop and no risk of
+  the old recursive shortcut (freezing lag features at the last known
+  training value, making every horizon day look identical). `horizon`
+  itself is fed in through its own embedding (NN) / as a plain feature
+  (trees).
 - **Training data**: rows where `ProductAvailable == False` (~2.9% of rows,
   with anomalous demand) are excluded from the supervised examples, since
   the forecast period is implicitly "available" days — but they're kept
   when computing rolling lag history, since that history should reflect
   what actually happened.
-- **Validation**: walk-forward (rolling-origin) cross-validation over the
-  last 4 non-overlapping 7-day blocks. Each fold trains only on data
-  strictly before its evaluation block and forecasts recursively, so the
-  reported metrics mirror the real deployment scenario (no early-stopping
-  on the eval fold, no leakage).
+- **Validation**: walk-forward (rolling-origin) cross-validation over two
+  labeled sets of origins -- a broader, seasonally-scattered `development`
+  set used to make modeling decisions, and a `recent_holdout` set (the last
+  `n_cv_folds` non-overlapping 7-day blocks, untouched during iteration) as
+  a final check. Each fold trains only on data strictly before its
+  evaluation block, so the reported metrics mirror the real deployment
+  scenario (no early-stopping on the eval fold, no leakage).
 - **Baselines**: XGBoost and LightGBM (native categorical support, same
-  feature set, log1p target, same recursive forecasting -- an apples-to-apples
-  comparison) plus two naive baselines: seasonal-naive (value from 7 days
-  prior) and a 28-day moving average. All are evaluated on the same folds.
+  feature set, log1p target, same direct multi-horizon panel -- an
+  apples-to-apples comparison) plus two naive baselines: seasonal-naive
+  (value from 7 days prior) and a 28-day moving average. All are evaluated
+  on the same folds.
 - **Final submission**: an ensemble of 3 NN seeds trained on all available
   history (XGBoost/LightGBM are comparison baselines only, not the
   submission, per the task brief).
@@ -48,15 +56,15 @@ brief itself frames them as the standard comparison point.
 
 | model         |   MAE |  RMSE |   MAPE |
 |---------------|------:|------:|-------:|
-| NeuralNet     | 12.14 | 18.13 |  91.7% |
-| XGBoost       |  8.34 | 12.56 |  52.8% |
-| LightGBM      |  8.59 | 13.88 |  52.1% |
+| NeuralNet     |  9.60 | 13.89 |  74.7% |
+| XGBoost       |  7.85 | 12.26 |  55.0% |
+| LightGBM      |  7.79 | 11.86 |  55.7% |
 | SeasonalNaive | 23.27 | 34.62 | 214.6% |
 | MovingAvg28   | 37.17 | 49.97 | 509.3% |
 
 Honest result: the tree baselines actually edge out the neural net here on
 raw error (though all three comfortably beat the naive baselines -- **NN is
-+47.8%** MAE better than seasonal-naive). This is unsurprising on a small,
++58.8%** MAE better than seasonal-naive). This is unsurprising on a small,
 tabular, ~50k-row dataset -- exactly the regime the task brief itself says
 trees are the standard choice for. The NN remains the submission because the
 brief explicitly asked for a non-tree approach; the tree numbers are here so
@@ -69,24 +77,27 @@ seed across folds' data-dependent init) but the ranking is stable.
 ```
 data/                    train_data.parquet, test_data.parquet (inputs)
 ml/
-  framework.py           torch-free: config, feature engineering, tree feature
-                          framing, the model-agnostic recursive forecasting
-                          engine, model registry/metadata, metrics. Shared by
-                          every model under models/ and by pipeline.py (see
-                          "macOS note" below for why the torch-free split
-                          exists).
+  framework.py           torch-free: config, feature engineering, the direct
+                          multi-horizon panel builder (build_direct_panel +
+                          direct_panel_feature_names/direct_panel_tree_frame),
+                          model registry/metadata, metrics. Shared by every
+                          model under models/ and by pipeline.py (see "macOS
+                          note" below for why the torch-free split exists).
   models/
-    neural_net.py          NN model: QuantityNet, training, ensemble predict,
-                          recursive forecast -- the actual submission
-    xgboost_model.py        XGBoost: train/predict/recursive forecast
-    lightgbm_model.py        LightGBM: train/predict/recursive forecast
+    neural_net.py          NN model: QuantityNet (w/ horizon embedding),
+                          training, direct multi-horizon predict -- the
+                          actual submission
+    xgboost_model.py        XGBoost: train/predict directly on the panel
+    lightgbm_model.py        LightGBM: train/predict directly on the panel
     naive_baselines.py        seasonal-naive + 28-day moving average
   tree_worker.py         thin dispatcher subprocess over xgboost_model.py/
-                          lightgbm_model.py (never imports torch)
+                          lightgbm_model.py (never imports torch); job
+                          protocol is just {train_panel, eval_panel}
   pipeline.py            CV/training/export orchestrator: walk-forward CV
                           (incl. the tree baselines via tree_worker.py), final
-                          ensemble training, recursive forecasting, submission
-                          + results.json export
+                          ensemble training, direct multi-horizon forecasting,
+                          submission + results.json export -- no recursion
+                          anywhere in this file
   export_results.py      rebuild outputs/results.json without the CV/NN retrain
                           (still retrains XGBoost/LightGBM's final forecast --
                           cheap relative to the full walk-forward CV)
@@ -94,8 +105,8 @@ outputs/                 submission.csv/.parquet, cv_results.csv, forecast_plot.
                           results.json (generated by ml/pipeline.py)
 tests/
   test_pipeline.py       unit tests: feature engineering, baselines, metrics,
-                          recursive-forecast lag update mechanic, tree_worker
-                          subprocess smoke test
+                          direct-panel leakage-safety/offset correctness,
+                          tree_worker subprocess smoke test
 webapp/
   server.py              FastAPI app serving the dashboard + /api/results,
                           plus /model/{slug} for the per-model pages

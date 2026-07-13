@@ -18,11 +18,14 @@ Pipeline
    comparison. XGBoost/LightGBM run in a separate subprocess -- see
    `tree_worker.py` for why.
 5. Train the final ensemble (multiple seeds) on all available history.
-6. Recursively forecast the 7 test days one day at a time, feeding each
-   day's prediction back into the lag features of the next day. This is
-   what a genuine multi-step forecast requires; a single frozen snapshot
-   of "last known" lags (as in a naive one-shot approach) would make every
-   day of the 7-day horizon look identical to the model.
+6. Predict all 7 test days directly, in a single pass, from the stacked
+   (ForecastOrigin x Horizon x ProductId) panel built by
+   `framework.build_direct_panel` -- every horizon's inputs (origin-relative
+   rolling lags, target-relative seasonal lags) are already lookups into
+   observed data, never a value that would first need to be predicted, so
+   there's no recursive feedback loop and no risk of the old one-shot
+   shortcut (freezing lags at the last known value) making every day of
+   the 7-day horizon look identical to the model.
 7. Write submission.csv / submission.parquet (+ cv_results.csv, a plot).
 
 Run:   uv run python ml/pipeline.py   (run from the repo root)
@@ -31,8 +34,8 @@ Tests: uv run pytest tests/
 This file is the CV/training/export orchestrator. Each model's own
 train/predict definition lives under `models/` (`models/neural_net.py`,
 `models/xgboost_model.py`, `models/lightgbm_model.py`,
-`models/naive_baselines.py`); shared feature engineering, the generic
-recursive-forecast engine and metrics live in `framework.py`.
+`models/naive_baselines.py`); shared feature engineering, the direct
+multi-horizon panel builder and metrics live in `framework.py`.
 """
 
 from __future__ import annotations
@@ -43,6 +46,7 @@ import pickle
 import subprocess
 import sys
 import tempfile
+import time
 import warnings
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -60,16 +64,16 @@ from framework import (
     MODEL_SLUGS,
     Config,
     add_train_lags,
+    build_direct_panel,
     compute_baseline,
     compute_metrics,
-    feature_columns,
-    init_history,
+    direct_panel_feature_names,
     load_raw,
     order_models,
     prepare_features,
 )
 from models.naive_baselines import moving_average_predict, seasonal_naive_predict
-from models.neural_net import DEVICE, make_tensors, recursive_forecast, train_model
+from models.neural_net import DEVICE, make_tensors, predict_direct, residual_log1p_target, train_model
 
 np.random.seed(CFG.seed)
 
@@ -102,20 +106,20 @@ def recent_holdout_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.Datet
 # ---------------------------------------------------------------------------
 # XGBoost / LightGBM baselines, run out-of-process (see tree_worker.py)
 # ---------------------------------------------------------------------------
-def run_tree_baselines(train_examples: pd.DataFrame, static_eval: pd.DataFrame,
-                        history_seed: dict, cfg: Config = CFG,
+def run_tree_baselines(train_panel: pd.DataFrame, eval_panel: pd.DataFrame, cfg: Config = CFG,
                         models: tuple = ("XGBoost", "LightGBM")) -> dict:
-    """Train + recursively forecast XGBoost/LightGBM in a fresh subprocess
-    (never imports torch) and return {model_name: predictions}. Isolating
-    them like this avoids a real crash: PyTorch and XGBoost/LightGBM each
-    bundle a different copy of the LLVM OpenMP runtime on macOS, and loading
-    both in one process segfaults as soon as either runs its native code.
+    """Train + predict XGBoost/LightGBM directly on the multi-horizon panel
+    (see `framework.build_direct_panel`) in a fresh subprocess (never
+    imports torch), and return {model_name: predictions}, aligned with
+    `eval_panel`'s own row order. Isolating them like this avoids a real
+    crash: PyTorch and XGBoost/LightGBM each bundle a different copy of the
+    LLVM OpenMP runtime on macOS, and loading both in one process segfaults
+    as soon as either runs its native code.
     """
     job = {
         "cfg": asdict(cfg),
-        "train_examples": train_examples,
-        "static_eval": static_eval,
-        "history": history_seed,
+        "train_panel": train_panel,
+        "eval_panel": eval_panel,
         "models": list(models),
     }
     with tempfile.TemporaryDirectory() as tmp:
@@ -137,37 +141,55 @@ def run_tree_baselines(train_examples: pd.DataFrame, static_eval: pd.DataFrame,
     return {name: np.asarray(preds, dtype=np.float32) for name, preds in results.items()}
 
 
+def _reindex_predictions(panel: pd.DataFrame, preds: np.ndarray, date_col: str,
+                          keys: pd.DataFrame) -> np.ndarray:
+    """Realign `preds` (computed in `panel`'s own row order) to exactly
+    `keys`'s (ProductId, DateKey) row order, via an explicit key-based
+    merge -- two independently-constructed frames should never be assumed
+    to share a row order."""
+    lookup = panel[["ProductId", date_col]].rename(columns={date_col: "DateKey"}).copy()
+    lookup["_pred"] = preds
+    aligned = keys[["ProductId", "DateKey"]].merge(lookup, on=["ProductId", "DateKey"], how="left")
+    return aligned["_pred"].to_numpy(dtype=float)
+
+
 # ---------------------------------------------------------------------------
 # Walk-forward cross-validation
 # ---------------------------------------------------------------------------
 def run_walk_forward_cv(hist_df: pd.DataFrame, origins, origin_type: str,
-                         cfg: Config = CFG) -> pd.DataFrame:
+                         cfg: Config = CFG, timings: list[dict] | None = None) -> pd.DataFrame:
     """Evaluate at each `origin` date (the last training day): trains only
-    on data up to and including `origin` (no leakage) and forecasts the
-    next `cfg.horizon` days recursively, exactly mirroring the real
-    deployment scenario.
+    on data up to and including `origin` (no leakage) and predicts all
+    `cfg.horizon` days directly from the multi-horizon panel (see
+    `framework.build_direct_panel`) -- no recursion, since every horizon's
+    features are already lookups into observed data, never a value that
+    would first need to be predicted.
 
-    Trains the SAME `cfg.seeds`-sized NN ensemble, fed forward jointly
-    (shared history) via `recursive_forecast`, as `run_final_forecast` --
-    CV must score the actual estimator being submitted, not a cheaper
-    single-seed stand-in (a real mismatch this function used to have: it
-    trained one seed while the submission averages three). `cv_epochs` vs
-    `final_epochs` remains a deliberate, disclosed compute/accuracy
-    trade-off (cheaper proxy training while iterating; the one-time final
-    artifact trains longer) -- unlike the seed count, that's not a hidden
-    inconsistency, since it's applied identically across every model/fold.
+    Trains the SAME `cfg.seeds`-sized NN ensemble as `run_final_forecast`
+    -- CV must score the actual estimator being submitted, not a cheaper
+    single-seed stand-in. `cv_epochs` vs `final_epochs` remains a
+    deliberate, disclosed compute/accuracy trade-off (cheaper proxy
+    training while iterating; the one-time final artifact trains longer)
+    -- unlike the seed count, that's not a hidden inconsistency, since
+    it's applied identically across every model/fold.
 
     Returns row-level out-of-fold predictions -- one row per (origin,
     product, date), with per-seed NN columns alongside the ensemble and
     every baseline -- rather than only aggregated metrics, so later
     diagnostics (per-horizon, per-product, paired comparisons, ensemble
     weight fitting) don't require rerunning the CV.
+
+    If `timings` is given, one {origin_type, origin, nn_seconds,
+    tree_seconds, fold_seconds} dict is appended per fold -- lets `main()`
+    build an `outputs/timings.json` breakdown without this function owning
+    the file write itself.
     """
-    max_window = max(cfg.lag_windows)
+    horizons = range(1, cfg.horizon + 1)
     first_seen = hist_df.groupby("ProductId")["DateKey"].min()  # static historical fact, always in the past
     fold_frames = []
 
     for origin in origins:
+        fold_start = time.perf_counter()
         eval_start = origin + pd.Timedelta(days=1)
         eval_end = origin + pd.Timedelta(days=cfg.horizon)
         fold_train_raw = hist_df[hist_df["DateKey"] <= origin].copy()
@@ -181,58 +203,73 @@ def run_walk_forward_cv(hist_df: pd.DataFrame, origins, origin_type: str,
 
         fold_train_feat = prepare_features(fold_train_raw, price_ref, first_seen)
         fold_train_feat = add_train_lags(fold_train_feat, cfg.lag_windows)
-        available_mask = fold_train_feat["ProductAvailable"].fillna(False)
-        train_examples = (fold_train_feat[available_mask]
-                           .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
-
-        scaler = StandardScaler()
-        tensors = make_tensors(train_examples, scaler, fit=True, cfg=cfg)
-        y_log = np.log1p(train_examples["Quantity"].to_numpy(dtype=np.float32))
-        seed_models = [train_model(tensors, y_log, cfg, epochs=cfg.cv_epochs, seed=seed)
-                       for seed in cfg.seeds]
-
         fold_eval_feat = prepare_features(fold_eval_raw, price_ref, first_seen).reset_index(drop=True)
 
-        # Each recursion gets its own fresh copy of history: recursion
-        # mutates it in place with that run's own predictions, so sharing
-        # one dict across runs would leak one run's forecasts into
-        # another's lags. Per-seed recursions are independent (own history
-        # each) and kept only as diagnostics; the ensemble recursion below
-        # is the one that matters -- it jointly feeds the *ensemble's* daily
-        # prediction forward, exactly like `run_final_forecast`'s submission.
-        seed_preds = {
-            seed: recursive_forecast([model], scaler, fold_eval_feat,
-                                      init_history(fold_train_feat, max_window), cfg)
-            for seed, model in zip(cfg.seeds, seed_models)
-        }
-        ensemble_preds = recursive_forecast(seed_models, scaler, fold_eval_feat,
-                                             init_history(fold_train_feat, max_window), cfg)
-        tree_preds = run_tree_baselines(train_examples, fold_eval_feat,
-                                         init_history(fold_train_feat, max_window), cfg)
+        panel = build_direct_panel(fold_train_feat, horizons, cfg=cfg, future_covariates=fold_eval_feat)
+        # Leakage-safe training slice: a training row's own target must
+        # already be observable as of `origin` -- an origin close to the
+        # fold's own cutoff combined with a large horizon would otherwise
+        # land on a target date this fold isn't allowed to have seen yet.
+        trainable = panel[panel["TargetDateKey"] <= origin]
+        train_available = trainable["TargetProductAvailable"].fillna(False)
+        train_panel = (trainable[train_available]
+                        .dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True))
+        eval_panel = panel[panel["OriginDateKey"] == origin].reset_index(drop=True)
+
+        scaler = StandardScaler()
+        tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
+        y_residual = residual_log1p_target(train_panel)
+        nn_start = time.perf_counter()
+        seed_models = [train_model(tensors, y_residual, cfg, epochs=cfg.cv_epochs, seed=seed)
+                       for seed in cfg.seeds]
+        nn_seconds = time.perf_counter() - nn_start
+
+        # Per-seed predictions are independent diagnostics; the ensemble
+        # prediction below (averaging all seeds) is the one that matters --
+        # it's exactly what `run_final_forecast` submits.
+        seed_preds = {seed: predict_direct([model], scaler, eval_panel, cfg)
+                      for seed, model in zip(cfg.seeds, seed_models)}
+        ensemble_preds = predict_direct(seed_models, scaler, eval_panel, cfg)
+        tree_start = time.perf_counter()
+        tree_preds = run_tree_baselines(train_panel, eval_panel, cfg)
+        tree_seconds = time.perf_counter() - tree_start
 
         seasonal_pred = seasonal_naive_predict(fold_eval_feat, fold_train_raw, lag_days=cfg.horizon)
         ma_pred = moving_average_predict(fold_eval_feat, fold_train_raw, window=28)
         baseline_pred = compute_baseline(fold_eval_feat, fold_train_raw)
-        actual = fold_eval_feat["Quantity"].to_numpy(dtype=float)
 
-        fold_oof = pd.DataFrame({
-            "origin": origin,
-            "origin_type": origin_type,
-            "horizon": (fold_eval_feat["DateKey"] - origin).dt.days.to_numpy(),
-            "ProductId": fold_eval_feat["ProductId"].to_numpy(),
-            "DateKey": fold_eval_feat["DateKey"].to_numpy(),
-            "ProductAvailable": fold_eval_feat["ProductAvailable"].to_numpy(),
-            "actual": actual,
-            "baseline": baseline_pred,
-            "pred_NeuralNet": ensemble_preds,
-            "pred_XGBoost": tree_preds["XGBoost"],
-            "pred_LightGBM": tree_preds["LightGBM"],
-            "pred_SeasonalNaive": seasonal_pred,
-            "pred_MovingAvg28": ma_pred,
-        })
+        # Predictions are attached straight onto `eval_panel` (so they're
+        # trivially self-consistent with its own ProductId/horizon/target
+        # date, whatever internal row order it happens to be in); naive
+        # baselines + the real actual/availability come from
+        # `fold_eval_feat` and are joined in by explicit (ProductId,
+        # DateKey) key rather than assumed row order.
+        naive_df = fold_eval_feat[["ProductId", "DateKey", "Quantity", "ProductAvailable"]].copy()
+        naive_df["baseline"] = baseline_pred
+        naive_df["pred_SeasonalNaive"] = seasonal_pred
+        naive_df["pred_MovingAvg28"] = ma_pred
+
+        fold_oof = eval_panel[["ProductId", "horizon", "TargetDateKey"]].rename(columns={"TargetDateKey": "DateKey"})
+        fold_oof["origin"] = origin
+        fold_oof["origin_type"] = origin_type
+        fold_oof["pred_NeuralNet"] = ensemble_preds
+        fold_oof["pred_XGBoost"] = tree_preds["XGBoost"]
+        fold_oof["pred_LightGBM"] = tree_preds["LightGBM"]
         for seed in cfg.seeds:
             fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
+        fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left")
+        fold_oof = fold_oof.rename(columns={"Quantity": "actual"})
         fold_frames.append(fold_oof)
+
+        fold_seconds = time.perf_counter() - fold_start
+        print(f"    [timing] {origin_type} {origin.date()}: NN {nn_seconds:.1f}s | "
+              f"trees {tree_seconds:.1f}s | fold total {fold_seconds:.1f}s")
+        if timings is not None:
+            timings.append({
+                "origin_type": origin_type, "origin": str(origin.date()),
+                "nn_seconds": round(nn_seconds, 2), "tree_seconds": round(tree_seconds, 2),
+                "fold_seconds": round(fold_seconds, 2),
+            })
 
     return pd.concat(fold_frames, ignore_index=True) if fold_frames else pd.DataFrame()
 
@@ -296,34 +333,52 @@ def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd
 # ---------------------------------------------------------------------------
 # Final ensemble training + test forecast
 # ---------------------------------------------------------------------------
-def run_final_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
-                        cfg: Config = CFG):
-    max_window = max(cfg.lag_windows)
+def _prepare_final_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG):
+    """Shared by `run_final_forecast` and `run_final_tree_forecast`: builds
+    the direct multi-horizon panel for the real forecast -- origin = the
+    last training day, targets = the actual test week (covariates from
+    `test_raw` itself, since nothing later exists in `train_raw` to look
+    up)."""
     price_ref = train_raw.groupby("ProductId")["PriceLocalVat"].median()
     first_seen = train_raw.groupby("ProductId")["DateKey"].min()
 
     train_feat = prepare_features(train_raw, price_ref, first_seen)
     train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    available_mask = train_feat["ProductAvailable"].fillna(False)
-    train_examples = (train_feat[available_mask]
-                       .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
+    test_feat = prepare_features(test_raw, price_ref, first_seen).reset_index(drop=True)
+
+    horizons = range(1, cfg.horizon + 1)
+    panel = build_direct_panel(train_feat, horizons, cfg=cfg, future_covariates=test_feat)
+
+    last_train_date = train_raw["DateKey"].max()
+    trainable = panel[panel["TargetDateKey"] <= last_train_date]
+    train_available = trainable["TargetProductAvailable"].fillna(False)
+    train_panel = (trainable[train_available]
+                    .dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True))
+    eval_panel = panel[panel["OriginDateKey"] == last_train_date].reset_index(drop=True)
+    return train_panel, eval_panel
+
+
+def run_final_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
+                        cfg: Config = CFG):
+    train_panel, eval_panel = _prepare_final_panel(train_raw, test_raw, cfg)
 
     scaler = StandardScaler()
-    tensors = make_tensors(train_examples, scaler, fit=True, cfg=cfg)
-    y_log = np.log1p(train_examples["Quantity"].to_numpy(dtype=np.float32))
+    tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
+    y_residual = residual_log1p_target(train_panel)
 
     models = []
     for seed in cfg.seeds:
+        seed_start = time.perf_counter()
         print(f"    seed {seed}")
-        models.append(train_model(tensors, y_log, cfg, epochs=cfg.final_epochs, seed=seed))
+        models.append(train_model(tensors, y_residual, cfg, epochs=cfg.final_epochs, seed=seed))
+        print(f"      [timing] seed {seed}: {time.perf_counter() - seed_start:.1f}s")
 
-    history = init_history(train_feat, max_window)
-    test_feat = prepare_features(test_raw, price_ref, first_seen).reset_index(drop=True)
-    preds = recursive_forecast(models, scaler, test_feat, history, cfg)
+    preds = predict_direct(models, scaler, eval_panel, cfg)
+    preds_aligned = _reindex_predictions(eval_panel, preds, "TargetDateKey", test_raw)
 
     submission = test_raw[["ProductId", "DateKey"]].copy()
-    submission["Quantity"] = np.round(preds).astype(int)
-    return submission, preds
+    submission["Quantity"] = np.round(preds_aligned).astype(int)
+    return submission, preds_aligned
 
 
 def run_final_tree_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG) -> dict:
@@ -332,19 +387,10 @@ def run_final_tree_forecast(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg
     Not used for the submission file (the task brief asked for a non-tree
     approach as the actual deliverable).
     """
-    max_window = max(cfg.lag_windows)
-    price_ref = train_raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = train_raw.groupby("ProductId")["DateKey"].min()
-
-    train_feat = prepare_features(train_raw, price_ref, first_seen)
-    train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    available_mask = train_feat["ProductAvailable"].fillna(False)
-    train_examples = (train_feat[available_mask]
-                       .dropna(subset=feature_columns(cfg)).reset_index(drop=True))
-
-    test_feat = prepare_features(test_raw, price_ref, first_seen).reset_index(drop=True)
-    history = init_history(train_feat, max_window)
-    return run_tree_baselines(train_examples, test_feat, history, cfg)
+    train_panel, eval_panel = _prepare_final_panel(train_raw, test_raw, cfg)
+    tree_preds = run_tree_baselines(train_panel, eval_panel, cfg)
+    return {name: _reindex_predictions(eval_panel, preds, "TargetDateKey", test_raw)
+            for name, preds in tree_preds.items()}
 
 
 def run_final_naive_baselines(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG) -> dict:
@@ -497,16 +543,28 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
 def main() -> None:
     cfg = CFG
     print(f"Device: {DEVICE}")
+    run_start = time.perf_counter()
+    # Phase-level + per-fold timings, printed as the run progresses and
+    # dumped to outputs/timings.json at the end -- a first step towards
+    # accurate wall-clock tracking across runs/machines, not just a single
+    # end-to-end number.
+    timings: dict = {"cv_folds": []}
 
     train_raw, test_raw = load_raw(cfg)
     cfg.num_products = int(max(train_raw["ProductId"].max(), test_raw["ProductId"].max()))
     holdout_origins = recent_holdout_origins(train_raw, cfg)
 
     print(f"\n=== Development CV ({len(DEVELOPMENT_ORIGINS)} scattered origins x {cfg.horizon}d) ===")
-    dev_oof = run_walk_forward_cv(train_raw, DEVELOPMENT_ORIGINS, "development", cfg)
+    t0 = time.perf_counter()
+    dev_oof = run_walk_forward_cv(train_raw, DEVELOPMENT_ORIGINS, "development", cfg, timings=timings["cv_folds"])
+    timings["dev_cv_seconds"] = round(time.perf_counter() - t0, 2)
+    print(f"[timing] development CV total: {timings['dev_cv_seconds']:.1f}s")
 
     print(f"\n=== Recent-holdout CV ({len(holdout_origins)} folds x {cfg.horizon}d, untouched final check) ===")
-    holdout_oof = run_walk_forward_cv(train_raw, holdout_origins, "recent_holdout", cfg)
+    t0 = time.perf_counter()
+    holdout_oof = run_walk_forward_cv(train_raw, holdout_origins, "recent_holdout", cfg, timings=timings["cv_folds"])
+    timings["holdout_cv_seconds"] = round(time.perf_counter() - t0, 2)
+    print(f"[timing] recent-holdout CV total: {timings['holdout_cv_seconds']:.1f}s")
 
     oof = pd.concat([dev_oof, holdout_oof], ignore_index=True)
 
@@ -531,11 +589,20 @@ def main() -> None:
     print(f"\nSkill vs seasonal-naive baseline (holdout, global MAE): {skill:+.1%} (positive = model beats naive)")
 
     print("\n=== Training final ensemble on all data (submission model) ===")
+    t0 = time.perf_counter()
     submission, nn_preds = run_final_forecast(train_raw, test_raw, cfg)
+    timings["final_nn_seconds"] = round(time.perf_counter() - t0, 2)
+    print(f"[timing] final NN ensemble train+predict: {timings['final_nn_seconds']:.1f}s")
 
     print("\n=== Training final XGBoost/LightGBM (dashboard comparison only) ===")
+    t0 = time.perf_counter()
     tree_final = run_final_tree_forecast(train_raw, test_raw, cfg)
+    timings["final_tree_seconds"] = round(time.perf_counter() - t0, 2)
+    print(f"[timing] final tree train+predict: {timings['final_tree_seconds']:.1f}s")
+
+    t0 = time.perf_counter()
     naive_final = run_final_naive_baselines(train_raw, test_raw, cfg)
+    timings["final_naive_seconds"] = round(time.perf_counter() - t0, 2)
     final_forecasts = {
         "NeuralNet": nn_preds,
         "XGBoost": tree_final["XGBoost"],
@@ -563,13 +630,24 @@ def main() -> None:
     print(f"\nSaved: {cfg.output_dir}/submission.{{parquet,csv}}, cv_results.csv, "
           "oof_predictions.parquet, dev_summary.csv, holdout_summary.csv")
 
+    t0 = time.perf_counter()
     try:
         plot_forecast(train_raw, submission, cfg=cfg)
     except Exception as exc:  # pragma: no cover - plotting is a nice-to-have
         print(f"Plot skipped ({exc})")
+    timings["plot_seconds"] = round(time.perf_counter() - t0, 2)
 
+    t0 = time.perf_counter()
     export_results_json(train_raw, test_raw, submission, final_forecasts, cv_results, cfg,
                          dev_summary=dev_summary, holdout_summary=holdout_summary)
+    timings["export_json_seconds"] = round(time.perf_counter() - t0, 2)
+
+    timings["total_seconds"] = round(time.perf_counter() - run_start, 2)
+    print(f"\n[timing] TOTAL pipeline run: {timings['total_seconds']:.1f}s "
+          f"({timings['total_seconds'] / 60:.1f} min)")
+    with open(os.path.join(cfg.output_dir, "timings.json"), "w") as f:
+        json.dump(timings, f, indent=2)
+    print(f"Saved: {cfg.output_dir}/timings.json")
 
 
 if __name__ == "__main__":

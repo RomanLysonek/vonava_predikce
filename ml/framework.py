@@ -34,6 +34,7 @@ class Config:
     num_products: int = 30                # overwritten from data in main()
     embed_dim_product: int = 12
     embed_dim_campaign: int = 4
+    embed_dim_horizon: int = 4
     hidden_dims: tuple = (256, 128, 64)
     dropout: tuple = (0.20, 0.15, 0.10)
     lr: float = 1e-3
@@ -74,17 +75,6 @@ def lag_feature_names(lag_windows) -> list[str]:
         names += [f"qty_roll_mean_{w}", f"qty_roll_std_{w}", f"qty_roll_median_{w}",
                   f"qty_available_count_{w}", f"stockout_rate_{w}"]
     return names
-
-
-def feature_columns(cfg: Config = CFG) -> list[str]:
-    """Full numeric feature schema for a given config. Kept as a function of
-    `cfg.lag_windows` (rather than a hardcoded list) so that changing the lag
-    windows can never silently desync from the columns actually produced by
-    `add_train_lags` / `recursive_forecast_generic`."""
-    return STATIC_NUMERIC_FEATURES + lag_feature_names(cfg.lag_windows)
-
-
-NUMERIC_FEATURES = feature_columns(CFG)  # default schema, used wherever cfg == CFG
 
 
 # ---------------------------------------------------------------------------
@@ -184,33 +174,49 @@ def prepare_features(df: pd.DataFrame, price_ref: pd.Series, first_seen: pd.Seri
     return df
 
 
+# Weighted same-weekday baseline: a 4:3:2:1 weighted average of Quantity at
+# lags 7/14/21/28 days. Shared by `compute_baseline` below (a `hist_df`
+# lookup, used for the naive-baseline diagnostic column and as a
+# seasonal-naive fallback) and `build_direct_panel`'s `target_baseline`
+# feature (Tier B2), which reuses the exact same weights/renormalization
+# vectorized straight off the panel's own already-computed
+# `seasonal_lag_{7,14,21,28}` columns instead of a second hist_df lookup.
+BASELINE_LAGS = (7, 14, 21, 28)
+BASELINE_WEIGHTS = np.array([4.0, 3.0, 2.0, 1.0])
+
+
+def _weighted_baseline(lag_matrix: np.ndarray) -> np.ndarray:
+    """Row-wise NaN-aware weighted average over `BASELINE_LAGS`/
+    `BASELINE_WEIGHTS` (columns of `lag_matrix` must be in that same lag
+    order). Weights renormalize over whichever lags are actually observed
+    in a row -- a stockout/unknown-gap/insufficient-history lag drops out
+    of the average instead of forcing the whole row to NaN."""
+    observed = np.isfinite(lag_matrix)
+    numerator = np.nansum(lag_matrix * BASELINE_WEIGHTS, axis=1)
+    denominator = (observed * BASELINE_WEIGHTS).sum(axis=1)
+    return np.divide(numerator, denominator,
+                      out=np.full(len(lag_matrix), np.nan, dtype=float),
+                      where=denominator > 0)
+
+
 def compute_baseline(target_df: pd.DataFrame, hist_df: pd.DataFrame) -> np.ndarray:
-    """Availability-aware weighted same-weekday baseline: a 4:3:2:1 weighted
-    average of Quantity at lags 7/14/21/28 days, using only observed-and-
-    available demand from `hist_df`. Weights renormalize over whichever
-    lags are actually observed -- a stockout/unknown-gap lag drops out of
-    the average instead of forcing the whole baseline to NaN. `hist_df` is
-    the lookup source (e.g. training history); `target_df` is whatever rows
-    need a baseline value (can be the same frame, for training rows, or
-    later out-of-sample eval/test rows looking back into `hist_df`)."""
+    """Availability-aware weighted same-weekday baseline (see
+    `BASELINE_LAGS`/`BASELINE_WEIGHTS`), using only observed-and-available
+    demand from `hist_df`. `hist_df` is the lookup source (e.g. training
+    history); `target_df` is whatever rows need a baseline value (can be
+    the same frame, for training rows, or later out-of-sample eval/test
+    rows looking back into `hist_df`)."""
     available = hist_df["ProductAvailable"].fillna(False)
     qty_available = hist_df["Quantity"].where(available)
     lookup = pd.Series(qty_available.to_numpy(),
                         index=pd.MultiIndex.from_frame(hist_df[["ProductId", "DateKey"]]))
 
-    lags = (7, 14, 21, 28)
-    weights = np.array([4.0, 3.0, 2.0, 1.0])
-    lag_matrix = np.full((len(target_df), len(lags)), np.nan)
-    for j, lag in enumerate(lags):
+    lag_matrix = np.full((len(target_df), len(BASELINE_LAGS)), np.nan)
+    for j, lag in enumerate(BASELINE_LAGS):
         keys = list(zip(target_df["ProductId"], target_df["DateKey"] - pd.Timedelta(days=lag)))
         lag_matrix[:, j] = [lookup.get(k, np.nan) for k in keys]
 
-    observed = np.isfinite(lag_matrix)
-    numerator = np.nansum(lag_matrix * weights, axis=1)
-    denominator = (observed * weights).sum(axis=1)
-    return np.divide(numerator, denominator,
-                      out=np.full(len(target_df), np.nan, dtype=float),
-                      where=denominator > 0)
+    return _weighted_baseline(lag_matrix)
 
 
 def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.DataFrame:
@@ -242,72 +248,141 @@ def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.Dat
     return df
 
 
-def _nan_safe_window_stats(values: np.ndarray) -> tuple[float, float, float, int]:
-    """mean/std/median/count over the non-NaN entries of `values`. Falls
-    back to (0, 0, 0, 0) if the entire window is unavailable/unknown --
-    plain `.mean()`/`.std()` on an all-NaN slice would otherwise poison the
-    recursive forecast with NaN for every subsequent day."""
-    valid = values[~np.isnan(values)]
-    if len(valid) == 0:
-        return 0.0, 0.0, 0.0, 0
-    return float(valid.mean()), float(valid.std()), float(np.median(valid)), int(len(valid))
-
-
-def init_history(df: pd.DataFrame, max_window: int) -> dict[int, list[float]]:
-    """Per-product tail of availability-aware quantities (NaN for a
-    stockout or unknown-calendar-gap day), used as the starting point for
-    recursive forecasting. NaN is preserved -- not zero-filled -- so
-    `recursive_forecast_generic` can skip it via `_nan_safe_window_stats`
-    instead of letting a recent stockout drag the rolling stats toward
-    zero."""
-    hist: dict[int, list[float]] = {}
-    col = "qty_available" if "qty_available" in df.columns else "Quantity"
-    for pid, sub in df.sort_values("DateKey").groupby("ProductId"):
-        vals = sub[col].to_numpy(dtype=float)
-        hist[int(pid)] = list(vals[-max_window:]) if len(vals) else [np.nan]
-    return hist
-
-
 # ---------------------------------------------------------------------------
-# Model-agnostic recursive forecasting
+# Direct multi-horizon panel (Tier B1): eliminates recursion entirely for
+# NN/XGBoost/LightGBM -- see build_direct_panel's docstring for why every
+# horizon's inputs are always a lookup into already-observed data, never a
+# value that would first need to be predicted.
 # ---------------------------------------------------------------------------
-def recursive_forecast_generic(predict_fn, static_df: pd.DataFrame, history: dict,
-                                cfg: Config = CFG) -> np.ndarray:
-    """Walk the horizon forward one day at a time. Each day's lag features are
-    computed from `history`, which is then extended with that day's own
-    prediction (via `predict_fn(day_df) -> np.ndarray`) before moving to the
-    next day. This is what makes the forecast genuinely multi-step instead of
-    7 identical copies of a single-step prediction, for ANY model (neural
-    net, XGBoost, LightGBM, ...).
+RECENT_POINT_LAGS = (1, 2, 6, 7)
+# BASELINE_LAGS first, so `target_baseline` below can always read
+# seasonal_lag_{7,14,21,28} straight off the columns this computes for
+# every horizon -- weekly-seasonal lags plus 3 yearly-seasonal lags.
+SEASONAL_LAG_DAYS = BASELINE_LAGS + (364, 365, 371)
 
-    `history` is mutated in place -- pass a fresh dict per model/run.
+# Columns whose VALUE must be shifted forward from the target row (the two
+# campaign category codes included, so the panel reflects whatever
+# campaign is active ON the target date) -- used only by `build_direct_panel`
+# itself. "Future-known" because the task's own test_data.parquet already
+# supplies these for the real forecast week -- an assumption this panel
+# inherits, not one it introduces.
+TARGET_COVARIATE_COLUMNS = STATIC_NUMERIC_FEATURES + ["campaign_idx_web", "campaign_idx_app"]
+
+
+def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
+    """Full numeric feature schema for `build_direct_panel`'s output:
+    target-date covariates + origin-relative rolling stats (from
+    `add_train_lags`, just relative to whichever row is the origin here) +
+    origin-relative point lags + target-relative seasonal lags + horizon
+    itself. Deliberately uses `STATIC_NUMERIC_FEATURES`, not the wider
+    `TARGET_COVARIATE_COLUMNS` -- the two campaign category codes get
+    separate categorical (`TREE_CATEGORICAL_COLUMNS`) / embedding
+    treatment instead of being counted as plain numeric features (mirrors
+    how product/campaign indices were always excluded from the old
+    recursive pipeline's `feature_columns`); including them here too would
+    hand tree models the same column twice under two different roles.
+    `target_baseline` (Tier B2) is the weighted same-weekday baseline for
+    the target date itself -- see `build_direct_panel`."""
+    return (STATIC_NUMERIC_FEATURES + lag_feature_names(cfg.lag_windows)
+            + [f"qty_lag_{lag}" for lag in RECENT_POINT_LAGS]
+            + [f"seasonal_lag_{lag}" for lag in SEASONAL_LAG_DAYS]
+            + ["target_baseline", "horizon"])
+
+
+def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
+                        future_covariates: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Stack (ForecastOrigin x Horizon x ProductId) into one direct-
+    prediction panel -- every horizon predicted straight from the origin in
+    a single pass, no recursive one-day-at-a-time feedback loop.
+
+    `train_feat` must already be `prepare_features` + `add_train_lags`
+    output (calendar-reindexed/gapless per product -- required for the
+    row-position shifts below to mean exactly "N calendar days", see
+    `reindex_daily_calendar`). `future_covariates`, if given, is
+    `prepare_features` output (lag features not required) for the dates
+    immediately following `train_feat`'s own max date per product -- e.g.
+    a CV fold's eval window or the real test week -- so that origins near
+    the end of `train_feat` can still look *forward* to their target
+    date's own covariates (calendar/discount/price -- known in advance,
+    the same assumption test_data.parquet already makes) and, for CV
+    folds, their real target Quantity for scoring.
+
+    For every origin row, independent of horizon: origin-relative point
+    lags (`qty_lag_{1,2,6,7}`) and the rolling-stat columns already on
+    `train_feat` from `add_train_lags` -- both purely backward-looking.
+
+    For each horizon h in `horizons`, additionally:
+      - `seasonal_lag_{L}` = qty_available at (target_date - L days),
+        computed as an origin-relative shift of (L - h) days. Every L in
+        SEASONAL_LAG_DAYS is >= 7 >= max(horizons), so (L - h) is always
+        >= 0 -- a lookup into data at-or-before the origin, never a value
+        from another horizon's own prediction. This is what eliminates
+        recursion: no horizon's inputs ever depend on another horizon's
+        output.
+      - target-date covariates (`TARGET_COVARIATE_COLUMNS`) and `target`
+        (Quantity at the target date, NaN if it falls beyond whatever
+        data is available -- e.g. the real forecast, which by definition
+        has nothing to score against yet).
+      - `target_baseline` (Tier B2): the same weighted 4:3:2:1
+        same-weekday baseline as `compute_baseline`, for the target date
+        itself -- built straight from this row's own `seasonal_lag_{7,14,
+        21,28}` (so it's exactly as leakage-safe as they are, no separate
+        lookup needed). Given to the NN both as an input feature and as
+        the reference value its skip-connection residual target is
+        defined against (see `models/neural_net.py`).
+      - `horizon` itself as a feature.
+
+    Returns one row per (origin, horizon, ProductId) where the origin was
+    an actual row of `train_feat` (rows only present via
+    `future_covariates` are lookup targets, never origins themselves),
+    with `ProductId`, `OriginDateKey`, `TargetDateKey`, `target`,
+    `TargetProductAvailable`, and every column in `direct_panel_feature_names`.
     """
-    static_df = static_df.reset_index(drop=True)
-    dates = sorted(static_df["DateKey"].unique())
-    out = np.zeros(len(static_df), dtype=np.float32)
+    train_feat = train_feat.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
+    origin_index = pd.MultiIndex.from_frame(train_feat[["ProductId", "DateKey"]])
 
-    for d in dates:
-        mask = (static_df["DateKey"] == d).to_numpy()
-        day_df = static_df.loc[mask].copy()
-        for w in cfg.lag_windows:
-            means, stds, meds, counts = [], [], [], []
-            for pid in day_df["ProductId"]:
-                arr = np.asarray(history[int(pid)][-w:], dtype=float)
-                m, s, md, c = _nan_safe_window_stats(arr)
-                means.append(m); stds.append(s); meds.append(md); counts.append(c)
-            day_df[f"qty_roll_mean_{w}"] = means
-            day_df[f"qty_roll_std_{w}"] = stds
-            day_df[f"qty_roll_median_{w}"] = meds
-            day_df[f"qty_available_count_{w}"] = counts
-            window_days = [min(len(history[int(pid)][-w:]), w) for pid in day_df["ProductId"]]
-            day_df[f"stockout_rate_{w}"] = 1.0 - np.asarray(counts) / np.maximum(window_days, 1)
+    combined = train_feat
+    if future_covariates is not None:
+        future_covariates = future_covariates.copy()
+        for col in ("Quantity", "ProductAvailable"):
+            if col not in future_covariates.columns:
+                future_covariates[col] = np.nan
+        keep = ["ProductId", "DateKey", "Quantity", "ProductAvailable"] + TARGET_COVARIATE_COLUMNS
+        combined = pd.concat([train_feat, future_covariates[keep]], ignore_index=True, sort=False)
+    combined = combined.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
+    g = combined.groupby("ProductId")
 
-        day_pred = predict_fn(day_df)
-        out[mask] = day_pred
-        for pid, q in zip(day_df["ProductId"], day_pred):
-            history[int(pid)].append(float(q))
+    origin = combined[["ProductId", "DateKey"]].copy()
+    for lag in RECENT_POINT_LAGS:
+        origin[f"qty_lag_{lag}"] = g["qty_available"].shift(lag)
+    for col in lag_feature_names(cfg.lag_windows):
+        origin[col] = combined[col]
 
-    return out
+    frames = []
+    for h in horizons:
+        panel_h = origin.copy()
+        panel_h["horizon"] = h
+        target_cols = ["DateKey", "Quantity", "ProductAvailable"] + TARGET_COVARIATE_COLUMNS
+        target = g[target_cols].shift(-h)
+        panel_h["TargetDateKey"] = target["DateKey"]
+        panel_h["target"] = target["Quantity"]
+        panel_h["TargetProductAvailable"] = target["ProductAvailable"]
+        for col in TARGET_COVARIATE_COLUMNS:
+            panel_h[col] = target[col]
+        for lag in SEASONAL_LAG_DAYS:
+            panel_h[f"seasonal_lag_{lag}"] = g["qty_available"].shift(lag - h)
+        baseline_lag_matrix = np.column_stack(
+            [panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float) for lag in BASELINE_LAGS])
+        panel_h["target_baseline"] = _weighted_baseline(baseline_lag_matrix)
+        frames.append(panel_h)
+
+    panel = pd.concat(frames, ignore_index=True)
+    panel = panel.rename(columns={"DateKey": "OriginDateKey"})
+    panel["product_idx"] = panel["ProductId"] - 1
+
+    panel_index = pd.MultiIndex.from_arrays([panel["ProductId"], panel["OriginDateKey"]])
+    panel = panel[panel_index.isin(origin_index)].reset_index(drop=True)
+    return panel
 
 
 # ---------------------------------------------------------------------------
@@ -316,16 +391,43 @@ def recursive_forecast_generic(predict_fn, static_df: pd.DataFrame, history: dic
 TREE_CATEGORICAL_COLUMNS = ["product_idx", "campaign_idx_web", "campaign_idx_app"]
 
 
-def tree_feature_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
-    """Numeric features + native pandas 'category' dtype columns, understood
-    directly by both XGBoost (`enable_categorical=True`) and LightGBM
-    (auto-detected), which avoids imposing a false ordinal scale on
-    product/campaign ids the way a plain integer column would.
+def direct_panel_tree_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
+    """Numeric features + native pandas 'category' dtype columns for
+    `build_direct_panel`'s output, understood directly by both XGBoost
+    (`enable_categorical=True`) and LightGBM (auto-detected). `horizon` is
+    left as a plain numeric/ordinal column (not forced into a 'category'
+    dtype like product/campaign) since it has a genuine order and small
+    trees split on it naturally either way.
     """
-    cols = feature_columns(cfg) + TREE_CATEGORICAL_COLUMNS
+    cols = direct_panel_feature_names(cfg) + TREE_CATEGORICAL_COLUMNS
     X = df[cols].copy()
+    # Fixed, cfg-derived category domains -- NOT a bare `.astype("category")`,
+    # which would infer each column's categories from whatever values
+    # happen to be present in THIS specific DataFrame. train_panel and
+    # eval_panel are built independently (different origins/rows) and
+    # routinely disagree on which product/campaign ids are actually
+    # present; XGBoost hard-errors the moment eval contains a category
+    # train's slice didn't happen to include, and LightGBM would silently
+    # misalign category codes instead of erroring. Every product_idx in
+    # `0..cfg.num_products-1` / campaign_idx in `0..NUM_CAMPAIGN_CATS-1` is
+    # declared upfront so train and eval always share identical categories.
+    category_domains = {
+        "product_idx": range(cfg.num_products),
+        "campaign_idx_web": range(NUM_CAMPAIGN_CATS),
+        "campaign_idx_app": range(NUM_CAMPAIGN_CATS),
+    }
     for c in TREE_CATEGORICAL_COLUMNS:
-        X[c] = X[c].astype("category")
+        # campaign_idx_web/app come out of build_direct_panel's shift(-h)
+        # against `train_feat`'s own int columns -- shifting past the end
+        # of available data introduces NaN, which upcasts the whole column
+        # to float64 (an int dtype can't hold NaN). Restore int (same
+        # fillna(0) sentinel `prepare_features` already uses for an
+        # unmapped/missing campaign) before the category cast: this
+        # xgboost version hard-rejects category codes with a
+        # floating-point dtype ("consider using strings or integers
+        # instead").
+        codes = X[c].fillna(0).astype(int)
+        X[c] = pd.Categorical(codes, categories=category_domains[c])
     return X
 
 
