@@ -23,6 +23,7 @@ from pipeline import (
     PrimaryStrategy,
     SubmissionModel,
     configure_c1_runtime,
+    configure_c2_runtime,
     configure_nn_runtime,
     export_results_json,
     load_raw,
@@ -67,6 +68,7 @@ def main(argv=None) -> None:
         max(train_raw["ProductId"].max(), test_raw["ProductId"].max())
     )
     configure_c1_runtime(CFG, options)
+    configure_c2_runtime(CFG, options)
     configure_nn_runtime(CFG, options)
 
     out = CFG.output_dir

@@ -185,6 +185,7 @@ def nn_performance_signature(cfg: Config) -> dict:
         "recency_half_life_days": cfg.recency_half_life_days,
         "baseline_variant": cfg.baseline_variant,
         "enable_trend_features": cfg.enable_trend_features,
+        "c2_feature_groups": tuple(cfg.c2_feature_groups),
     }
 
 

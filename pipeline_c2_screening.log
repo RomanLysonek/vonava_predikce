@@ -1,0 +1,217 @@
+
+control: half_life=365p0, C2 groups=none
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1563
+      epoch  10/12 | train loss 0.0917
+      epoch  12/12 | train loss 0.0903
+    [timing] development 2023-01-10: NN 3.0s | trees 7.0s | fold total 10.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1553
+      epoch  10/12 | train loss 0.0862
+      epoch  12/12 | train loss 0.0852
+    [timing] development 2024-06-20: NN 3.9s | trees 8.9s | fold total 14.4s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1378
+      epoch  10/12 | train loss 0.0778
+      epoch  12/12 | train loss 0.0769
+    [timing] development 2024-11-29: NN 4.3s | trees 9.5s | fold total 15.8s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1406
+      epoch  10/12 | train loss 0.0801
+      epoch  12/12 | train loss 0.0784
+    [timing] development 2025-02-10: NN 5.9s | trees 10.0s | fold total 18.0s
+
+single_price: half_life=365p0, C2 groups=price
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1519
+      epoch  10/12 | train loss 0.0891
+      epoch  12/12 | train loss 0.0879
+    [timing] development 2023-01-10: NN 2.1s | trees 7.1s | fold total 10.3s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1519
+      epoch  10/12 | train loss 0.0846
+      epoch  12/12 | train loss 0.0828
+    [timing] development 2024-06-20: NN 3.8s | trees 9.1s | fold total 14.8s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1344
+      epoch  10/12 | train loss 0.0761
+      epoch  12/12 | train loss 0.0745
+    [timing] development 2024-11-29: NN 4.4s | trees 10.0s | fold total 16.5s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1364
+      epoch  10/12 | train loss 0.0771
+      epoch  12/12 | train loss 0.0758
+    [timing] development 2025-02-10: NN 4.6s | trees 10.2s | fold total 17.1s
+
+single_campaign: half_life=365p0, C2 groups=campaign
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1589
+      epoch  10/12 | train loss 0.0913
+      epoch  12/12 | train loss 0.0898
+    [timing] development 2023-01-10: NN 2.1s | trees 7.1s | fold total 10.2s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1582
+      epoch  10/12 | train loss 0.0864
+      epoch  12/12 | train loss 0.0848
+    [timing] development 2024-06-20: NN 3.8s | trees 9.1s | fold total 14.7s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1404
+      epoch  10/12 | train loss 0.0771
+      epoch  12/12 | train loss 0.0759
+    [timing] development 2024-11-29: NN 4.3s | trees 9.8s | fold total 16.1s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1435
+      epoch  10/12 | train loss 0.0784
+      epoch  12/12 | train loss 0.0770
+    [timing] development 2025-02-10: NN 4.6s | trees 10.1s | fold total 16.9s
+
+single_lifecycle: half_life=365p0, C2 groups=lifecycle
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1561
+      epoch  10/12 | train loss 0.0915
+      epoch  12/12 | train loss 0.0906
+    [timing] development 2023-01-10: NN 2.0s | trees 7.1s | fold total 10.1s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1568
+      epoch  10/12 | train loss 0.0872
+      epoch  12/12 | train loss 0.0853
+    [timing] development 2024-06-20: NN 3.9s | trees 9.2s | fold total 14.7s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1391
+      epoch  10/12 | train loss 0.0787
+      epoch  12/12 | train loss 0.0774
+    [timing] development 2024-11-29: NN 4.4s | trees 9.8s | fold total 16.2s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1413
+      epoch  10/12 | train loss 0.0802
+      epoch  12/12 | train loss 0.0785
+    [timing] development 2025-02-10: NN 4.6s | trees 10.2s | fold total 16.9s
+
+single_market: half_life=365p0, C2 groups=market
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1562
+      epoch  10/12 | train loss 0.0859
+      epoch  12/12 | train loss 0.0845
+    [timing] development 2023-01-10: NN 2.1s | trees 7.5s | fold total 10.7s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1525
+      epoch  10/12 | train loss 0.0815
+      epoch  12/12 | train loss 0.0803
+    [timing] development 2024-06-20: NN 3.9s | trees 9.7s | fold total 15.5s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1346
+      epoch  10/12 | train loss 0.0732
+      epoch  12/12 | train loss 0.0720
+    [timing] development 2024-11-29: NN 4.4s | trees 10.4s | fold total 17.0s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1366
+      epoch  10/12 | train loss 0.0736
+      epoch  12/12 | train loss 0.0726
+    [timing] development 2025-02-10: NN 4.7s | trees 10.7s | fold total 17.8s
+
+single_event: half_life=365p0, C2 groups=event
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1540
+      epoch  10/12 | train loss 0.0853
+      epoch  12/12 | train loss 0.0845
+    [timing] development 2023-01-10: NN 2.1s | trees 7.4s | fold total 10.5s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1556
+      epoch  10/12 | train loss 0.0813
+      epoch  12/12 | train loss 0.0799
+    [timing] development 2024-06-20: NN 3.9s | trees 9.4s | fold total 15.2s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1362
+      epoch  10/12 | train loss 0.0740
+      epoch  12/12 | train loss 0.0722
+    [timing] development 2024-11-29: NN 4.4s | trees 10.0s | fold total 16.7s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1390
+      epoch  10/12 | train loss 0.0737
+      epoch  12/12 | train loss 0.0726
+    [timing] development 2025-02-10: NN 4.7s | trees 10.4s | fold total 17.4s
+
+Initial C2 winner: control (none)
+forward_1_price: reused identical candidate single_price
+forward_1_campaign: reused identical candidate single_campaign
+forward_1_lifecycle: reused identical candidate single_lifecycle
+forward_1_market: reused identical candidate single_market
+forward_1_event: reused identical candidate single_event
+
+all_groups: half_life=365p0, C2 groups=price+campaign+lifecycle+market+event
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1516
+      epoch  10/12 | train loss 0.0809
+      epoch  12/12 | train loss 0.0802
+    [timing] development 2023-01-10: NN 2.1s | trees 8.4s | fold total 11.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1499
+      epoch  10/12 | train loss 0.0754
+      epoch  12/12 | train loss 0.0736
+    [timing] development 2024-06-20: NN 3.6s | trees 11.3s | fold total 17.3s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1306
+      epoch  10/12 | train loss 0.0676
+      epoch  12/12 | train loss 0.0664
+    [timing] development 2024-11-29: NN 4.1s | trees 12.3s | fold total 19.3s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1326
+      epoch  10/12 | train loss 0.0683
+      epoch  12/12 | train loss 0.0668
+    [timing] development 2025-02-10: NN 4.3s | trees 12.8s | fold total 20.1s
+
+sensitivity_half_none: half_life=none, C2 groups=price+campaign+lifecycle+market+event
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1588
+      epoch  10/12 | train loss 0.0866
+      epoch  12/12 | train loss 0.0853
+    [timing] development 2023-01-10: NN 2.1s | trees 8.4s | fold total 11.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1537
+      epoch  10/12 | train loss 0.0839
+      epoch  12/12 | train loss 0.0826
+    [timing] development 2024-06-20: NN 3.6s | trees 11.3s | fold total 17.3s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1447
+      epoch  10/12 | train loss 0.0802
+      epoch  12/12 | train loss 0.0786
+    [timing] development 2024-11-29: NN 4.0s | trees 12.3s | fold total 19.2s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1445
+      epoch  10/12 | train loss 0.0799
+      epoch  12/12 | train loss 0.0787
+    [timing] development 2025-02-10: NN 4.2s | trees 12.6s | fold total 19.8s
+
+sensitivity_half_90p0: half_life=90p0, C2 groups=price+campaign+lifecycle+market+event
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1479
+      epoch  10/12 | train loss 0.0686
+      epoch  12/12 | train loss 0.0668
+    [timing] development 2023-01-10: NN 2.0s | trees 8.3s | fold total 11.7s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1402
+      epoch  10/12 | train loss 0.0573
+      epoch  12/12 | train loss 0.0555
+    [timing] development 2024-06-20: NN 3.6s | trees 11.6s | fold total 17.5s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.0998
+      epoch  10/12 | train loss 0.0446
+      epoch  12/12 | train loss 0.0430
+    [timing] development 2024-11-29: NN 4.1s | trees 12.5s | fold total 19.5s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1133
+      epoch  10/12 | train loss 0.0487
+      epoch  12/12 | train loss 0.0467
+    [timing] development 2025-02-10: NN 4.3s | trees 13.1s | fold total 20.4s
+
+C2 recommendation: sensitivity_half_none
+Half-life: none
+Groups: price+campaign+lifecycle+market+event
+Saved: outputs/c2_screening/c2_screening_results.csv
+Saved: outputs/c2_screening/recommendation.json
+
+Full confirmation command:
+caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --training-window-days all --recency-half-life-days none --baseline-variant weighted_4321 --trend-features off --c2-config outputs/c2_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --reset-checkpoints 2>&1 | tee pipeline_c2_direct_512_fixed.log
+
+Resume command:
+caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --training-window-days all --recency-half-life-days none --baseline-variant weighted_4321 --trend-features off --c2-config outputs/c2_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --resume 2>&1 | tee -a pipeline_c2_direct_512_fixed.log

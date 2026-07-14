@@ -118,13 +118,13 @@ def build_benchmark_fold(
     price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
     first_seen, first_available = product_reference_dates(fold_train_raw)
     train_feat = prepare_features(
-        fold_train_raw, price_ref, first_seen, first_available
+        fold_train_raw, price_ref, first_seen, first_available, cfg
     )
     train_feat = add_train_lags(
         train_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
     )
     eval_feat = prepare_features(
-        fold_eval_raw, price_ref, first_seen, first_available
+        fold_eval_raw, price_ref, first_seen, first_available, cfg
     ).reset_index(drop=True)
     panel = build_direct_panel(
         train_feat,

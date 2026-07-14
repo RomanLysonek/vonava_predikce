@@ -187,6 +187,7 @@ def main(argv=None) -> None:
         reference_batch_size=512,
         nn_lr_scaling="fixed",
         nn_training_backend="auto",
+        c2_feature_groups=(),
     )
     train_raw, _ = load_raw(base_cfg)
     base_cfg.num_products = int(train_raw["ProductId"].max())

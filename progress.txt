@@ -175,7 +175,9 @@ STATUS
     - synthetic regression tests cover 100k finite extrapolation, legitimate
       600-unit retail scale, non-finite seed residuals, and non-self-inflating
       safety limits
-[ ] C0.1 reduced real-data regression check on the user's Mac
+[x] C0.1 reduced real-data regression check on the user's Mac
+    - strict check passed; no catastrophic/residual guards or fallbacks in the
+      representative four-fold run; maximum prediction remained retail-scale
 
 [x] C1 nonstationarity/recency implementation and staged experiment runner
     - training window: all / 730d / 365d
@@ -190,14 +192,31 @@ STATUS
       confirmation commands exported
     - 78 fast tests green; synthetic recursive-NN and weighted/trend direct-NN
       end-to-end smokes green in the implementation environment
-[ ] C1 screen + full 512/fixed direct confirmation on the user's Mac
+[x] C1 screen + full 512/fixed direct confirmation on the user's Mac
+    - staged screen selected all-history / half-life 365 / weighted 4:3:2:1 /
+      trend off; full confirmation improved recent-benchmark NeuralNet WAPE
+      (0.3415 -> 0.3328) while broad development WAPE moved 0.3558 -> 0.3642
+    - test-aligned NeuralNet WAPE was effectively tied with C0
+      (0.319014 -> 0.318968), so C2 screening rechecks the winning semantic
+      representation under half-life none and 90 before final confirmation
 
-[ ] C2 semantic feature-group ablations
-    - relative/channel-specific effective-price and price-change features
-    - app-only campaign, campaign mismatch and discount-without-campaign flags
-    - lifecycle/gap/unavailability groups (C0 primitives now available)
-    - market-level common-demand and campaign-intensity features
-    - holiday and retail-event distance features
+[x] C2 source implementation: semantic feature groups + staged runner
+    - price: target offer vs origin/lag7/recent median and channel effective-price
+      advantage features
+    - campaign: app-only, active/mismatch, discount-without-campaign and channel
+      discount-advantage features
+    - lifecycle: explicit current availability/gap, unavailable streak, days since
+      observation, history counts and reavailability
+    - market: leakage-safe origin aggregate demand state plus future-known
+      cross-sectional campaign/discount intensity
+    - event: deterministic Black Friday, Christmas, Valentine's and Mother's Day
+      distance/proximity plus retail-window flags
+    - --c2-feature-groups / --c2-config pipeline controls and checkpoint signatures
+    - forward-selection direct screen with final C1 half-life sensitivity gate:
+      ml/run_c2_screening.py
+    - 91 fast tests green; native tree-worker integration exceeds the current
+      Linux verification timeout and must be rerun on the user's Mac
+[ ] C2 screen + full 512/fixed direct confirmation on the user's Mac
 
 [ ] C3 objective and target-formulation ablations
     - NN: Huber residual / MSE residual / combined / Log-Cosh

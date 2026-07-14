@@ -38,6 +38,7 @@ import pandas as pd
 
 from framework import (
     BASELINE_VARIANTS,
+    C2_FEATURE_GROUPS,
     CFG,
     MODEL_META,
     MODEL_ORDER,
@@ -59,6 +60,7 @@ from framework import (
     prepare_features,
     product_reference_dates,
     select_trainable_panel_rows,
+    normalize_c2_feature_groups,
 )
 from models.naive_baselines import moving_average_predict, seasonal_naive_predict
 from models.neural_net import (
@@ -110,6 +112,8 @@ class RuntimeOptions:
     recency_half_life_days: str | None = None
     baseline_variant: str | None = None
     trend_features: str | None = None
+    c2_config: str | None = None
+    c2_feature_groups: str | None = None
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -184,6 +188,16 @@ def parse_args(argv=None) -> RuntimeOptions:
         "--trend-features", choices=["on", "off"], default=None,
         help="Enable or disable the C1 drift/trend feature group",
     )
+    parser.add_argument(
+        "--c2-config", default=None,
+        help=("Recommendation JSON written by ml/run_c2_screening.py. "
+              "An explicit --c2-feature-groups value overrides it."),
+    )
+    parser.add_argument(
+        "--c2-feature-groups", default=None,
+        help=("Comma-separated C2 groups, 'all', or 'none'. Available: "
+              + ",".join(C2_FEATURE_GROUPS)),
+    )
     args = parser.parse_args(argv)
     if args.nn_batch_size != "auto":
         try:
@@ -223,6 +237,8 @@ def parse_args(argv=None) -> RuntimeOptions:
         recency_half_life_days=args.recency_half_life_days,
         baseline_variant=args.baseline_variant,
         trend_features=args.trend_features,
+        c2_config=args.c2_config,
+        c2_feature_groups=args.c2_feature_groups,
     )
 
 
@@ -310,6 +326,41 @@ def configure_c1_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     }
 
 
+def configure_c2_runtime(cfg: Config, options: RuntimeOptions) -> dict:
+    """Apply C2 semantic feature-group recommendations and CLI overrides."""
+    recommendation = {}
+    source = "C1 baseline"
+    if options.c2_config is not None:
+        with open(options.c2_config, encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Invalid C2 recommendation in {options.c2_config}")
+        candidate = payload.get("recommendation", payload)
+        if isinstance(candidate, dict) and "config" in candidate:
+            candidate = candidate["config"]
+        elif "config" in payload:
+            candidate = payload["config"]
+        recommendation = candidate if isinstance(candidate, dict) else {}
+        source = options.c2_config
+
+    if options.c2_feature_groups is not None:
+        raw_groups = options.c2_feature_groups
+        group_source = "CLI override"
+    elif "c2_feature_groups" in recommendation:
+        raw_groups = recommendation["c2_feature_groups"]
+        group_source = source
+    else:
+        raw_groups = cfg.c2_feature_groups
+        group_source = "C1 baseline"
+
+    cfg.c2_feature_groups = normalize_c2_feature_groups(raw_groups)
+    return {
+        "c2_feature_groups": list(cfg.c2_feature_groups),
+        "source": group_source,
+        "config_file": options.c2_config,
+    }
+
+
 def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     """Resolve batch/LR/backend without guessing away model quality.
 
@@ -379,7 +430,7 @@ def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
-CHECKPOINT_SCHEMA_VERSION = "c01-c1-nonstationarity-v1"
+CHECKPOINT_SCHEMA_VERSION = "c2-semantic-features-v1"
 
 
 def _fold_checkpoint_path(
@@ -692,14 +743,14 @@ def run_walk_forward_cv_direct(
         first_seen, first_available = product_reference_dates(fold_train_raw)
 
         fold_train_feat = prepare_features(
-            fold_train_raw, price_ref, first_seen, first_available
+            fold_train_raw, price_ref, first_seen, first_available, cfg
         )
         fold_train_feat = add_train_lags(
             fold_train_feat, cfg.lag_windows,
             baseline_variant=cfg.baseline_variant,
         )
         fold_eval_feat = prepare_features(
-            fold_eval_raw, price_ref, first_seen, first_available
+            fold_eval_raw, price_ref, first_seen, first_available, cfg
         ).reset_index(drop=True)
 
         panel = build_direct_panel(fold_train_feat, horizons, cfg=cfg, future_covariates=fold_eval_feat)
@@ -899,7 +950,7 @@ def run_walk_forward_cv_recursive(
         tree_seconds = time.perf_counter() - tree_start
 
         eval_feat = prepare_features(
-            fold_eval_raw, price_ref, first_seen, first_available
+            fold_eval_raw, price_ref, first_seen, first_available, cfg
         ).reset_index(drop=True)
         naive_df = fold_eval_raw[["ProductId", "DateKey", "Quantity", "ProductAvailable"]].copy()
         naive_df["baseline"] = compute_baseline(
@@ -1437,13 +1488,13 @@ def _prepare_final_direct_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
     first_seen, first_available = product_reference_dates(train_raw)
 
     train_feat = prepare_features(
-        train_raw, price_ref, first_seen, first_available
+        train_raw, price_ref, first_seen, first_available, cfg
     )
     train_feat = add_train_lags(
         train_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
     )
     test_feat = prepare_features(
-        test_raw, price_ref, first_seen, first_available
+        test_raw, price_ref, first_seen, first_available, cfg
     ).reset_index(drop=True)
 
     horizons = range(1, cfg.horizon + 1)
@@ -1774,6 +1825,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "recency_half_life_days": cfg.recency_half_life_days,
             "baseline_variant": cfg.baseline_variant,
             "enable_trend_features": cfg.enable_trend_features,
+            "c2_feature_groups": list(cfg.c2_feature_groups),
             "nn_residual_guard_lower_quantile": cfg.nn_residual_guard_lower_quantile,
             "nn_residual_guard_upper_quantile": cfg.nn_residual_guard_upper_quantile,
             "nn_residual_guard_margin": cfg.nn_residual_guard_margin,
@@ -1968,6 +2020,7 @@ def main(argv=None) -> None:
     options = parse_args(argv)
     cfg = CFG
     c1_runtime = configure_c1_runtime(cfg, options)
+    c2_runtime = configure_c2_runtime(cfg, options)
     nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
@@ -1980,6 +2033,11 @@ def main(argv=None) -> None:
         f"half_life={c1_runtime['recency_half_life_days'] or 'none'}, "
         f"baseline={c1_runtime['baseline_variant']}, "
         f"trend_features={c1_runtime['enable_trend_features']}"
+    )
+    print(
+        "C2 groups: "
+        + (", ".join(c2_runtime["c2_feature_groups"]) or "none")
+        + f" ({c2_runtime['source']})"
     )
     print(
         "NN runtime: "
@@ -1996,7 +2054,8 @@ def main(argv=None) -> None:
         print(f"CV resume enabled: {options.checkpoint_dir}")
     run_start = time.perf_counter()
     timings: dict = {
-        "cv_folds": [], "nn_runtime": nn_runtime, "c1_runtime": c1_runtime
+        "cv_folds": [], "nn_runtime": nn_runtime,
+        "c1_runtime": c1_runtime, "c2_runtime": c2_runtime,
     }
 
     train_raw, test_raw = load_raw(cfg)

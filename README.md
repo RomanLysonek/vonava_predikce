@@ -480,3 +480,75 @@ The final C1 candidate should be compared with the frozen C0 direct baseline
 before C2 feature-group work begins. Recursive strategy robustness is checked
 later for the winning data-aware configuration rather than doubling every C1
 experiment.
+
+## Tier C2 semantic feature-group ablations
+
+The confirmed C1 half-life-365 run improved recent-benchmark NeuralNet WAPE,
+but its broad-development WAPE was slightly worse and its test-aligned score
+was effectively tied with the C0 baseline. C2 therefore does not silently
+assume that 365 days is universally optimal: after selecting semantic groups,
+the screening runner rechecks the winning representation under no recency
+decay and a 90-day half-life.
+
+C2 features are disabled by default. Enable named groups with:
+
+```text
+--c2-feature-groups none|all|price,campaign,lifecycle,market,event
+```
+
+The groups are:
+
+- **price**: target list/effective price relative to the observed origin,
+  lag-7 price and recent 28-day product median, plus app-vs-web effective-price
+  advantage;
+- **campaign**: web/app campaign-active flags, app-only incentives, subtype
+  agreement, positive discount with subtype `-1`, and app discount advantage;
+- **lifecycle**: current availability/gap state, consecutive unavailability,
+  days since the last observed row, cumulative observed/available history and
+  reavailability;
+- **market**: leakage-safe aggregate demand known at the forecast origin and
+  future-known cross-sectional campaign/discount intensity for the target day;
+- **event**: deterministic distance/proximity to Black Friday, Christmas,
+  Valentine's Day and Mother's Day, plus Black-Friday/Christmas/New-Year
+  windows.
+
+Market demand features use quantities only through the origin. Target-date
+market features use campaign, discount and price covariates only; they never
+use target quantities.
+
+### Staged C2 screen
+
+Run the direct-first screen from the confirmed C1 policy:
+
+```bash
+caffeinate -i uv run python ml/run_c2_screening.py \
+  --reset \
+  2>&1 | tee pipeline_c2_screening.log
+```
+
+The runner evaluates every group individually, then performs forward selection
+around the best eligible candidate. A candidate must retain full coverage and
+stay within the broad-development WAPE guard. It finally evaluates the selected
+semantic representation under the C1 half-life sensitivity policies.
+
+Resume an interrupted screen without deleting completed folds:
+
+```bash
+caffeinate -i uv run python ml/run_c2_screening.py \
+  --resume \
+  2>&1 | tee -a pipeline_c2_screening.log
+```
+
+Artifacts:
+
+```text
+outputs/c2_screening/c2_screening_results.csv
+outputs/c2_screening/recommendation.json
+outputs/c2_screening/candidate_oof/*.csv
+outputs/c2_screening/checkpoints/
+```
+
+The recommendation JSON contains separate fresh and resume commands for the
+full `512/fixed`, three-seed direct confirmation. The winning data-aware
+configuration is checked under `both` strategies only after C2/C3 choices are
+frozen; recursive execution is not duplicated across every semantic ablation.

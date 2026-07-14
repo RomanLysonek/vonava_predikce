@@ -70,6 +70,11 @@ class Config:
     baseline_variant: str = "weighted_4321"
     enable_trend_features: bool = False
 
+    # Tier C2: semantic feature groups. The empty tuple preserves the C1
+    # estimator exactly; groups are enabled explicitly by the screening runner
+    # or CLI. Keeping groups named and atomic makes ablations reproducible.
+    c2_feature_groups: tuple[str, ...] = ()
+
 
 CFG = Config()
 np.random.seed(CFG.seed)
@@ -120,6 +125,104 @@ BASELINE_VARIANTS = {
     "lag7",
     "weekday_median",
 }
+
+# Tier C2 semantic groups. These are deliberately grouped around business
+# mechanisms rather than individual columns so the ablation answers useful
+# questions without a combinatorial feature search.
+C2_FEATURE_GROUPS = ("price", "campaign", "lifecycle", "market", "event")
+
+PRICE_TARGET_FEATURES = [
+    "app_effective_price_log_advantage",
+]
+PRICE_PANEL_FEATURES = [
+    "price_log_ratio_vs_origin",
+    "price_log_ratio_vs_lag7",
+    "price_log_ratio_vs_median28",
+    "effective_price_web_log_ratio_vs_median28",
+    "effective_price_app_log_ratio_vs_median28",
+]
+CAMPAIGN_SEMANTIC_FEATURES = [
+    "campaign_web_active",
+    "campaign_app_active",
+    "campaign_any_active",
+    "app_only_campaign",
+    "campaign_subtypes_match",
+    "discount_without_campaign_web",
+    "discount_without_campaign_app",
+    "app_discount_advantage",
+]
+LIFECYCLE_ORIGIN_FEATURES = [
+    "current_is_available",
+    "current_is_calendar_gap",
+    "consecutive_unavailable_days",
+    "days_since_last_observed",
+    "history_observed_days",
+    "history_available_days",
+    "recently_reavailable",
+]
+MARKET_TARGET_FEATURES = [
+    "market_campaign_web_rate",
+    "market_campaign_app_rate",
+    "market_app_only_campaign_rate",
+    "market_mean_discount_web",
+    "market_mean_discount_app",
+    "market_mean_app_discount_advantage",
+]
+MARKET_ORIGIN_FEATURES = [
+    "market_total_qty_lag0",
+    "market_total_qty_lag1",
+    "market_total_qty_lag7",
+    "market_roll_mean_7",
+    "market_roll_mean_28",
+    "market_recent_long_log_ratio",
+    "market_mean_qty_per_available_lag0",
+    "market_available_product_count_lag0",
+    "market_total_excl_product_lag0",
+]
+EVENT_TARGET_FEATURES = [
+    "days_from_black_friday",
+    "black_friday_proximity_14",
+    "days_from_christmas",
+    "christmas_proximity_14",
+    "days_from_valentine",
+    "valentine_proximity_14",
+    "days_from_mothers_day",
+    "mothers_day_proximity_14",
+    "is_black_friday_window",
+    "is_christmas_window",
+    "is_new_year_window",
+]
+
+
+def normalize_c2_feature_groups(value) -> tuple[str, ...]:
+    """Canonicalise a C2 group specification.
+
+    Accepts an iterable or a comma-separated string. ``all`` expands to every
+    group and ``none``/empty disables C2, which preserves the confirmed C1
+    estimator. The canonical order is stable for checkpoint signatures.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"", "none"}:
+            return ()
+        if text == "all":
+            return C2_FEATURE_GROUPS
+        tokens = [token.strip().lower() for token in text.split(",") if token.strip()]
+    else:
+        tokens = [str(token).strip().lower() for token in value if str(token).strip()]
+    unknown = sorted(set(tokens) - set(C2_FEATURE_GROUPS))
+    if unknown:
+        raise ValueError(
+            f"Unknown C2 feature groups {unknown}; expected {list(C2_FEATURE_GROUPS)}"
+        )
+    token_set = set(tokens)
+    return tuple(group for group in C2_FEATURE_GROUPS if group in token_set)
+
+
+def c2_group_enabled(cfg: Config, group: str) -> bool:
+    return group in normalize_c2_feature_groups(cfg.c2_feature_groups)
 
 
 def lag_feature_names(lag_windows) -> list[str]:
@@ -231,11 +334,71 @@ def add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> pd.Timestamp:
+    first = pd.Timestamp(year=year, month=month, day=1)
+    offset = (weekday - first.weekday()) % 7
+    return first + pd.Timedelta(days=offset + 7 * (n - 1))
+
+
+def _black_friday(year: int) -> pd.Timestamp:
+    return _nth_weekday_of_month(year, 11, 4, 4)
+
+
+def _mothers_day(year: int) -> pd.Timestamp:
+    # Czech and Slovak retail calendars use the second Sunday in May.
+    return _nth_weekday_of_month(year, 5, 6, 2)
+
+
+def _nearest_annual_event_distance(
+    dates: pd.Series, event_factory, *, clip_days: int = 60
+) -> np.ndarray:
+    """Signed days from the nearest annual occurrence, clipped for stability."""
+    values = pd.to_datetime(dates).reset_index(drop=True)
+    years = values.dt.year
+    required_years = range(int(years.min()) - 1, int(years.max()) + 2)
+    event_by_year = {year: event_factory(year) for year in required_years}
+    distances = []
+    for offset in (-1, 0, 1):
+        events = (years + offset).map(event_by_year)
+        distances.append((values - events).dt.days.to_numpy(dtype=float))
+    matrix = np.column_stack(distances)
+    nearest = matrix[np.arange(len(matrix)), np.abs(matrix).argmin(axis=1)]
+    return np.clip(nearest, -clip_days, clip_days).astype(float)
+
+
+def add_retail_event_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Known-in-advance retail-event distance and window features."""
+    dates = pd.to_datetime(df["DateKey"])
+    event_specs = {
+        "black_friday": _black_friday,
+        "christmas": lambda year: pd.Timestamp(year=year, month=12, day=24),
+        "valentine": lambda year: pd.Timestamp(year=year, month=2, day=14),
+        "mothers_day": _mothers_day,
+    }
+    for name, factory in event_specs.items():
+        distance = _nearest_annual_event_distance(dates, factory)
+        df[f"days_from_{name}"] = distance
+        df[f"{name}_proximity_14"] = np.exp(-np.abs(distance) / 14.0)
+    df["is_black_friday_window"] = (
+        np.abs(df["days_from_black_friday"]) <= 4
+    ).astype(float)
+    df["is_christmas_window"] = (
+        np.abs(df["days_from_christmas"]) <= 10
+    ).astype(float)
+    # The post-Christmas/New-Year demand regime spans the turn of the year.
+    month_day = dates.dt.strftime("%m-%d")
+    df["is_new_year_window"] = (
+        month_day.ge("12-27") | month_day.le("01-07")
+    ).astype(float)
+    return df
+
+
 def prepare_features(
     df: pd.DataFrame,
     price_ref: pd.Series,
     first_seen: pd.Series,
     first_available: pd.Series | None = None,
+    cfg: Config = CFG,
 ) -> pd.DataFrame:
     """Add features that do not depend on the target's own recent history.
 
@@ -259,6 +422,56 @@ def prepare_features(
     # combination instead.
     df["effective_price_web"] = df["price"] * (1.0 - df["discount_web"] / 100.0)
     df["effective_price_app"] = df["price"] * (1.0 - df["discount_app"] / 100.0)
+
+    # C2 semantics are computed only when their group is active. This keeps
+    # the confirmed C1 control fast and ensures local experiment Config copies
+    # (not only the module-global CFG) determine the actual feature contract.
+    need_campaign_semantics = (
+        c2_group_enabled(cfg, "campaign") or c2_group_enabled(cfg, "market")
+    )
+    if need_campaign_semantics:
+        web_subtype = pd.to_numeric(
+            df["CampaignSubTypeWeb"], errors="coerce"
+        ).fillna(-1).astype(int)
+        app_subtype = pd.to_numeric(
+            df["CampaignSubTypeApp"], errors="coerce"
+        ).fillna(-1).astype(int)
+        df["campaign_web_active"] = (web_subtype != -1).astype(float)
+        df["campaign_app_active"] = (app_subtype != -1).astype(float)
+        df["campaign_any_active"] = (
+            (df["campaign_web_active"] > 0) | (df["campaign_app_active"] > 0)
+        ).astype(float)
+        df["app_only_campaign"] = (
+            (df["campaign_app_active"] > 0) & (df["campaign_web_active"] == 0)
+        ).astype(float)
+        df["campaign_subtypes_match"] = (web_subtype == app_subtype).astype(float)
+        df["discount_without_campaign_web"] = (
+            (web_subtype == -1) & (df["discount_web"] > 0)
+        ).astype(float)
+        df["discount_without_campaign_app"] = (
+            (app_subtype == -1) & (df["discount_app"] > 0)
+        ).astype(float)
+        df["app_discount_advantage"] = df["discount_app"] - df["discount_web"]
+
+    if c2_group_enabled(cfg, "price"):
+        df["app_effective_price_log_advantage"] = (
+            np.log1p(np.clip(df["effective_price_web"].to_numpy(dtype=float), 0.0, None))
+            - np.log1p(np.clip(df["effective_price_app"].to_numpy(dtype=float), 0.0, None))
+        )
+
+    if c2_group_enabled(cfg, "market"):
+        # Target-date market promotion intensity is known for the supplied
+        # future panel. It contains no quantity information.
+        by_date = df.groupby("DateKey", sort=False)
+        df["market_campaign_web_rate"] = by_date["campaign_web_active"].transform("mean")
+        df["market_campaign_app_rate"] = by_date["campaign_app_active"].transform("mean")
+        df["market_app_only_campaign_rate"] = by_date["app_only_campaign"].transform("mean")
+        df["market_mean_discount_web"] = by_date["discount_web"].transform("mean")
+        df["market_mean_discount_app"] = by_date["discount_app"].transform("mean")
+        df["market_mean_app_discount_advantage"] = by_date["app_discount_advantage"].transform("mean")
+
+    if c2_group_enabled(cfg, "event"):
+        df = add_retail_event_features(df)
 
     ref = df["ProductId"].map(price_ref).replace(0, np.nan)
     df["price_rel"] = (df["price"] / ref).fillna(1.0)
@@ -493,6 +706,14 @@ def target_numeric_feature_names(cfg: Config = CFG) -> list[str]:
     features = list(STATIC_NUMERIC_FEATURES)
     if cfg.enable_trend_features:
         features += TREND_TARGET_FEATURES
+    if c2_group_enabled(cfg, "price"):
+        features += PRICE_TARGET_FEATURES
+    if c2_group_enabled(cfg, "campaign"):
+        features += CAMPAIGN_SEMANTIC_FEATURES
+    if c2_group_enabled(cfg, "market"):
+        features += MARKET_TARGET_FEATURES
+    if c2_group_enabled(cfg, "event"):
+        features += EVENT_TARGET_FEATURES
     return features
 
 
@@ -518,13 +739,21 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
     the target date itself -- see `build_direct_panel`."""
     trend_origin = TREND_ORIGIN_FEATURES if cfg.enable_trend_features else []
     trend_seasonal = TREND_SEASONAL_FEATURES if cfg.enable_trend_features else []
+    c2_origin: list[str] = []
+    c2_panel: list[str] = []
+    if c2_group_enabled(cfg, "price"):
+        c2_panel += PRICE_PANEL_FEATURES
+    if c2_group_enabled(cfg, "lifecycle"):
+        c2_origin += LIFECYCLE_ORIGIN_FEATURES
+    if c2_group_enabled(cfg, "market"):
+        c2_origin += MARKET_ORIGIN_FEATURES
     return (target_numeric_feature_names(cfg) + lag_feature_names(cfg.lag_windows)
             + ORIGIN_LIFECYCLE_FEATURES
             + [f"qty_lag_{lag}" for lag in RECENT_POINT_LAGS]
-            + trend_origin
+            + trend_origin + c2_origin
             + [f"seasonal_lag_{lag}" for lag in SEASONAL_LAG_DAYS]
             + ANNUAL_LAG_MISSING_FEATURES
-            + trend_seasonal
+            + trend_seasonal + c2_panel
             + ["target_baseline_missing", "target_baseline", "horizon"])
 
 
@@ -543,6 +772,18 @@ def _rolling_log_slope(values: np.ndarray) -> float:
     return float(np.dot(x_centered, y - y.mean()) / denominator)
 
 
+def _safe_log_ratio_values(left, right) -> np.ndarray:
+    left_arr = pd.to_numeric(pd.Series(left), errors="coerce").to_numpy(dtype=float)
+    right_arr = pd.to_numeric(pd.Series(right), errors="coerce").to_numpy(dtype=float)
+    valid = (
+        np.isfinite(left_arr) & np.isfinite(right_arr)
+        & (left_arr >= 0.0) & (right_arr >= 0.0)
+    )
+    result = np.full(len(left_arr), np.nan, dtype=float)
+    result[valid] = np.log1p(left_arr[valid]) - np.log1p(right_arr[valid])
+    return result
+
+
 def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
     """Build features known at the end of each origin day."""
     df = feature_df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True).copy()
@@ -551,6 +792,20 @@ def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> 
     qty_group = state.groupby("ProductId")["qty_available"]
     for lag in RECENT_POINT_LAGS:
         out[f"qty_lag_{lag}"] = qty_group.shift(lag)
+
+    if c2_group_enabled(cfg, "price"):
+        price_group = df.groupby("ProductId", sort=False)
+        out["_origin_price_lag0"] = pd.to_numeric(df["price"], errors="coerce")
+        out["_origin_price_lag7"] = price_group["price"].shift(7)
+        out["_origin_price_median28"] = price_group["price"].transform(
+            lambda series: series.rolling(28, min_periods=1).median()
+        )
+        out["_origin_effective_price_web_median28"] = price_group[
+            "effective_price_web"
+        ].transform(lambda series: series.rolling(28, min_periods=1).median())
+        out["_origin_effective_price_app_median28"] = price_group[
+            "effective_price_app"
+        ].transform(lambda series: series.rolling(28, min_periods=1).median())
 
     if cfg.enable_trend_features:
         def log_ratio(left: pd.Series, right: pd.Series) -> np.ndarray:
@@ -592,12 +847,84 @@ def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> 
             )
 
     availability = _availability_state(df)
-    available_date = df["DateKey"].where(availability["_is_available"].astype(bool))
+    available_bool = availability["_is_available"].astype(bool)
+    observed_bool = availability["_is_observed"].astype(bool)
+    unavailable_bool = availability["_is_unavailable"].astype(bool)
+    gap_bool = availability["_is_gap"].astype(bool)
+
+    available_date = df["DateKey"].where(available_bool)
     last_available = available_date.groupby(df["ProductId"]).ffill()
     out["days_since_last_available"] = (
         df["DateKey"] - last_available
     ).dt.days.astype(float)
     out["ever_available_before"] = last_available.notna().astype(float)
+
+    if c2_group_enabled(cfg, "lifecycle"):
+        observed_date = df["DateKey"].where(observed_bool)
+        last_observed = observed_date.groupby(df["ProductId"]).ffill()
+        out["current_is_available"] = available_bool.astype(float)
+        out["current_is_calendar_gap"] = gap_bool.astype(float)
+        out["days_since_last_observed"] = (
+            df["DateKey"] - last_observed
+        ).dt.days.astype(float)
+        out["history_observed_days"] = observed_bool.astype(float).groupby(
+            df["ProductId"]
+        ).cumsum()
+        out["history_available_days"] = available_bool.astype(float).groupby(
+            df["ProductId"]
+        ).cumsum()
+        out["consecutive_unavailable_days"] = unavailable_bool.astype(float).groupby(
+            [df["ProductId"], (~unavailable_bool).groupby(df["ProductId"]).cumsum()]
+        ).cumsum()
+        previous_unavailable = (
+            unavailable_bool.groupby(df["ProductId"]).shift(1)
+            .astype("boolean").fillna(False).astype(bool)
+        )
+        out["recently_reavailable"] = (
+            available_bool & previous_unavailable.astype(bool)
+        ).astype(float)
+
+    if c2_group_enabled(cfg, "market"):
+        market_work = pd.DataFrame({
+            "DateKey": df["DateKey"],
+            "qty_available": state["qty_available"],
+            "is_available": availability["_is_available"],
+        })
+        market = market_work.groupby("DateKey", sort=True).agg(
+            market_total_qty=("qty_available", lambda x: x.sum(min_count=1)),
+            market_available_product_count=("is_available", "sum"),
+        ).sort_index()
+        market["market_mean_qty_per_available"] = np.divide(
+            market["market_total_qty"],
+            market["market_available_product_count"],
+        )
+        market["market_total_qty_lag0"] = market["market_total_qty"]
+        market["market_total_qty_lag1"] = market["market_total_qty"].shift(1)
+        market["market_total_qty_lag7"] = market["market_total_qty"].shift(7)
+        market["market_roll_mean_7"] = market["market_total_qty"].rolling(
+            7, min_periods=1
+        ).mean()
+        market["market_roll_mean_28"] = market["market_total_qty"].rolling(
+            28, min_periods=1
+        ).mean()
+        market["market_recent_long_log_ratio"] = _safe_log_ratio_values(
+            market["market_roll_mean_7"], market["market_roll_mean_28"]
+        )
+        market["market_mean_qty_per_available_lag0"] = market[
+            "market_mean_qty_per_available"
+        ]
+        market["market_available_product_count_lag0"] = market[
+            "market_available_product_count"
+        ]
+        for column in MARKET_ORIGIN_FEATURES:
+            if column == "market_total_excl_product_lag0":
+                continue
+            out[column] = df["DateKey"].map(market[column])
+        own_qty = state["qty_available"].fillna(0.0).to_numpy(dtype=float)
+        out["market_total_excl_product_lag0"] = (
+            out["market_total_qty_lag0"].to_numpy(dtype=float) - own_qty
+        )
+
     return out
 
 
@@ -657,6 +984,30 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         panel_h["TargetProductAvailable"] = target["ProductAvailable"]
         for col in covariate_columns:
             panel_h[col] = target[col]
+
+        if c2_group_enabled(cfg, "price"):
+            panel_h["price_log_ratio_vs_origin"] = _safe_log_ratio_values(
+                panel_h["price"], panel_h["_origin_price_lag0"]
+            )
+            panel_h["price_log_ratio_vs_lag7"] = _safe_log_ratio_values(
+                panel_h["price"], panel_h["_origin_price_lag7"]
+            )
+            panel_h["price_log_ratio_vs_median28"] = _safe_log_ratio_values(
+                panel_h["price"], panel_h["_origin_price_median28"]
+            )
+            panel_h["effective_price_web_log_ratio_vs_median28"] = (
+                _safe_log_ratio_values(
+                    panel_h["effective_price_web"],
+                    panel_h["_origin_effective_price_web_median28"],
+                )
+            )
+            panel_h["effective_price_app_log_ratio_vs_median28"] = (
+                _safe_log_ratio_values(
+                    panel_h["effective_price_app"],
+                    panel_h["_origin_effective_price_app_median28"],
+                )
+            )
+
         for lag in SEASONAL_LAG_DAYS:
             panel_h[f"seasonal_lag_{lag}"] = g["qty_available"].shift(lag - h)
         for lag in ANNUAL_LAG_DAYS:
@@ -800,7 +1151,7 @@ def build_one_step_panel(
     first_available: pd.Series | None = None,
 ) -> pd.DataFrame:
     """Build one-step-ahead training rows for recursive models."""
-    feat = prepare_features(raw_df, price_ref, first_seen, first_available)
+    feat = prepare_features(raw_df, price_ref, first_seen, first_available, cfg)
     feat = add_train_lags(
         feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
     )
@@ -838,13 +1189,13 @@ def build_recursive_step_panel(
     future["Quantity"] = np.nan
     future["ProductAvailable"] = pd.Series([pd.NA] * len(future), dtype="boolean")
     history_feat = prepare_features(
-        history_raw, price_ref, first_seen, first_available
+        history_raw, price_ref, first_seen, first_available, cfg
     )
     history_feat = add_train_lags(
         history_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
     )
     future_feat = prepare_features(
-        future, price_ref, first_seen, first_available
+        future, price_ref, first_seen, first_available, cfg
     )
     panel = build_direct_panel(history_feat, [1], cfg=cfg, future_covariates=future_feat)
     origin = history_raw["DateKey"].max()
