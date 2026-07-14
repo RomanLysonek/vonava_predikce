@@ -121,6 +121,11 @@ def make_tensors(
             np.log1p(df["target_baseline"].to_numpy(dtype=np.float32)),
             dtype=torch.float32,
         ),
+        "sample_weight": torch.tensor(
+            df.get("sample_weight", pd.Series(1.0, index=df.index))
+            .to_numpy(dtype=np.float32),
+            dtype=torch.float32,
+        ),
     }
 
 
@@ -130,6 +135,34 @@ def residual_log1p_target(df: pd.DataFrame) -> np.ndarray:
         np.log1p(df["target"].to_numpy(dtype=np.float32))
         - np.log1p(df["target_baseline"].to_numpy(dtype=np.float32))
     )
+
+
+def residual_support_bounds(
+    y_residual: np.ndarray,
+    cfg: Config = CFG,
+) -> tuple[float, float]:
+    """Robust support bounds for recursive NN residual extrapolation.
+
+    Bounds are learned from each fold's training target and widened by a full
+    log unit by default.  They are intentionally applied only during recursive
+    prediction; direct predictions remain uncapped for an honest comparison.
+    """
+    values = np.asarray(y_residual, dtype=float)
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        raise ValueError("Cannot derive residual support from no finite targets")
+    lower_q = float(cfg.nn_residual_guard_lower_quantile)
+    upper_q = float(cfg.nn_residual_guard_upper_quantile)
+    if not (0.0 <= lower_q < upper_q <= 1.0):
+        raise ValueError("NN residual guard quantiles must satisfy 0 <= lower < upper <= 1")
+    margin = float(cfg.nn_residual_guard_margin)
+    if not np.isfinite(margin) or margin < 0.0:
+        raise ValueError("nn_residual_guard_margin must be finite and nonnegative")
+    lower = float(np.quantile(values, lower_q) - margin)
+    upper = float(np.quantile(values, upper_q) + margin)
+    if not np.isfinite(lower) or not np.isfinite(upper) or lower >= upper:
+        raise ValueError("Invalid NN residual support bounds")
+    return lower, upper
 
 
 def nn_performance_signature(cfg: Config) -> dict:
@@ -148,6 +181,10 @@ def nn_performance_signature(cfg: Config) -> dict:
         "loss": "HuberLoss(delta=1.0)",
         "target": "baseline_relative_log1p_residual",
         "numeric_preprocessing": "median_impute+missing_indicator+standardize",
+        "training_window_days": cfg.training_window_days,
+        "recency_half_life_days": cfg.recency_half_life_days,
+        "baseline_variant": cfg.baseline_variant,
+        "enable_trend_features": cfg.enable_trend_features,
     }
 
 
@@ -186,7 +223,7 @@ def resolve_training_backend(cfg: Config, device: torch.device = DEVICE) -> str:
 
 def training_tensor_bytes(tensors: dict[str, torch.Tensor], n_targets: int) -> int:
     """Approximate bytes required to keep one training fold on-device."""
-    keys = ("num", "prod", "cw", "ca", "horizon")
+    keys = ("num", "prod", "cw", "ca", "horizon", "sample_weight")
     total = sum(tensors[k].numel() * tensors[k].element_size() for k in keys)
     return int(total + n_targets * torch.tensor([], dtype=torch.float32).element_size())
 
@@ -241,26 +278,38 @@ def _train_device_resident(
     x_ca = tensors["ca"].to(DEVICE)
     x_horizon = tensors["horizon"].to(DEVICE)
     y = torch.as_tensor(y_residual, dtype=torch.float32, device=DEVICE)
+    sample_weight = tensors["sample_weight"].to(DEVICE)
     n_rows = len(y)
     optimizer_steps = 0
     final_loss = float("nan")
 
     for epoch in range(1, epochs + 1):
-        total = 0.0
+        weighted_total = 0.0
+        weight_total = 0.0
         permutation = _device_permutation(n_rows, DEVICE)
         for start, end in _batch_ranges(n_rows, cfg.batch_size):
             idx = permutation[start:end]
             pred = model(
                 x_num[idx], x_prod[idx], x_cw[idx], x_ca[idx], x_horizon[idx]
             )
-            loss = criterion(pred, y[idx])
+            loss_values = criterion(pred, y[idx])
+            batch_weight = sample_weight[idx]
+            # Weights are normalised to mean one over the full fold. Using a
+            # simple batch mean preserves the intended global weighted loss;
+            # dividing by each batch's own weight sum would partially cancel
+            # recency weighting whenever a mini-batch contains mostly old or
+            # mostly recent observations.
+            loss = (loss_values * batch_weight).mean()
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
             optimizer_steps += 1
-            total += loss.detach().item() * (end - start)
+            weighted_total += float(
+                (loss_values.detach() * batch_weight).sum().item()
+            )
+            weight_total += float(len(idx))
         scheduler.step()
-        final_loss = total / n_rows
+        final_loss = weighted_total / max(weight_total, 1e-12)
         if epoch == 1 or epoch % 10 == 0 or epoch == epochs:
             print(f"      epoch {epoch:3d}/{epochs} | train loss {final_loss:.4f}")
     return final_loss, optimizer_steps
@@ -279,31 +328,33 @@ def _train_dataloader(
     ds = TensorDataset(
         tensors["num"], tensors["prod"], tensors["cw"], tensors["ca"],
         tensors["horizon"], torch.tensor(y_residual, dtype=torch.float32),
+        tensors["sample_weight"],
     )
     dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True)
     optimizer_steps = 0
     final_loss = float("nan")
     for epoch in range(1, epochs + 1):
-        total = 0.0
-        seen = 0
-        for xn, xp, xcw, xca, xh, yt in dl:
+        weighted_total = 0.0
+        weight_total = 0.0
+        for xn, xp, xcw, xca, xh, yt, wt in dl:
             # Avoid a singleton BatchNorm batch without globally dropping data.
             if len(yt) == 1:
                 continue
-            xn, xp, xcw, xca, xh, yt = (
+            xn, xp, xcw, xca, xh, yt, wt = (
                 xn.to(DEVICE), xp.to(DEVICE), xcw.to(DEVICE),
-                xca.to(DEVICE), xh.to(DEVICE), yt.to(DEVICE),
+                xca.to(DEVICE), xh.to(DEVICE), yt.to(DEVICE), wt.to(DEVICE),
             )
             pred = model(xn, xp, xcw, xca, xh)
-            loss = criterion(pred, yt)
+            loss_values = criterion(pred, yt)
+            loss = (loss_values * wt).mean()
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
             optimizer_steps += 1
-            total += loss.detach().item() * len(yt)
-            seen += len(yt)
+            weighted_total += float((loss_values.detach() * wt).sum().item())
+            weight_total += float(len(yt))
         scheduler.step()
-        final_loss = total / max(seen, 1)
+        final_loss = weighted_total / max(weight_total, 1e-12)
         if epoch == 1 or epoch % 10 == 0 or epoch == epochs:
             print(f"      epoch {epoch:3d}/{epochs} | train loss {final_loss:.4f}")
     return final_loss, optimizer_steps
@@ -338,7 +389,7 @@ def train_model(
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         opt, T_max=epochs, eta_min=learning_rate * 0.01
     )
-    crit = nn.HuberLoss(delta=1.0)
+    crit = nn.HuberLoss(delta=1.0, reduction="none")
     backend = resolve_training_backend(cfg)
     started = time.perf_counter()
     _synchronize()
@@ -383,6 +434,9 @@ def train_model(
     _synchronize()
     elapsed = time.perf_counter() - started
     model.eval()
+    residual_lower, residual_upper = residual_support_bounds(y_residual, cfg)
+    model.residual_guard_lower = residual_lower
+    model.residual_guard_upper = residual_upper
     if stats_out is not None:
         n_rows = len(y_residual)
         stats_out.update({
@@ -398,6 +452,8 @@ def train_model(
             "elapsed_seconds": float(elapsed),
             "examples_per_second": float(n_rows * epochs / max(elapsed, 1e-9)),
             "final_train_loss": float(final_loss),
+            "residual_guard_lower": residual_lower,
+            "residual_guard_upper": residual_upper,
             "estimated_device_tensor_mb": training_tensor_bytes(
                 tensors, n_rows
             ) / (1024 ** 2),
@@ -405,22 +461,83 @@ def train_model(
     return model
 
 
-def predict_ensemble(models: list, tensors: dict) -> np.ndarray:
-    """Reconstruct quantity and average seed predictions in natural scale."""
-    baseline_log1p = tensors["baseline_log1p"].cpu().numpy()
-    # Transfer each input once, not once per seed.
+def predict_ensemble(
+    models: list,
+    tensors: dict,
+    *,
+    apply_residual_guard: bool = False,
+    return_diagnostics: bool = False,
+):
+    """Reconstruct quantity and average seeds in natural scale.
+
+    The robust residual-support guard is recursive-only.  A diagnostic payload
+    records raw residual extrema and which rows required support clipping.
+    """
+    baseline_log1p = tensors["baseline_log1p"].cpu().numpy().astype(float)
     x_num = tensors["num"].to(DEVICE)
     x_prod = tensors["prod"].to(DEVICE)
     x_cw = tensors["cw"].to(DEVICE)
     x_ca = tensors["ca"].to(DEVICE)
     x_horizon = tensors["horizon"].to(DEVICE)
     preds = []
+    raw_residuals = []
+    guarded_rows = np.zeros(len(baseline_log1p), dtype=bool)
+    max_log = np.log(np.finfo(np.float64).max) - 2.0
+
     for model in models:
         model.eval()
         with torch.inference_mode():
-            residual = model(x_num, x_prod, x_cw, x_ca, x_horizon).cpu().numpy()
-        preds.append(np.expm1(residual + baseline_log1p))
-    return np.clip(np.mean(preds, axis=0), 0, None)
+            raw = model(x_num, x_prod, x_cw, x_ca, x_horizon).cpu().numpy()
+        raw = np.asarray(raw, dtype=float)
+        raw_residuals.append(raw)
+        residual = raw.copy()
+        if apply_residual_guard:
+            lower = float(getattr(model, "residual_guard_lower", -np.inf))
+            upper = float(getattr(model, "residual_guard_upper", np.inf))
+            finite_raw = np.isfinite(raw)
+            clipped = np.clip(raw, lower, upper)
+            guarded_rows |= finite_raw & (clipped != raw)
+            # Preserve non-finite seed outputs as missing. If all seeds fail,
+            # the generic recursive engine will use its recorded fallback;
+            # valid companion seeds may still form an ensemble prediction.
+            residual = np.where(finite_raw, clipped, np.nan)
+        log_prediction = residual + baseline_log1p
+        safe = np.isfinite(log_prediction) & (log_prediction <= max_log)
+        reconstructed = np.full(len(log_prediction), np.nan, dtype=float)
+        reconstructed[safe] = np.expm1(log_prediction[safe])
+        preds.append(reconstructed)
+
+    pred_matrix = np.vstack(preds)
+    finite_pred = np.isfinite(pred_matrix)
+    prediction_count = finite_pred.sum(axis=0)
+    prediction_sum = np.where(finite_pred, pred_matrix, 0.0).sum(axis=0)
+    prediction = np.divide(
+        prediction_sum,
+        prediction_count,
+        out=np.full(prediction_count.shape, np.nan, dtype=float),
+        where=prediction_count > 0,
+    )
+    prediction = np.clip(prediction, 0.0, None)
+
+    raw_matrix = np.vstack(raw_residuals)
+    finite_raw = np.isfinite(raw_matrix)
+    raw_min = np.min(
+        np.where(finite_raw, raw_matrix, np.inf), axis=0
+    )
+    raw_max = np.max(
+        np.where(finite_raw, raw_matrix, -np.inf), axis=0
+    )
+    raw_min[~finite_raw.any(axis=0)] = np.nan
+    raw_max[~finite_raw.any(axis=0)] = np.nan
+    diagnostics = {
+        "residual_guard": guarded_rows,
+        "residual_nonfinite": (~finite_raw).any(axis=0),
+        "residual_raw_min": raw_min,
+        "residual_raw_max": raw_max,
+    }
+    if return_diagnostics:
+        return {"prediction": prediction, **diagnostics}
+    return prediction
 
 
 def predict_direct(
@@ -428,6 +545,13 @@ def predict_direct(
     scaler,
     panel: pd.DataFrame,
     cfg: Config = CFG,
-) -> np.ndarray:
+    *,
+    recursive_guard: bool = False,
+    return_diagnostics: bool = False,
+):
     tensors = make_tensors(panel, scaler, fit=False, cfg=cfg)
-    return predict_ensemble(models, tensors)
+    return predict_ensemble(
+        models, tensors,
+        apply_residual_guard=recursive_guard,
+        return_diagnostics=return_diagnostics,
+    )

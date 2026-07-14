@@ -50,11 +50,25 @@ class Config:
     seed: int = 42
     ridge_alpha: float = 10.0
     ridge_prediction_cap: float | None = None
-    # Numerical guard only: recursive feedback values above this data-scaled
-    # threshold are replaced by the baseline rather than fed back. This is
-    # deliberately much looser than any model cap considered in Tier C3.
-    recursive_safety_multiplier: float = 1000.0
-    recursive_safety_floor: float = 1_000_000.0
+
+    # Tier C0.1: recursive numerical stability.  The neural network is
+    # trained in baseline-relative log-residual space; robust support bounds
+    # prevent a finite but unsupported residual from becoming a six-figure
+    # natural-scale feedback value.  The generic guard remains a deliberately
+    # broad last resort, not a normal retail prediction cap.
+    nn_residual_guard_lower_quantile: float = 0.001
+    nn_residual_guard_upper_quantile: float = 0.999
+    nn_residual_guard_margin: float = 1.0
+    recursive_safety_multiplier: float = 50.0
+    recursive_safety_floor: float = 10_000.0
+
+    # Tier C1: nonstationarity controls.  Defaults exactly preserve the C0
+    # estimator.  A history window removes older supervised targets, while
+    # half-life weighting keeps them but discounts their loss contribution.
+    training_window_days: int | None = None
+    recency_half_life_days: float | None = None
+    baseline_variant: str = "weighted_4321"
+    enable_trend_features: bool = False
 
 
 CFG = Config()
@@ -82,6 +96,30 @@ STATIC_NUMERIC_FEATURES = [
     "days_since_launch", "days_since_first_row",
     "days_since_first_available", "is_pre_first_available",
 ]
+
+# C1 features are opt-in so the C0 baseline remains reproducible.  The
+# calendar-time feature is target-date known; ratio features are origin/target
+# history summaries and are computed in ``build_direct_panel``.
+TREND_TARGET_FEATURES = ["calendar_time_years"]
+TREND_ORIGIN_FEATURES = [
+    "trend_log_ratio_mean_7_28",
+    "trend_log_ratio_mean_14_28",
+    "trend_log_ratio_lag0_28",
+    "trend_log_slope_7",
+    "trend_log_slope_28",
+]
+TREND_SEASONAL_FEATURES = [
+    "annual_reference",
+    "annual_reference_missing",
+    "trend_log_ratio_baseline_annual",
+]
+
+BASELINE_VARIANTS = {
+    "weighted_4321",
+    "weighted_8421",
+    "lag7",
+    "weekday_median",
+}
 
 
 def lag_feature_names(lag_windows) -> list[str]:
@@ -238,6 +276,13 @@ def prepare_features(
     df["is_pre_first_available"] = (
         df["DateKey"] < first_available_date
     ).astype(int)
+    # Absolute calendar time lets a pooled model represent market-wide level
+    # drift (especially the 2024-2026 web decline) without treating ProductId
+    # lifecycle age as a proxy for the global regime.  It is only included in
+    # the model schema when ``enable_trend_features`` is true.
+    df["calendar_time_years"] = (
+        df["DateKey"] - pd.Timestamp("2021-01-01")
+    ).dt.days.astype(float) / 365.25
 
     df["product_idx"] = df["ProductId"] - 1
     return df
@@ -254,38 +299,76 @@ BASELINE_LAGS = (7, 14, 21, 28)
 BASELINE_WEIGHTS = np.array([4.0, 3.0, 2.0, 1.0])
 
 
-def _weighted_baseline(lag_matrix: np.ndarray) -> np.ndarray:
-    """Row-wise NaN-aware weighted average over `BASELINE_LAGS`/
-    `BASELINE_WEIGHTS` (columns of `lag_matrix` must be in that same lag
-    order). Weights renormalize over whichever lags are actually observed
-    in a row -- a stockout/unknown-gap/insufficient-history lag drops out
-    of the average instead of forcing the whole row to NaN."""
-    observed = np.isfinite(lag_matrix)
-    numerator = np.nansum(lag_matrix * BASELINE_WEIGHTS, axis=1)
-    denominator = (observed * BASELINE_WEIGHTS).sum(axis=1)
-    return np.divide(numerator, denominator,
-                      out=np.full(len(lag_matrix), np.nan, dtype=float),
-                      where=denominator > 0)
+def _baseline_weights(variant: str) -> np.ndarray | None:
+    if variant not in BASELINE_VARIANTS:
+        raise ValueError(
+            f"Unknown baseline_variant={variant!r}; expected one of "
+            f"{sorted(BASELINE_VARIANTS)}"
+        )
+    if variant == "weighted_4321":
+        return np.array([4.0, 3.0, 2.0, 1.0], dtype=float)
+    if variant == "weighted_8421":
+        return np.array([8.0, 4.0, 2.0, 1.0], dtype=float)
+    if variant == "lag7":
+        return np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
+    return None
 
 
-def compute_baseline(target_df: pd.DataFrame, hist_df: pd.DataFrame) -> np.ndarray:
-    """Availability-aware weighted same-weekday baseline (see
-    `BASELINE_LAGS`/`BASELINE_WEIGHTS`), using only observed-and-available
-    demand from `hist_df`. `hist_df` is the lookup source (e.g. training
-    history); `target_df` is whatever rows need a baseline value (can be
-    the same frame, for training rows, or later out-of-sample eval/test
-    rows looking back into `hist_df`)."""
+def _weighted_baseline(
+    lag_matrix: np.ndarray,
+    variant: str = "weighted_4321",
+) -> np.ndarray:
+    """Row-wise NaN-aware same-weekday baseline.
+
+    ``weighted_4321`` is the C0 default. C1 can compare a pure lag-7
+    baseline, a more recent-heavy 8:4:2:1 average, and a robust weekday
+    median. Missing lags never force an otherwise usable row to be dropped.
+    """
+    matrix = np.asarray(lag_matrix, dtype=float)
+    if matrix.ndim != 2 or matrix.shape[1] != len(BASELINE_LAGS):
+        raise ValueError(
+            f"lag_matrix must have {len(BASELINE_LAGS)} columns in BASELINE_LAGS order"
+        )
+    observed = np.isfinite(matrix)
+    if variant == "weekday_median":
+        result = np.full(len(matrix), np.nan, dtype=float)
+        valid = observed.any(axis=1)
+        if valid.any():
+            result[valid] = np.nanmedian(matrix[valid], axis=1)
+        return result
+
+    weights = _baseline_weights(variant)
+    numerator = np.nansum(matrix * weights, axis=1)
+    denominator = (observed * weights).sum(axis=1)
+    return np.divide(
+        numerator, denominator,
+        out=np.full(len(matrix), np.nan, dtype=float),
+        where=denominator > 0,
+    )
+
+
+def compute_baseline(
+    target_df: pd.DataFrame,
+    hist_df: pd.DataFrame,
+    baseline_variant: str = "weighted_4321",
+) -> np.ndarray:
+    """Availability-aware same-weekday baseline using observed history only."""
     available = hist_df["ProductAvailable"].fillna(False)
     qty_available = hist_df["Quantity"].where(available)
-    lookup = pd.Series(qty_available.to_numpy(),
-                        index=pd.MultiIndex.from_frame(hist_df[["ProductId", "DateKey"]]))
+    lookup = pd.Series(
+        qty_available.to_numpy(),
+        index=pd.MultiIndex.from_frame(hist_df[["ProductId", "DateKey"]]),
+    )
 
     lag_matrix = np.full((len(target_df), len(BASELINE_LAGS)), np.nan)
     for j, lag in enumerate(BASELINE_LAGS):
-        keys = list(zip(target_df["ProductId"], target_df["DateKey"] - pd.Timedelta(days=lag)))
+        keys = list(zip(
+            target_df["ProductId"],
+            target_df["DateKey"] - pd.Timedelta(days=lag),
+        ))
         lag_matrix[:, j] = [lookup.get(k, np.nan) for k in keys]
 
-    return _weighted_baseline(lag_matrix)
+    return _weighted_baseline(lag_matrix, baseline_variant)
 
 
 def _availability_state(df: pd.DataFrame) -> pd.DataFrame:
@@ -356,7 +439,12 @@ def _window_state_features(
     return out
 
 
-def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.DataFrame:
+def add_train_lags(
+    df: pd.DataFrame,
+    windows: tuple = CFG.lag_windows,
+    *,
+    baseline_variant: str = "weighted_4321",
+) -> pd.DataFrame:
     """Target-row history features computed strictly from prior days.
 
     Calendar gaps and observed-unavailable rows are now represented
@@ -369,7 +457,9 @@ def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.Dat
     for col in history.columns:
         if col not in {"ProductId", "DateKey"}:
             df[col] = history[col].to_numpy()
-    df["baseline"] = compute_baseline(df, df)
+    df["baseline"] = compute_baseline(
+        df, df, baseline_variant=baseline_variant
+    )
     return df
 
 
@@ -399,6 +489,19 @@ ORIGIN_LIFECYCLE_FEATURES = ["days_since_last_available", "ever_available_before
 TARGET_COVARIATE_COLUMNS = STATIC_NUMERIC_FEATURES + ["campaign_idx_web", "campaign_idx_app"]
 
 
+def target_numeric_feature_names(cfg: Config = CFG) -> list[str]:
+    features = list(STATIC_NUMERIC_FEATURES)
+    if cfg.enable_trend_features:
+        features += TREND_TARGET_FEATURES
+    return features
+
+
+def target_covariate_columns(cfg: Config = CFG) -> list[str]:
+    return target_numeric_feature_names(cfg) + [
+        "campaign_idx_web", "campaign_idx_app"
+    ]
+
+
 def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
     """Full numeric feature schema for `build_direct_panel`'s output:
     target-date covariates + origin-relative rolling stats (from
@@ -413,12 +516,31 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
     hand tree models the same column twice under two different roles.
     `target_baseline` (Tier B2) is the weighted same-weekday baseline for
     the target date itself -- see `build_direct_panel`."""
-    return (STATIC_NUMERIC_FEATURES + lag_feature_names(cfg.lag_windows)
+    trend_origin = TREND_ORIGIN_FEATURES if cfg.enable_trend_features else []
+    trend_seasonal = TREND_SEASONAL_FEATURES if cfg.enable_trend_features else []
+    return (target_numeric_feature_names(cfg) + lag_feature_names(cfg.lag_windows)
             + ORIGIN_LIFECYCLE_FEATURES
             + [f"qty_lag_{lag}" for lag in RECENT_POINT_LAGS]
+            + trend_origin
             + [f"seasonal_lag_{lag}" for lag in SEASONAL_LAG_DAYS]
             + ANNUAL_LAG_MISSING_FEATURES
+            + trend_seasonal
             + ["target_baseline_missing", "target_baseline", "horizon"])
+
+
+def _rolling_log_slope(values: np.ndarray) -> float:
+    """Least-squares slope of log1p demand over observed positions only."""
+    arr = np.asarray(values, dtype=float)
+    observed = np.isfinite(arr) & (arr >= 0.0)
+    if observed.sum() < 2:
+        return np.nan
+    x = np.arange(len(arr), dtype=float)[observed]
+    y = np.log1p(arr[observed])
+    x_centered = x - x.mean()
+    denominator = float(np.dot(x_centered, x_centered))
+    if denominator <= 0.0:
+        return np.nan
+    return float(np.dot(x_centered, y - y.mean()) / denominator)
 
 
 def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
@@ -429,6 +551,45 @@ def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> 
     qty_group = state.groupby("ProductId")["qty_available"]
     for lag in RECENT_POINT_LAGS:
         out[f"qty_lag_{lag}"] = qty_group.shift(lag)
+
+    if cfg.enable_trend_features:
+        def log_ratio(left: pd.Series, right: pd.Series) -> np.ndarray:
+            left_arr = pd.to_numeric(left, errors="coerce").to_numpy(dtype=float)
+            right_arr = pd.to_numeric(right, errors="coerce").to_numpy(dtype=float)
+            valid = (
+                np.isfinite(left_arr) & np.isfinite(right_arr)
+                & (left_arr >= 0.0) & (right_arr >= 0.0)
+            )
+            result = np.full(len(out), np.nan, dtype=float)
+            result[valid] = np.log1p(left_arr[valid]) - np.log1p(right_arr[valid])
+            return result
+
+        if 7 in cfg.lag_windows and 28 in cfg.lag_windows:
+            out["trend_log_ratio_mean_7_28"] = log_ratio(
+                out["qty_roll_mean_7"], out["qty_roll_mean_28"]
+            )
+            out["trend_log_ratio_lag0_28"] = log_ratio(
+                out["qty_lag_0"], out["qty_roll_mean_28"]
+            )
+        else:
+            out["trend_log_ratio_mean_7_28"] = np.nan
+            out["trend_log_ratio_lag0_28"] = np.nan
+        if 14 in cfg.lag_windows and 28 in cfg.lag_windows:
+            out["trend_log_ratio_mean_14_28"] = log_ratio(
+                out["qty_roll_mean_14"], out["qty_roll_mean_28"]
+            )
+        else:
+            out["trend_log_ratio_mean_14_28"] = np.nan
+
+        # Short and medium log-demand slopes expose direction of travel, not
+        # merely the recent/long level ratio. Missing calendar/availability
+        # states are ignored while their original positions remain in x.
+        for window in (7, 28):
+            out[f"trend_log_slope_{window}"] = qty_group.transform(
+                lambda series, w=window: series.rolling(
+                    w, min_periods=2
+                ).apply(_rolling_log_slope, raw=True)
+            )
 
     availability = _availability_state(df)
     available_date = df["DateKey"].where(availability["_is_available"].astype(bool))
@@ -470,7 +631,8 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         for col in ("Quantity", "ProductAvailable"):
             if col not in future_covariates.columns:
                 future_covariates[col] = np.nan
-        keep = ["ProductId", "DateKey", "Quantity", "ProductAvailable"] + TARGET_COVARIATE_COLUMNS
+        covariate_columns = target_covariate_columns(cfg)
+        keep = ["ProductId", "DateKey", "Quantity", "ProductAvailable"] + covariate_columns
         combined = pd.concat([train_feat, future_covariates[keep]], ignore_index=True, sort=False)
     combined = combined.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     if "qty_available" not in combined.columns:
@@ -487,12 +649,13 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
     for h in horizons:
         panel_h = origin.copy()
         panel_h["horizon"] = h
-        target_cols = ["DateKey", "Quantity", "ProductAvailable"] + TARGET_COVARIATE_COLUMNS
+        covariate_columns = target_covariate_columns(cfg)
+        target_cols = ["DateKey", "Quantity", "ProductAvailable"] + covariate_columns
         target = g[target_cols].shift(-h)
         panel_h["TargetDateKey"] = target["DateKey"]
         panel_h["target"] = target["Quantity"]
         panel_h["TargetProductAvailable"] = target["ProductAvailable"]
-        for col in TARGET_COVARIATE_COLUMNS:
+        for col in covariate_columns:
             panel_h[col] = target[col]
         for lag in SEASONAL_LAG_DAYS:
             panel_h[f"seasonal_lag_{lag}"] = g["qty_available"].shift(lag - h)
@@ -504,7 +667,7 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
             panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float)
             for lag in BASELINE_LAGS
         ])
-        raw_baseline = _weighted_baseline(lag_matrix)
+        raw_baseline = _weighted_baseline(lag_matrix, cfg.baseline_variant)
         panel_h["target_baseline_missing"] = (~np.isfinite(raw_baseline)).astype(float)
         fallback = panel_h[f"qty_roll_median_{cfg.lag_windows[0]}"].to_numpy(dtype=float)
         fallback = np.where(
@@ -519,6 +682,30 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         panel_h["target_baseline"] = np.where(
             np.isfinite(raw_baseline), raw_baseline, fallback
         )
+        if cfg.enable_trend_features:
+            annual_matrix = np.column_stack([
+                panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float)
+                for lag in ANNUAL_LAG_DAYS
+            ])
+            annual_observed = np.isfinite(annual_matrix).any(axis=1)
+            annual_reference = np.full(len(panel_h), np.nan, dtype=float)
+            if annual_observed.any():
+                annual_reference[annual_observed] = np.nanmedian(
+                    annual_matrix[annual_observed], axis=1
+                )
+            panel_h["annual_reference"] = annual_reference
+            panel_h["annual_reference_missing"] = (~annual_observed).astype(float)
+            baseline_values = panel_h["target_baseline"].to_numpy(dtype=float)
+            valid_ratio = (
+                np.isfinite(baseline_values) & np.isfinite(annual_reference)
+                & (baseline_values >= 0.0) & (annual_reference >= 0.0)
+            )
+            ratio = np.full(len(panel_h), np.nan, dtype=float)
+            ratio[valid_ratio] = (
+                np.log1p(baseline_values[valid_ratio])
+                - np.log1p(annual_reference[valid_ratio])
+            )
+            panel_h["trend_log_ratio_baseline_annual"] = ratio
         frames.append(panel_h)
 
     panel = pd.concat(frames, ignore_index=True).rename(columns={"DateKey": "OriginDateKey"})
@@ -527,11 +714,37 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
     return panel[panel_index.isin(origin_index)].reset_index(drop=True)
 
 
+def recency_sample_weights(
+    target_dates: pd.Series,
+    cutoff: pd.Timestamp,
+    half_life_days: float | None,
+) -> np.ndarray:
+    """Return mean-one exponential time-decay weights.
+
+    Normalising to mean one preserves the overall loss scale and therefore
+    avoids silently changing the effective learning rate when C1 enables
+    recency weighting.
+    """
+    dates = pd.to_datetime(target_dates)
+    age_days = (pd.Timestamp(cutoff) - dates).dt.days.to_numpy(dtype=float)
+    age_days = np.clip(age_days, 0.0, None)
+    if half_life_days is None:
+        return np.ones(len(dates), dtype=float)
+    if not np.isfinite(half_life_days) or half_life_days <= 0:
+        raise ValueError("recency_half_life_days must be positive or None")
+    weights = np.exp2(-age_days / float(half_life_days))
+    mean_weight = float(np.mean(weights)) if len(weights) else 1.0
+    if not np.isfinite(mean_weight) or mean_weight <= 0:
+        raise ValueError("Recency weighting produced an invalid mean weight")
+    return weights / mean_weight
+
+
 def select_trainable_panel_rows(
     panel: pd.DataFrame,
     *,
     cutoff: pd.Timestamp | None = None,
     available_only: bool = True,
+    cfg: Config = CFG,
 ) -> pd.DataFrame:
     """Select supervised rows without requiring every feature to be present.
 
@@ -545,8 +758,24 @@ def select_trainable_panel_rows(
     mask &= panel["target_baseline"].notna() & np.isfinite(
         pd.to_numeric(panel["target_baseline"], errors="coerce")
     )
+    effective_cutoff = (
+        pd.Timestamp(cutoff)
+        if cutoff is not None
+        else pd.to_datetime(panel.loc[mask, "TargetDateKey"]).max()
+    )
+    if pd.isna(effective_cutoff):
+        selected = panel.loc[mask].reset_index(drop=True).copy()
+        selected["sample_weight"] = np.ones(len(selected), dtype=float)
+        return selected
     if cutoff is not None:
-        mask &= panel["TargetDateKey"].le(pd.Timestamp(cutoff))
+        mask &= panel["TargetDateKey"].le(effective_cutoff)
+    if cfg.training_window_days is not None:
+        if cfg.training_window_days <= 0:
+            raise ValueError("training_window_days must be positive or None")
+        earliest = effective_cutoff - pd.Timedelta(
+            days=int(cfg.training_window_days) - 1
+        )
+        mask &= panel["TargetDateKey"].ge(earliest)
     if available_only:
         mask &= (
             panel["TargetProductAvailable"]
@@ -554,7 +783,13 @@ def select_trainable_panel_rows(
             .fillna(False)
             .astype(bool)
         )
-    return panel.loc[mask].reset_index(drop=True)
+    selected = panel.loc[mask].reset_index(drop=True).copy()
+    selected["sample_weight"] = recency_sample_weights(
+        selected["TargetDateKey"],
+        effective_cutoff,
+        cfg.recency_half_life_days,
+    )
+    return selected
 
 
 def build_one_step_panel(
@@ -566,7 +801,9 @@ def build_one_step_panel(
 ) -> pd.DataFrame:
     """Build one-step-ahead training rows for recursive models."""
     feat = prepare_features(raw_df, price_ref, first_seen, first_available)
-    feat = add_train_lags(feat, cfg.lag_windows)
+    feat = add_train_lags(
+        feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
+    )
     return build_direct_panel(feat, [1], cfg=cfg)
 
 
@@ -603,7 +840,9 @@ def build_recursive_step_panel(
     history_feat = prepare_features(
         history_raw, price_ref, first_seen, first_available
     )
-    history_feat = add_train_lags(history_feat, cfg.lag_windows)
+    history_feat = add_train_lags(
+        history_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
+    )
     future_feat = prepare_features(
         future, price_ref, first_seen, first_available
     )
@@ -629,6 +868,15 @@ def forecast_recursive(
     dates = sorted(pd.to_datetime(future["DateKey"].drop_duplicates()))
     if len(dates) != cfg.horizon:
         raise ValueError(f"Expected {cfg.horizon} future dates, got {len(dates)}")
+    # Freeze the numerical reference scale from genuinely observed history.
+    # Synthetic recursive rows must never raise their own future safety limit.
+    initial_quantity = pd.to_numeric(
+        history["Quantity"], errors="coerce"
+    ).replace([np.inf, -np.inf], np.nan)
+    initial_history_max = history.assign(
+        _finite_quantity=initial_quantity
+    ).groupby("ProductId")['_finite_quantity'].max()
+
     results = []
     for forecast_horizon, target_date in enumerate(dates, start=1):
         current = future[future["DateKey"].eq(target_date)].copy()
@@ -637,30 +885,65 @@ def forecast_recursive(
         )
         if not step_panel["horizon"].eq(1).all():
             raise AssertionError("Recursive model input horizon must always equal 1")
-        prediction = np.asarray(predict_step(step_panel), dtype=float)
+        step_output = predict_step(step_panel)
+        if isinstance(step_output, dict):
+            if "prediction" not in step_output:
+                raise ValueError("predict_step diagnostic payload is missing 'prediction'")
+            prediction = np.asarray(step_output["prediction"], dtype=float)
+            residual_guard = np.asarray(
+                step_output.get("residual_guard", np.zeros(len(step_panel), dtype=bool)),
+                dtype=bool,
+            )
+            residual_nonfinite = np.asarray(
+                step_output.get(
+                    "residual_nonfinite", np.zeros(len(step_panel), dtype=bool)
+                ),
+                dtype=bool,
+            )
+            residual_raw_min = np.asarray(
+                step_output.get("residual_raw_min", np.full(len(step_panel), np.nan)),
+                dtype=float,
+            )
+            residual_raw_max = np.asarray(
+                step_output.get("residual_raw_max", np.full(len(step_panel), np.nan)),
+                dtype=float,
+            )
+        else:
+            prediction = np.asarray(step_output, dtype=float)
+            residual_guard = np.zeros(len(step_panel), dtype=bool)
+            residual_nonfinite = np.zeros(len(step_panel), dtype=bool)
+            residual_raw_min = np.full(len(step_panel), np.nan, dtype=float)
+            residual_raw_max = np.full(len(step_panel), np.nan, dtype=float)
         if len(prediction) != len(step_panel):
             raise ValueError("predict_step returned a prediction vector with the wrong length")
+        for name, values in (
+            ("residual_guard", residual_guard),
+            ("residual_nonfinite", residual_nonfinite),
+            ("residual_raw_min", residual_raw_min),
+            ("residual_raw_max", residual_raw_max),
+        ):
+            if len(values) != len(step_panel):
+                raise ValueError(f"predict_step returned {name} with the wrong length")
         baseline = step_panel["target_baseline"].to_numpy(dtype=float)
 
         # A recursive model can turn one extreme but finite extrapolation into
         # progressively larger lag features.  Treat only catastrophic values
         # as numerical failures; this guard is intentionally orders of
         # magnitude looser than any prediction cap considered in Tier C3.
-        history_quantity = pd.to_numeric(history["Quantity"], errors="coerce").replace(
-            [np.inf, -np.inf], np.nan
-        )
-        history_max = history.assign(_finite_quantity=history_quantity).groupby(
-            "ProductId"
-        )["_finite_quantity"].max()
-        observed_scale = step_panel["ProductId"].map(history_max).to_numpy(dtype=float)
+        observed_scale = step_panel["ProductId"].map(
+            initial_history_max
+        ).to_numpy(dtype=float)
         lag0 = step_panel.get(
             "qty_lag_0", pd.Series(np.nan, index=step_panel.index)
         ).to_numpy(dtype=float)
         reference_scale = np.nanmax(
             np.column_stack([
                 np.where(np.isfinite(observed_scale), observed_scale, 0.0),
+                # The seven-day seasonal baseline is anchored in observed
+                # pre-origin history.  Do not include recursively generated
+                # lag-0 values, otherwise one extreme prediction can inflate
+                # the safety threshold for the next step.
                 np.where(np.isfinite(baseline), baseline, 0.0),
-                np.where(np.isfinite(lag0), lag0, 0.0),
                 np.ones(len(step_panel), dtype=float),
             ]),
             axis=1,
@@ -691,6 +974,11 @@ def forecast_recursive(
         result["fallback_used"] = fallback
         result["nonfinite_raw"] = nonfinite_raw
         result["catastrophic_guard"] = catastrophic
+        result["residual_guard"] = residual_guard
+        result["residual_nonfinite"] = residual_nonfinite
+        result["residual_raw_min"] = residual_raw_min
+        result["residual_raw_max"] = residual_raw_max
+        result["safety_limit"] = safety_limit
         results.append(result)
 
         generated = current.merge(

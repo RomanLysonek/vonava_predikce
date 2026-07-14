@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 
 from framework import (
+    BASELINE_VARIANTS,
     CFG,
     MODEL_META,
     MODEL_ORDER,
@@ -104,6 +105,11 @@ class RuntimeOptions:
     nn_lr_scaling: str = "auto"
     nn_training_backend: str = "auto"
     nn_benchmark_file: str = "outputs/nn_batch_benchmark.json"
+    c1_config: str | None = None
+    training_window_days: str | None = None
+    recency_half_life_days: str | None = None
+    baseline_variant: str | None = None
+    trend_features: str | None = None
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -157,6 +163,27 @@ def parse_args(argv=None) -> RuntimeOptions:
         "--nn-benchmark-file", default="outputs/nn_batch_benchmark.json",
         help="Quality-aware batch benchmark used by --nn-batch-size auto",
     )
+    parser.add_argument(
+        "--c1-config", default=None,
+        help=("Recommendation JSON written by ml/run_c1_screening.py. "
+              "Explicit C1 CLI options override values from this file."),
+    )
+    parser.add_argument(
+        "--training-window-days", default=None,
+        help="Positive integer or 'all' (C1 history-window policy)",
+    )
+    parser.add_argument(
+        "--recency-half-life-days", default=None,
+        help="Positive number or 'none' (C1 exponential sample weighting)",
+    )
+    parser.add_argument(
+        "--baseline-variant", choices=sorted(BASELINE_VARIANTS), default=None,
+        help="C1 same-weekday baseline formulation",
+    )
+    parser.add_argument(
+        "--trend-features", choices=["on", "off"], default=None,
+        help="Enable or disable the C1 drift/trend feature group",
+    )
     args = parser.parse_args(argv)
     if args.nn_batch_size != "auto":
         try:
@@ -166,6 +193,18 @@ def parse_args(argv=None) -> RuntimeOptions:
         if parsed_batch_size < 2:
             parser.error("--nn-batch-size must be at least 2")
         args.nn_batch_size = str(parsed_batch_size)
+    if args.training_window_days not in (None, "all"):
+        try:
+            if int(args.training_window_days) <= 0:
+                raise ValueError
+        except ValueError:
+            parser.error("--training-window-days must be 'all' or a positive integer")
+    if args.recency_half_life_days not in (None, "none"):
+        try:
+            if float(args.recency_half_life_days) <= 0:
+                raise ValueError
+        except ValueError:
+            parser.error("--recency-half-life-days must be 'none' or positive")
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
@@ -179,7 +218,96 @@ def parse_args(argv=None) -> RuntimeOptions:
         nn_lr_scaling=args.nn_lr_scaling,
         nn_training_backend=args.nn_training_backend,
         nn_benchmark_file=args.nn_benchmark_file,
+        c1_config=args.c1_config,
+        training_window_days=args.training_window_days,
+        recency_half_life_days=args.recency_half_life_days,
+        baseline_variant=args.baseline_variant,
+        trend_features=args.trend_features,
     )
+
+
+def _parse_optional_days(value, *, none_token: str, cast):
+    if value is None:
+        return None
+    if isinstance(value, str) and value.lower() == none_token:
+        return None
+    parsed = cast(value)
+    if parsed <= 0:
+        raise ValueError(f"Expected positive value or {none_token!r}, got {value!r}")
+    return parsed
+
+
+def configure_c1_runtime(cfg: Config, options: RuntimeOptions) -> dict:
+    """Apply a C1 recommendation plus explicit CLI overrides."""
+    source = "C0 defaults"
+    recommendation = {}
+    if options.c1_config is not None:
+        with open(options.c1_config, encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Invalid C1 recommendation in {options.c1_config}")
+        candidate = payload.get("recommendation", payload)
+        if isinstance(candidate, dict) and "config" in candidate:
+            candidate = candidate["config"]
+        elif "config" in payload:
+            candidate = payload["config"]
+        recommendation = candidate
+        if not isinstance(recommendation, dict):
+            raise ValueError(f"Invalid C1 recommendation in {options.c1_config}")
+        source = options.c1_config
+
+    def value(name, explicit, default):
+        if explicit is not None:
+            return explicit, "CLI override"
+        if name in recommendation:
+            return recommendation[name], source
+        return default, "C0 default"
+
+    window_raw, window_source = value(
+        "training_window_days", options.training_window_days, cfg.training_window_days
+    )
+    half_life_raw, half_life_source = value(
+        "recency_half_life_days", options.recency_half_life_days,
+        cfg.recency_half_life_days,
+    )
+    baseline, baseline_source = value(
+        "baseline_variant", options.baseline_variant, cfg.baseline_variant
+    )
+    trend_raw, trend_source = value(
+        "enable_trend_features", options.trend_features, cfg.enable_trend_features
+    )
+
+    cfg.training_window_days = _parse_optional_days(
+        window_raw, none_token="all", cast=int
+    )
+    cfg.recency_half_life_days = _parse_optional_days(
+        half_life_raw, none_token="none", cast=float
+    )
+    if baseline not in BASELINE_VARIANTS:
+        raise ValueError(
+            f"Unknown baseline_variant={baseline!r}; expected {sorted(BASELINE_VARIANTS)}"
+        )
+    cfg.baseline_variant = str(baseline)
+    if isinstance(trend_raw, str):
+        if trend_raw not in {"on", "off"}:
+            raise ValueError("trend_features must be 'on' or 'off'")
+        cfg.enable_trend_features = trend_raw == "on"
+    else:
+        cfg.enable_trend_features = bool(trend_raw)
+
+    return {
+        "training_window_days": cfg.training_window_days,
+        "recency_half_life_days": cfg.recency_half_life_days,
+        "baseline_variant": cfg.baseline_variant,
+        "enable_trend_features": cfg.enable_trend_features,
+        "sources": {
+            "training_window_days": window_source,
+            "recency_half_life_days": half_life_source,
+            "baseline_variant": baseline_source,
+            "enable_trend_features": trend_source,
+        },
+        "config_file": options.c1_config,
+    }
 
 
 def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
@@ -251,7 +379,7 @@ def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
-CHECKPOINT_SCHEMA_VERSION = "c0-data-alignment-v1"
+CHECKPOINT_SCHEMA_VERSION = "c01-c1-nonstationarity-v1"
 
 
 def _fold_checkpoint_path(
@@ -566,7 +694,10 @@ def run_walk_forward_cv_direct(
         fold_train_feat = prepare_features(
             fold_train_raw, price_ref, first_seen, first_available
         )
-        fold_train_feat = add_train_lags(fold_train_feat, cfg.lag_windows)
+        fold_train_feat = add_train_lags(
+            fold_train_feat, cfg.lag_windows,
+            baseline_variant=cfg.baseline_variant,
+        )
         fold_eval_feat = prepare_features(
             fold_eval_raw, price_ref, first_seen, first_available
         ).reset_index(drop=True)
@@ -577,7 +708,7 @@ def run_walk_forward_cv_direct(
         # fold's own cutoff combined with a large horizon would otherwise
         # land on a target date this fold isn't allowed to have seen yet.
         train_panel = select_trainable_panel_rows(
-            panel, cutoff=origin, available_only=True
+            panel, cutoff=origin, available_only=True, cfg=cfg
         )
         eval_panel = panel[panel["OriginDateKey"] == origin].reset_index(drop=True)
 
@@ -601,7 +732,9 @@ def run_walk_forward_cv_direct(
 
         seasonal_pred = seasonal_naive_predict(fold_eval_feat, fold_train_raw, lag_days=cfg.horizon)
         ma_pred = moving_average_predict(fold_eval_feat, fold_train_raw, window=28)
-        baseline_pred = compute_baseline(fold_eval_feat, fold_train_raw)
+        baseline_pred = compute_baseline(
+            fold_eval_feat, fold_train_raw, cfg.baseline_variant
+        )
 
         # Predictions are attached straight onto `eval_panel` (so they're
         # trivially self-consistent with its own ProductId/horizon/target
@@ -629,6 +762,11 @@ def run_walk_forward_cv_direct(
             fold_oof[f"fallback_{name}"] = False
             fold_oof[f"nonfinite_{name}"] = False
             fold_oof[f"catastrophic_{name}"] = False
+            fold_oof[f"residual_guard_{name}"] = False
+            fold_oof[f"residual_nonfinite_{name}"] = False
+            fold_oof[f"residual_raw_min_{name}"] = np.nan
+            fold_oof[f"residual_raw_max_{name}"] = np.nan
+            fold_oof[f"safety_limit_{name}"] = np.nan
         for seed in cfg.seeds:
             fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left")
@@ -666,7 +804,7 @@ def _recursive_panel_training_data(
     )
     cutoff = fold_train_raw["DateKey"].max()
     return select_trainable_panel_rows(
-        panel, cutoff=cutoff, available_only=True
+        panel, cutoff=cutoff, available_only=True, cfg=cfg
     )
 
 
@@ -691,12 +829,18 @@ def _recursive_nn_predictions(
     for seed, model in zip(cfg.seeds, seed_models):
         seed_paths[seed] = forecast_recursive(
             history_raw, future_covariates,
-            lambda panel, model=model: predict_direct([model], scaler, panel, cfg),
+            lambda panel, model=model: predict_direct(
+                [model], scaler, panel, cfg,
+                recursive_guard=True, return_diagnostics=True,
+            ),
             price_ref, first_seen, cfg, first_available,
         )
     ensemble_path = forecast_recursive(
         history_raw, future_covariates,
-        lambda panel: predict_direct(seed_models, scaler, panel, cfg),
+        lambda panel: predict_direct(
+            seed_models, scaler, panel, cfg,
+            recursive_guard=True, return_diagnostics=True,
+        ),
         price_ref, first_seen, cfg, first_available,
     )
     return ensemble_path, seed_paths, scaler, seed_models
@@ -758,7 +902,9 @@ def run_walk_forward_cv_recursive(
             fold_eval_raw, price_ref, first_seen, first_available
         ).reset_index(drop=True)
         naive_df = fold_eval_raw[["ProductId", "DateKey", "Quantity", "ProductAvailable"]].copy()
-        naive_df["baseline"] = compute_baseline(eval_feat, fold_train_raw)
+        naive_df["baseline"] = compute_baseline(
+            eval_feat, fold_train_raw, cfg.baseline_variant
+        )
         naive_df["pred_SeasonalNaive"] = seasonal_naive_predict(eval_feat, fold_train_raw, lag_days=cfg.horizon)
         naive_df["pred_MovingAvg28"] = moving_average_predict(eval_feat, fold_train_raw, window=28)
 
@@ -769,10 +915,18 @@ def run_walk_forward_cv_recursive(
             "fallback_used": "fallback_NeuralNet",
             "nonfinite_raw": "nonfinite_NeuralNet",
             "catastrophic_guard": "catastrophic_NeuralNet",
+            "residual_guard": "residual_guard_NeuralNet",
+            "residual_nonfinite": "residual_nonfinite_NeuralNet",
+            "residual_raw_min": "residual_raw_min_NeuralNet",
+            "residual_raw_max": "residual_raw_max_NeuralNet",
+            "safety_limit": "safety_limit_NeuralNet",
         })[[
             "ProductId", "DateKey", "horizon", "pred_NeuralNet",
             "fallback_NeuralNet", "nonfinite_NeuralNet",
-            "catastrophic_NeuralNet",
+            "catastrophic_NeuralNet", "residual_guard_NeuralNet",
+            "residual_nonfinite_NeuralNet", "residual_raw_min_NeuralNet",
+            "residual_raw_max_NeuralNet",
+            "safety_limit_NeuralNet",
         ]]
         fold_oof["origin"] = origin
         fold_oof["origin_type"] = origin_type
@@ -787,15 +941,23 @@ def run_walk_forward_cv_recursive(
             fold_oof = fold_oof.merge(seed_col, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         for name, payload in structured.items():
             path = pd.DataFrame(payload)
-            pred_col = path[[
+            diagnostic_columns = [
                 "ProductId", "TargetDateKey", "prediction", "fallback_used",
-                "nonfinite_raw", "catastrophic_guard",
-            ]].rename(columns={
+                "nonfinite_raw", "catastrophic_guard", "residual_guard",
+                "residual_nonfinite", "residual_raw_min", "residual_raw_max",
+                "safety_limit",
+            ]
+            pred_col = path[diagnostic_columns].rename(columns={
                 "TargetDateKey": "DateKey",
                 "prediction": f"pred_{name}",
                 "fallback_used": f"fallback_{name}",
                 "nonfinite_raw": f"nonfinite_{name}",
                 "catastrophic_guard": f"catastrophic_{name}",
+                "residual_guard": f"residual_guard_{name}",
+                "residual_nonfinite": f"residual_nonfinite_{name}",
+                "residual_raw_min": f"residual_raw_min_{name}",
+                "residual_raw_max": f"residual_raw_max_{name}",
+                "safety_limit": f"safety_limit_{name}",
             })
             fold_oof = fold_oof.merge(pred_col, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
@@ -1080,16 +1242,17 @@ def compute_test_aligned_scores(
     return pd.DataFrame(rows)
 
 
-def summarize_prediction_diagnostics(
+def _summarize_prediction_diagnostics_grouped(
     oof: pd.DataFrame,
-    pred_columns: dict | None = None,
+    pred_columns: dict,
+    group_columns: list[str],
 ) -> pd.DataFrame:
-    """Expose fallback and extreme-prediction behavior by split/strategy."""
-    pred_columns = pred_columns or OOF_MODEL_COLUMNS
     rows = []
-    for (origin_type, strategy), group in oof.groupby(
-        ["origin_type", "strategy"], sort=False
-    ):
+    for keys, group in oof.groupby(group_columns, sort=False):
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        context = dict(zip(group_columns, keys))
+        strategy = context["strategy"]
         columns = prediction_columns_for_strategy(pred_columns, strategy)
         observed_max = pd.to_numeric(group["actual"], errors="coerce").replace(
             [np.inf, -np.inf], np.nan
@@ -1100,26 +1263,41 @@ def summarize_prediction_diagnostics(
             values = pd.to_numeric(group[column], errors="coerce").to_numpy(dtype=float)
             finite = np.isfinite(values)
             finite_values = values[finite]
-            fallback_col = f"fallback_{model}"
-            nonfinite_col = f"nonfinite_{model}"
-            catastrophic_col = f"catastrophic_{model}"
-            fallback = (
-                group[fallback_col].fillna(False).astype(bool).to_numpy()
-                if fallback_col in group else np.zeros(len(group), dtype=bool)
+
+            def bool_values(prefix: str) -> np.ndarray:
+                name = f"{prefix}_{model}"
+                if name not in group:
+                    return np.zeros(len(group), dtype=bool)
+                return group[name].fillna(False).astype(bool).to_numpy()
+
+            fallback = bool_values("fallback")
+            nonfinite_raw = bool_values("nonfinite")
+            catastrophic = bool_values("catastrophic")
+            residual_guard = bool_values("residual_guard")
+            residual_nonfinite = bool_values("residual_nonfinite")
+
+            residual_min_col = f"residual_raw_min_{model}"
+            residual_max_col = f"residual_raw_max_{model}"
+            safety_limit_col = f"safety_limit_{model}"
+            residual_min = (
+                pd.to_numeric(group[residual_min_col], errors="coerce")
+                .replace([np.inf, -np.inf], np.nan).min()
+                if residual_min_col in group else np.nan
             )
-            nonfinite_raw = (
-                group[nonfinite_col].fillna(False).astype(bool).to_numpy()
-                if nonfinite_col in group else np.zeros(len(group), dtype=bool)
+            residual_max = (
+                pd.to_numeric(group[residual_max_col], errors="coerce")
+                .replace([np.inf, -np.inf], np.nan).max()
+                if residual_max_col in group else np.nan
             )
-            catastrophic = (
-                group[catastrophic_col].fillna(False).astype(bool).to_numpy()
-                if catastrophic_col in group else np.zeros(len(group), dtype=bool)
+            safety_limit_min = (
+                pd.to_numeric(group[safety_limit_col], errors="coerce")
+                .replace([np.inf, -np.inf], np.nan).min()
+                if safety_limit_col in group else np.nan
             )
             prediction_max = float(np.max(finite_values)) if finite_values.size else np.nan
             prediction_p99 = float(np.quantile(finite_values, 0.99)) if finite_values.size else np.nan
             rows.append({
-                "origin_type": origin_type,
-                "strategy": strategy,
+                **context,
                 "model": model,
                 "n_rows": int(len(group)),
                 "n_finite": int(finite.sum()),
@@ -1128,6 +1306,20 @@ def summarize_prediction_diagnostics(
                 "fallback_rate": float(fallback.mean()) if len(group) else np.nan,
                 "nonfinite_raw_count": int(nonfinite_raw.sum()),
                 "catastrophic_guard_count": int(catastrophic.sum()),
+                "residual_guard_count": int(residual_guard.sum()),
+                "residual_nonfinite_count": int(residual_nonfinite.sum()),
+                "residual_guard_rate": (
+                    float(residual_guard.mean()) if len(group) else np.nan
+                ),
+                "residual_raw_min": (
+                    float(residual_min) if np.isfinite(residual_min) else np.nan
+                ),
+                "residual_raw_max": (
+                    float(residual_max) if np.isfinite(residual_max) else np.nan
+                ),
+                "safety_limit_min": (
+                    float(safety_limit_min) if np.isfinite(safety_limit_min) else np.nan
+                ),
                 "prediction_max": prediction_max,
                 "prediction_p99": prediction_p99,
                 "observed_max": float(observed_max) if np.isfinite(observed_max) else np.nan,
@@ -1138,6 +1330,27 @@ def summarize_prediction_diagnostics(
                 ),
             })
     return pd.DataFrame(rows)
+
+
+def summarize_prediction_diagnostics(
+    oof: pd.DataFrame,
+    pred_columns: dict | None = None,
+) -> pd.DataFrame:
+    """Aggregate fallback, support-guard and extreme behavior by split."""
+    return _summarize_prediction_diagnostics_grouped(
+        oof, pred_columns or OOF_MODEL_COLUMNS, ["origin_type", "strategy"]
+    )
+
+
+def summarize_prediction_diagnostics_by_origin(
+    oof: pd.DataFrame,
+    pred_columns: dict | None = None,
+) -> pd.DataFrame:
+    """Per-origin diagnostics so isolated recursive explosions stay visible."""
+    return _summarize_prediction_diagnostics_grouped(
+        oof, pred_columns or OOF_MODEL_COLUMNS,
+        ["origin_type", "strategy", "origin"],
+    )
 
 
 def select_primary_strategy(dev_summary: pd.DataFrame, *, model: str, metric: str) -> str:
@@ -1226,7 +1439,9 @@ def _prepare_final_direct_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
     train_feat = prepare_features(
         train_raw, price_ref, first_seen, first_available
     )
-    train_feat = add_train_lags(train_feat, cfg.lag_windows)
+    train_feat = add_train_lags(
+        train_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
+    )
     test_feat = prepare_features(
         test_raw, price_ref, first_seen, first_available
     ).reset_index(drop=True)
@@ -1236,7 +1451,7 @@ def _prepare_final_direct_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
 
     last_train_date = train_raw["DateKey"].max()
     train_panel = select_trainable_panel_rows(
-        panel, cutoff=last_train_date, available_only=True
+        panel, cutoff=last_train_date, available_only=True, cfg=cfg
     )
     eval_panel = panel[panel["OriginDateKey"] == last_train_date].reset_index(drop=True)
     return train_panel, eval_panel
@@ -1439,7 +1654,8 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          strategy_by_horizon: pd.DataFrame | None = None,
                          validation_strata_summary: pd.DataFrame | None = None,
                          test_aligned_scores: pd.DataFrame | None = None,
-                         prediction_diagnostics: pd.DataFrame | None = None) -> dict:
+                         prediction_diagnostics: pd.DataFrame | None = None,
+                         prediction_diagnostics_by_origin: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
@@ -1542,6 +1758,15 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "nn_lr_scaling": cfg.nn_lr_scaling,
             "nn_effective_learning_rate": effective_learning_rate(cfg),
             "nn_training_backend": resolve_training_backend(cfg),
+            "training_window_days": cfg.training_window_days,
+            "recency_half_life_days": cfg.recency_half_life_days,
+            "baseline_variant": cfg.baseline_variant,
+            "enable_trend_features": cfg.enable_trend_features,
+            "nn_residual_guard_lower_quantile": cfg.nn_residual_guard_lower_quantile,
+            "nn_residual_guard_upper_quantile": cfg.nn_residual_guard_upper_quantile,
+            "nn_residual_guard_margin": cfg.nn_residual_guard_margin,
+            "recursive_safety_multiplier": cfg.recursive_safety_multiplier,
+            "recursive_safety_floor": cfg.recursive_safety_floor,
         },
         "models": models_meta,
         # Canonical compatibility fields used by the original dashboard.
@@ -1602,6 +1827,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "prediction_diagnostics": (
             prediction_diagnostics.round(6).to_dict(orient="records")
             if prediction_diagnostics is not None else []
+        ),
+        "prediction_diagnostics_by_origin": (
+            prediction_diagnostics_by_origin.round(6).to_dict(orient="records")
+            if prediction_diagnostics_by_origin is not None else []
         ),
         "selection": {
             "canonical_model": canonical_model,
@@ -1724,11 +1953,19 @@ def _forecast_dict_to_json(test_raw: pd.DataFrame, forecasts: dict) -> dict:
 def main(argv=None) -> None:
     options = parse_args(argv)
     cfg = CFG
+    c1_runtime = configure_c1_runtime(cfg, options)
     nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
     print(
         f"Selection: {options.selection_protocol} / {options.selection_metric}"
+    )
+    print(
+        "C1 policy: "
+        f"window={c1_runtime['training_window_days'] or 'all'}, "
+        f"half_life={c1_runtime['recency_half_life_days'] or 'none'}, "
+        f"baseline={c1_runtime['baseline_variant']}, "
+        f"trend_features={c1_runtime['enable_trend_features']}"
     )
     print(
         "NN runtime: "
@@ -1744,7 +1981,9 @@ def main(argv=None) -> None:
     if options.resume:
         print(f"CV resume enabled: {options.checkpoint_dir}")
     run_start = time.perf_counter()
-    timings: dict = {"cv_folds": [], "nn_runtime": nn_runtime}
+    timings: dict = {
+        "cv_folds": [], "nn_runtime": nn_runtime, "c1_runtime": c1_runtime
+    }
 
     train_raw, test_raw = load_raw(cfg)
     cfg.num_products = int(max(train_raw["ProductId"].max(), test_raw["ProductId"].max()))
@@ -1781,6 +2020,7 @@ def main(argv=None) -> None:
         validation_strata_summary, metric=options.selection_metric
     )
     prediction_diagnostics = summarize_prediction_diagnostics(oof)
+    prediction_diagnostics_by_origin = summarize_prediction_diagnostics_by_origin(oof)
 
     canonical_model, canonical_strategy = _choose_canonical_model_strategy(
         options, dev_summary, test_aligned_scores
@@ -1817,6 +2057,11 @@ def main(argv=None) -> None:
                     "fallback_used": False,
                     "nonfinite_raw": False,
                     "catastrophic_guard": False,
+                    "residual_guard": False,
+                    "residual_nonfinite": False,
+                    "residual_raw_min": np.nan,
+                    "residual_raw_max": np.nan,
+                    "safety_limit": np.nan,
                 })
         for model, path in paths.items():
             path_index = path.set_index(["ProductId", "TargetDateKey"])
@@ -1827,12 +2072,34 @@ def main(argv=None) -> None:
             catastrophic_map = path_index.get(
                 "catastrophic_guard", pd.Series(False, index=path_index.index)
             )
+            residual_guard_map = path_index.get(
+                "residual_guard", pd.Series(False, index=path_index.index)
+            )
+            residual_nonfinite_map = path_index.get(
+                "residual_nonfinite", pd.Series(False, index=path_index.index)
+            )
+            residual_min_map = path_index.get(
+                "residual_raw_min", pd.Series(np.nan, index=path_index.index)
+            )
+            residual_max_map = path_index.get(
+                "residual_raw_max", pd.Series(np.nan, index=path_index.index)
+            )
+            safety_limit_map = path_index.get(
+                "safety_limit", pd.Series(np.nan, index=path_index.index)
+            )
             for row in raw_rows:
                 if row["strategy"] == strategy.value and row["model"] == model:
                     key = (row["ProductId"], row["DateKey"])
                     row["fallback_used"] = bool(fallback_map.get(key, False))
                     row["nonfinite_raw"] = bool(nonfinite_map.get(key, False))
                     row["catastrophic_guard"] = bool(catastrophic_map.get(key, False))
+                    row["residual_guard"] = bool(residual_guard_map.get(key, False))
+                    row["residual_nonfinite"] = bool(
+                        residual_nonfinite_map.get(key, False)
+                    )
+                    row["residual_raw_min"] = float(residual_min_map.get(key, np.nan))
+                    row["residual_raw_max"] = float(residual_max_map.get(key, np.nan))
+                    row["safety_limit"] = float(safety_limit_map.get(key, np.nan))
 
     canonical_preds = final_by_strategy[canonical_strategy][canonical_model]
     submission = test_raw[["ProductId", "DateKey"]].copy()
@@ -1864,6 +2131,10 @@ def main(argv=None) -> None:
     )
     prediction_diagnostics.to_csv(
         os.path.join(cfg.output_dir, "prediction_diagnostics.csv"), index=False
+    )
+    prediction_diagnostics_by_origin.to_csv(
+        os.path.join(cfg.output_dir, "prediction_diagnostics_by_origin.csv"),
+        index=False,
     )
 
     by_horizon_frames = []
@@ -1911,6 +2182,7 @@ def main(argv=None) -> None:
         validation_strata_summary=validation_strata_summary,
         test_aligned_scores=test_aligned_scores,
         prediction_diagnostics=prediction_diagnostics,
+        prediction_diagnostics_by_origin=prediction_diagnostics_by_origin,
     )
     try:
         plot_forecast(train_raw, submission, cfg=cfg)

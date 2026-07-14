@@ -29,7 +29,10 @@ def train_xgboost(train_panel: pd.DataFrame, cfg: Config = CFG):
         tree_method="hist", enable_categorical=True,
         random_state=cfg.seed, verbosity=0,
     )
-    model.fit(X, y)
+    sample_weight = train_panel.get(
+        "sample_weight", pd.Series(1.0, index=train_panel.index)
+    ).to_numpy(dtype=float)
+    model.fit(X, y, sample_weight=sample_weight)
     return model
 
 

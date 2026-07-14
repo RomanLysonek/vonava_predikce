@@ -344,3 +344,139 @@ non-finite or catastrophically large NeuralNet/tree outputs with the recorded
 same-weekday baseline before they can contaminate later lag features. This is
 a numerical stability guard, not the prediction-cap optimization left for
 Tier C3.
+
+## Tier C0.1 recursive stability and Tier C1 nonstationarity
+
+Tier C0 fixed direct-model coverage, but the broader early-history training
+population exposed a finite recursive NeuralNet extrapolation above 100,000
+units. Tier C0.1 contains that failure in two layers:
+
+1. each NN seed stores robust 0.1%/99.9% training residual bounds, widened by
+   one log unit, and applies them **only during recursive inference**;
+2. the generic recursive engine uses a broad last-resort numerical limit of
+   `max(10_000, 50 × observed pre-origin product maximum)` and never lets a
+   generated prediction inflate its own next-step limit.
+
+These are numerical/extrapolation guards, not an ordinary demand cap. Direct
+predictions remain uncapped. Recursive artifacts now expose residual-guard,
+raw-residual, safety-limit, fallback, non-finite and catastrophic-guard
+statistics, including per-origin summaries.
+
+Run the reduced real-data C0.1 check before the C1 screen:
+
+```bash
+caffeinate -i uv run python ml/run_c01_recursive_check.py \
+  --strict \
+  2>&1 | tee pipeline_c01_recursive_check.log
+```
+
+The check trains one seed for four representative recursive folds. It fails
+with a non-zero exit status if predictions are non-finite, exceed the broad
+safety envelope, or remain dominated by an explosion.
+
+### C1 controls
+
+The pipeline now supports four orthogonal nonstationarity controls:
+
+```text
+--training-window-days all|730|365|...
+--recency-half-life-days none|365|180|90|...
+--baseline-variant lag7|weighted_4321|weighted_8421|weekday_median
+--trend-features on|off
+```
+
+History windows filter supervised target rows while leaving earlier history
+available for leakage-safe lag construction. Exponential half-life weights
+are normalised to mean one and are passed consistently to the NN, XGBoost,
+LightGBM and Dynamic Ridge training objectives.
+
+The optional trend group contains:
+
+- absolute target calendar time;
+- 7-day/28-day and 14-day/28-day log-level ratios;
+- latest-demand/28-day log-level ratio;
+- 7-day and 28-day log-demand slopes;
+- a robust annual reference from lags 364/365/371;
+- baseline-versus-annual log ratio and annual-reference missingness.
+
+### Staged C1 screen
+
+Do not launch a full Cartesian search. The dedicated runner evaluates a
+controlled direct-only screen using one seed, 12 epochs, batch 2048/fixed and
+four stratified origins. It executes:
+
+1. recency window/half-life candidates;
+2. baseline variants around the recency winner;
+3. trend features off/on around the preceding winner.
+
+Start a fresh screen with:
+
+```bash
+caffeinate -i uv run python ml/run_c1_screening.py \
+  --reset \
+  2>&1 | tee pipeline_c1_screening.log
+```
+
+If interrupted, preserve completed candidate-fold checkpoints:
+
+```bash
+caffeinate -i uv run python ml/run_c1_screening.py \
+  --resume \
+  2>&1 | tee -a pipeline_c1_screening.log
+```
+
+Outputs:
+
+```text
+outputs/c1_screening/c1_screening_results.csv
+outputs/c1_screening/recommendation.json
+outputs/c1_screening/candidate_oof/*.csv
+outputs/c1_screening/checkpoints/
+```
+
+The recommendation is selected by test-aligned NeuralNet WAPE, subject to a
+3% broad-development WAPE quality guard against the identical-runtime control.
+The screen is a ranking experiment, not a final reported benchmark.
+
+The runner prints two full-confirmation commands. The first intentionally
+resets the old full-pipeline checkpoints; after an interruption, use the
+separate resume command and do **not** reset them again. The confirmation uses
+all direct development and recent-benchmark origins, three seeds, 30 CV epochs
+and the statistically controlled `512/fixed` policy.
+
+A recommendation can also be applied manually:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy direct \
+  --primary-strategy direct \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol test-aligned \
+  --c1-config outputs/c1_screening/recommendation.json \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed \
+  --reset-checkpoints \
+  2>&1 | tee pipeline_c1_direct_512_fixed.log
+```
+
+After an interrupted confirmation run:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy direct \
+  --primary-strategy direct \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol test-aligned \
+  --c1-config outputs/c1_screening/recommendation.json \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed \
+  --resume \
+  2>&1 | tee -a pipeline_c1_direct_512_fixed.log
+```
+
+The final C1 candidate should be compared with the frozen C0 direct baseline
+before C2 feature-group work begins. Recursive strategy robustness is checked
+later for the winning data-aware configuration rather than doubling every C1
+experiment.

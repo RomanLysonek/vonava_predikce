@@ -27,7 +27,10 @@ def train_lightgbm(train_panel: pd.DataFrame, cfg: Config = CFG):
         subsample=0.8, colsample_bytree=0.8, min_child_samples=10,
         random_state=cfg.seed, verbosity=-1,
     )
-    model.fit(X, y)
+    sample_weight = train_panel.get(
+        "sample_weight", pd.Series(1.0, index=train_panel.index)
+    ).to_numpy(dtype=float)
+    model.fit(X, y, sample_weight=sample_weight)
     return model
 
 

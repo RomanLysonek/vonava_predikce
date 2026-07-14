@@ -79,7 +79,10 @@ def train_dynamic_ridge(train_panel: pd.DataFrame, cfg: Config = CFG):
 
     X = _finite_feature_frame(train_panel.loc[mask], cfg)
     y_fit = y[mask]
-    model.fit(X, y_fit)
+    sample_weight = train_panel.loc[mask].get(
+        "sample_weight", pd.Series(1.0, index=train_panel.loc[mask].index)
+    ).to_numpy(dtype=float)
+    model.fit(X, y_fit, ridge__sample_weight=sample_weight)
 
     return model
 

@@ -120,7 +120,9 @@ def build_benchmark_fold(
     train_feat = prepare_features(
         fold_train_raw, price_ref, first_seen, first_available
     )
-    train_feat = add_train_lags(train_feat, cfg.lag_windows)
+    train_feat = add_train_lags(
+        train_feat, cfg.lag_windows, baseline_variant=cfg.baseline_variant
+    )
     eval_feat = prepare_features(
         fold_eval_raw, price_ref, first_seen, first_available
     ).reset_index(drop=True)
@@ -131,7 +133,7 @@ def build_benchmark_fold(
         future_covariates=eval_feat,
     )
     train_panel = select_trainable_panel_rows(
-        panel, cutoff=origin, available_only=True
+        panel, cutoff=origin, available_only=True, cfg=cfg
     )
     eval_panel = panel[panel["OriginDateKey"].eq(origin)].reset_index(drop=True)
 

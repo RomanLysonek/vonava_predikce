@@ -1,0 +1,324 @@
+
+[recency] control: window=all, half_life=none, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1627
+      epoch  10/12 | train loss 0.0980
+      epoch  12/12 | train loss 0.0965
+    [timing] development 2023-01-10: NN 3.1s | trees 7.6s | fold total 11.7s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1590
+      epoch  10/12 | train loss 0.0950
+      epoch  12/12 | train loss 0.0938
+    [timing] development 2024-06-20: NN 4.1s | trees 8.9s | fold total 14.7s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1513
+      epoch  10/12 | train loss 0.0911
+      epoch  12/12 | train loss 0.0900
+    [timing] development 2024-11-29: NN 4.8s | trees 9.5s | fold total 16.3s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1514
+      epoch  10/12 | train loss 0.0919
+      epoch  12/12 | train loss 0.0902
+    [timing] development 2025-02-10: NN 5.1s | trees 9.8s | fold total 17.0s
+Traceback (most recent call last):
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/.venv/lib/python3.14/site-packages/pandas/core/indexes/base.py", line 3641, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 168, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 197, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7668, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7676, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'Coverage'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/ml/run_c1_screening.py", line 354, in <module>
+    main()
+    ~~~~^^
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/ml/run_c1_screening.py", line 248, in main
+    evaluate(label, "recency", {
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+        "training_window_days": window,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        "enable_trend_features": False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    })
+    ^^
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/ml/run_c1_screening.py", line 225, in evaluate
+    rows = _extract_model_rows(label, stage, config, oof, elapsed)
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/ml/run_c1_screening.py", line 127, in _extract_model_rows
+    "Coverage": float(row["Coverage"]),
+                      ~~~^^^^^^^^^^^^
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/.venv/lib/python3.14/site-packages/pandas/core/series.py", line 959, in __getitem__
+    return self._get_value(key)
+           ~~~~~~~~~~~~~~~^^^^^
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/.venv/lib/python3.14/site-packages/pandas/core/series.py", line 1046, in _get_value
+    loc = self.index.get_loc(label)
+  File "/Users/A94001132/PycharmProjects/vonava_predikce/.venv/lib/python3.14/site-packages/pandas/core/indexes/base.py", line 3648, in get_loc
+    raise KeyError(key) from err
+KeyError: 'Coverage'
+
+[recency] control: window=all, half_life=none, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: loaded completed direct fold checkpoint
+  [development] origin 2024-06-20: loaded completed direct fold checkpoint
+  [development] origin 2024-11-29: loaded completed direct fold checkpoint
+  [development] origin 2025-02-10: loaded completed direct fold checkpoint
+
+[recency] half365: window=all, half_life=365.0, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1563
+      epoch  10/12 | train loss 0.0917
+      epoch  12/12 | train loss 0.0903
+    [timing] development 2023-01-10: NN 2.9s | trees 7.1s | fold total 10.9s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1553
+      epoch  10/12 | train loss 0.0862
+      epoch  12/12 | train loss 0.0852
+    [timing] development 2024-06-20: NN 3.8s | trees 9.1s | fold total 14.7s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1378
+      epoch  10/12 | train loss 0.0778
+      epoch  12/12 | train loss 0.0769
+    [timing] development 2024-11-29: NN 4.7s | trees 9.8s | fold total 16.6s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1406
+      epoch  10/12 | train loss 0.0801
+      epoch  12/12 | train loss 0.0784
+    [timing] development 2025-02-10: NN 4.7s | trees 10.2s | fold total 17.0s
+
+[recency] half180: window=all, half_life=180.0, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1532
+      epoch  10/12 | train loss 0.0859
+      epoch  12/12 | train loss 0.0842
+    [timing] development 2023-01-10: NN 2.2s | trees 7.2s | fold total 10.4s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1527
+      epoch  10/12 | train loss 0.0781
+      epoch  12/12 | train loss 0.0770
+    [timing] development 2024-06-20: NN 4.5s | trees 10.3s | fold total 16.6s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1251
+      epoch  10/12 | train loss 0.0662
+      epoch  12/12 | train loss 0.0650
+    [timing] development 2024-11-29: NN 5.7s | trees 9.9s | fold total 17.7s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1330
+      epoch  10/12 | train loss 0.0700
+      epoch  12/12 | train loss 0.0680
+    [timing] development 2025-02-10: NN 5.4s | trees 10.6s | fold total 18.2s
+
+[recency] half90: window=all, half_life=90.0, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1556
+      epoch  10/12 | train loss 0.0776
+      epoch  12/12 | train loss 0.0755
+    [timing] development 2023-01-10: NN 2.4s | trees 7.5s | fold total 11.0s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1469
+      epoch  10/12 | train loss 0.0667
+      epoch  12/12 | train loss 0.0651
+    [timing] development 2024-06-20: NN 4.3s | trees 9.0s | fold total 15.2s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1066
+      epoch  10/12 | train loss 0.0515
+      epoch  12/12 | train loss 0.0499
+    [timing] development 2024-11-29: NN 4.6s | trees 9.7s | fold total 16.5s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1252
+      epoch  10/12 | train loss 0.0586
+      epoch  12/12 | train loss 0.0561
+    [timing] development 2025-02-10: NN 5.2s | trees 10.1s | fold total 17.3s
+
+[recency] window730: window=730, half_life=none, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1618
+      epoch  10/12 | train loss 0.1010
+      epoch  12/12 | train loss 0.0998
+    [timing] development 2023-01-10: NN 2.5s | trees 7.3s | fold total 10.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1615
+      epoch  10/12 | train loss 0.0899
+      epoch  12/12 | train loss 0.0885
+    [timing] development 2024-06-20: NN 2.7s | trees 7.6s | fold total 11.7s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1568
+      epoch  10/12 | train loss 0.0848
+      epoch  12/12 | train loss 0.0840
+    [timing] development 2024-11-29: NN 3.0s | trees 7.8s | fold total 12.4s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1543
+      epoch  10/12 | train loss 0.0835
+      epoch  12/12 | train loss 0.0820
+    [timing] development 2025-02-10: NN 2.8s | trees 13.0s | fold total 17.4s
+
+[recency] window730_half180: window=730, half_life=180.0, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1530
+      epoch  10/12 | train loss 0.0888
+      epoch  12/12 | train loss 0.0878
+    [timing] development 2023-01-10: NN 2.2s | trees 7.3s | fold total 10.4s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1583
+      epoch  10/12 | train loss 0.0829
+      epoch  12/12 | train loss 0.0816
+    [timing] development 2024-06-20: NN 2.7s | trees 7.9s | fold total 12.0s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1312
+      epoch  10/12 | train loss 0.0701
+      epoch  12/12 | train loss 0.0690
+    [timing] development 2024-11-29: NN 2.5s | trees 7.7s | fold total 11.8s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1387
+      epoch  10/12 | train loss 0.0735
+      epoch  12/12 | train loss 0.0720
+    [timing] development 2025-02-10: NN 2.6s | trees 7.6s | fold total 11.8s
+
+[recency] window365: window=365, half_life=none, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1424
+      epoch  10/12 | train loss 0.0787
+      epoch  12/12 | train loss 0.0780
+    [timing] development 2023-01-10: NN 1.4s | trees 6.1s | fold total 8.3s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1819
+      epoch  10/12 | train loss 0.0896
+      epoch  12/12 | train loss 0.0880
+    [timing] development 2024-06-20: NN 1.6s | trees 6.4s | fold total 9.1s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1502
+      epoch  10/12 | train loss 0.0726
+      epoch  12/12 | train loss 0.0719
+    [timing] development 2024-11-29: NN 1.5s | trees 6.3s | fold total 9.1s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1547
+      epoch  10/12 | train loss 0.0770
+      epoch  12/12 | train loss 0.0759
+    [timing] development 2025-02-10: NN 1.5s | trees 6.3s | fold total 9.2s
+
+[recency] window365_half180: window=365, half_life=180.0, baseline=weighted_4321, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1564
+      epoch  10/12 | train loss 0.0808
+      epoch  12/12 | train loss 0.0798
+    [timing] development 2023-01-10: NN 1.1s | trees 6.1s | fold total 8.0s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1755
+      epoch  10/12 | train loss 0.0852
+      epoch  12/12 | train loss 0.0836
+    [timing] development 2024-06-20: NN 1.3s | trees 6.3s | fold total 8.8s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1347
+      epoch  10/12 | train loss 0.0661
+      epoch  12/12 | train loss 0.0654
+    [timing] development 2024-11-29: NN 1.3s | trees 6.3s | fold total 9.0s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1521
+      epoch  10/12 | train loss 0.0750
+      epoch  12/12 | train loss 0.0740
+    [timing] development 2025-02-10: NN 1.3s | trees 6.4s | fold total 9.0s
+
+Recency winner: half365
+
+[baseline] baseline_lag7: window=all, half_life=365.0, baseline=lag7, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1756
+      epoch  10/12 | train loss 0.0980
+      epoch  12/12 | train loss 0.0963
+    [timing] development 2023-01-10: NN 2.0s | trees 7.1s | fold total 10.1s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1681
+      epoch  10/12 | train loss 0.0932
+      epoch  12/12 | train loss 0.0916
+    [timing] development 2024-06-20: NN 3.8s | trees 8.9s | fold total 14.4s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1496
+      epoch  10/12 | train loss 0.0839
+      epoch  12/12 | train loss 0.0828
+    [timing] development 2024-11-29: NN 4.4s | trees 9.5s | fold total 15.9s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1534
+      epoch  10/12 | train loss 0.0864
+      epoch  12/12 | train loss 0.0846
+    [timing] development 2025-02-10: NN 4.7s | trees 9.9s | fold total 16.7s
+
+[baseline] baseline_weekday_median: window=all, half_life=365.0, baseline=weekday_median, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1611
+      epoch  10/12 | train loss 0.0938
+      epoch  12/12 | train loss 0.0924
+    [timing] development 2023-01-10: NN 2.1s | trees 7.0s | fold total 10.1s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1645
+      epoch  10/12 | train loss 0.0892
+      epoch  12/12 | train loss 0.0881
+    [timing] development 2024-06-20: NN 3.8s | trees 9.0s | fold total 14.5s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1458
+      epoch  10/12 | train loss 0.0798
+      epoch  12/12 | train loss 0.0786
+    [timing] development 2024-11-29: NN 4.4s | trees 9.5s | fold total 15.9s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1480
+      epoch  10/12 | train loss 0.0816
+      epoch  12/12 | train loss 0.0799
+    [timing] development 2025-02-10: NN 4.6s | trees 9.9s | fold total 16.6s
+[baseline] baseline_weighted_4321: reused identical candidate
+
+[baseline] baseline_weighted_8421: window=all, half_life=365.0, baseline=weighted_8421, trend=False
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1576
+      epoch  10/12 | train loss 0.0924
+      epoch  12/12 | train loss 0.0906
+    [timing] development 2023-01-10: NN 2.1s | trees 7.1s | fold total 10.1s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1561
+      epoch  10/12 | train loss 0.0865
+      epoch  12/12 | train loss 0.0857
+    [timing] development 2024-06-20: NN 3.8s | trees 9.3s | fold total 14.8s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1386
+      epoch  10/12 | train loss 0.0780
+      epoch  12/12 | train loss 0.0770
+    [timing] development 2024-11-29: NN 4.4s | trees 9.4s | fold total 15.8s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1415
+      epoch  10/12 | train loss 0.0805
+      epoch  12/12 | train loss 0.0788
+    [timing] development 2025-02-10: NN 4.6s | trees 9.9s | fold total 16.7s
+Baseline winner: baseline_weighted_4321
+[trend] trend_off: reused identical candidate
+
+[trend] trend_on: window=all, half_life=365.0, baseline=weighted_4321, trend=True
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/12 | train loss 0.1486
+      epoch  10/12 | train loss 0.0892
+      epoch  12/12 | train loss 0.0878
+    [timing] development 2023-01-10: NN 2.1s | trees 7.4s | fold total 10.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/12 | train loss 0.1461
+      epoch  10/12 | train loss 0.0844
+      epoch  12/12 | train loss 0.0829
+    [timing] development 2024-06-20: NN 3.9s | trees 9.7s | fold total 15.8s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/12 | train loss 0.1296
+      epoch  10/12 | train loss 0.0755
+      epoch  12/12 | train loss 0.0742
+    [timing] development 2024-11-29: NN 4.5s | trees 10.3s | fold total 17.4s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/12 | train loss 0.1332
+      epoch  10/12 | train loss 0.0771
+      epoch  12/12 | train loss 0.0761
+    [timing] development 2025-02-10: NN 4.7s | trees 10.6s | fold total 18.1s
+Trend winner: trend_off
+
+Saved: outputs/c1_screening/c1_screening_results.csv
+Saved: outputs/c1_screening/recommendation.json
+
+Full confirmation command:
+caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --c1-config outputs/c1_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --reset-checkpoints 2>&1 | tee pipeline_c1_direct_512_fixed.log
+
+Resume command after interruption:
+caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --c1-config outputs/c1_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --resume 2>&1 | tee -a pipeline_c1_direct_512_fixed.log

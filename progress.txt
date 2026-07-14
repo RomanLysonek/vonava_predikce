@@ -161,13 +161,36 @@ STATUS
     - fallback/nonfinite/catastrophic/extreme-prediction diagnostics
     - FINAL_AUDIT_ORIGINS frozen and excluded from normal pipeline execution
     - 65 fast tests green in implementation environment
-[ ] C0 full real-data regression run and artifact regeneration
+[x] C0 full real-data regression run and artifact regeneration
+    - direct NN coverage reached 100%; direct NN/XGBoost/LightGBM improved
+    - recursive NN exposed a finite 105k feedback extrapolation, leading to C0.1
 
-[ ] C1 nonstationarity and recency ablations
+[x] C0.1 recursive stability implementation
+    - per-seed robust training-residual support bounds, recursive-only
+    - broad generic safety guard tightened to max(10k, 50x observed scale)
+    - safety scale frozen from observed pre-origin history, so generated rows
+      cannot inflate their own future limit
+    - residual-guard/raw-residual/safety-limit diagnostics by split and origin
+    - reduced real-data regression runner: ml/run_c01_recursive_check.py
+    - synthetic regression tests cover 100k finite extrapolation, legitimate
+      600-unit retail scale, non-finite seed residuals, and non-self-inflating
+      safety limits
+[ ] C0.1 reduced real-data regression check on the user's Mac
+
+[x] C1 nonstationarity/recency implementation and staged experiment runner
     - training window: all / 730d / 365d
-    - half-life: none / 365d / 180d / 90d
-    - same-weekday baseline variants
-    - recent-to-year ratios, rolling slopes and trend features
+    - half-life: none / 365d / 180d / 90d, mean-one sample weights
+    - weighted training wired into NN/XGBoost/LightGBM/Dynamic Ridge
+    - same-weekday baselines: lag7 / 4:3:2:1 / 8:4:2:1 / weekday median
+    - trend group: calendar time, recent/long ratios, 7/28-day log slopes,
+      annual reference and baseline/annual ratio
+    - pipeline-consumable --c1-config plus explicit CLI overrides
+    - direct-first staged screen: ml/run_c1_screening.py
+    - candidate OOF, fold checkpoints, recommendation and separate fresh/resume
+      confirmation commands exported
+    - 78 fast tests green; synthetic recursive-NN and weighted/trend direct-NN
+      end-to-end smokes green in the implementation environment
+[ ] C1 screen + full 512/fixed direct confirmation on the user's Mac
 
 [ ] C2 semantic feature-group ablations
     - relative/channel-specific effective-price and price-change features

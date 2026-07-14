@@ -1,0 +1,27 @@
+Using CPython 3.14.2
+Creating virtual environment at: .venv
+Installed 78 packages in 444ms
+
+C0.1 recursive check: 2023-07-01
+      epoch   1/10 | train loss 0.1920
+      epoch  10/10 | train loss 0.1124
+
+C0.1 recursive check: 2024-06-20
+      epoch   1/10 | train loss 0.1855
+      epoch  10/10 | train loss 0.1072
+
+C0.1 recursive check: 2024-11-29
+      epoch   1/10 | train loss 0.1734
+      epoch  10/10 | train loss 0.1009
+
+C0.1 recursive check: 2025-02-10
+      epoch   1/10 | train loss 0.1740
+      epoch  10/10 | train loss 0.1008
+
+    origin   n     WAPE  prediction_max  observed_max  prediction_to_observed_max_ratio  residual_guard_count  residual_nonfinite_count  catastrophic_guard_count  fallback_count  residual_raw_min  residual_raw_max  passed
+2023-07-01 210 0.546863      137.134804          84.0                          1.632557                     0                         0                         0               0         -1.037397          2.378785    True
+2024-06-20 210 0.271090      126.324962         152.0                          0.831085                     0                         0                         0               0         -0.766362          1.117047    True
+2024-11-29 210 0.365384      279.493783         361.0                          0.774221                     0                         0                         0               0         -0.714204          1.286452    True
+2025-02-10 209 0.317141      156.457017         131.0                          1.194328                     0                         0                         0               0         -1.850682          1.109076    True
+
+Overall pass: True
