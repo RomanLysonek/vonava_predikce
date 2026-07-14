@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import pandas as pd
 
@@ -114,6 +115,10 @@ def test_strategy_summary_and_selection_are_strategy_aware():
     oof = pd.DataFrame(rows)
     summary = summarize_oof_by_strategy(oof)
     assert set(summary["strategy"]) == {"direct", "recursive"}
+    assert not (
+        summary["strategy"].eq("recursive")
+        & summary["model"].eq("DynamicRidge")
+    ).any()
     assert select_primary_strategy(summary, model="NeuralNet", metric="WAPE") == "direct"
     paired = summarize_strategy_pairs(oof)
     winner = paired[(paired["model"] == "NeuralNet") & (paired["metric"] == "WAPE")]["winner"].iloc[0]
@@ -149,10 +154,10 @@ def test_recursive_catastrophic_prediction_uses_recorded_baseline_fallback():
     assert (path["prediction"] < cfg.recursive_safety_floor).all()
 
 
-def test_recursive_dynamic_ridge_worker_path_is_finite_on_synthetic_history():
+def test_recursive_dynamic_ridge_is_explicitly_unsupported():
     from dataclasses import asdict
 
-    from ml.framework import direct_panel_feature_names
+    from ml.framework import select_trainable_panel_rows
     from ml.tree_worker import run_job
 
     cfg = Config(num_products=2, horizon=3)
@@ -162,22 +167,18 @@ def test_recursive_dynamic_ridge_worker_path_is_finite_on_synthetic_history():
     price_ref = history.groupby("ProductId")["PriceLocalVat"].median()
     first_seen = history.groupby("ProductId")["DateKey"].min()
     panel = build_one_step_panel(history, price_ref, first_seen, cfg)
-    train_panel = panel[
-        panel["TargetDateKey"].le(history["DateKey"].max())
-        & panel["TargetProductAvailable"].fillna(False)
-    ].dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True)
+    train_panel = select_trainable_panel_rows(
+        panel, cutoff=history["DateKey"].max(), available_only=True
+    )
 
-    result = run_job({
-        "cfg": asdict(cfg),
-        "strategy": "recursive",
-        "models": ["DynamicRidge"],
-        "train_panel": train_panel,
-        "history_raw": history,
-        "future_covariates": sanitize_future_covariates(future),
-        "price_ref": price_ref,
-        "first_seen": first_seen,
-    })
-    path = pd.DataFrame(result["DynamicRidge"])
-    assert len(path) == cfg.num_products * cfg.horizon
-    assert np.isfinite(path["prediction"]).all()
-    assert (path["prediction"] >= 0.0).all()
+    with pytest.raises(ValueError, match="does not support recursive"):
+        run_job({
+            "cfg": asdict(cfg),
+            "strategy": "recursive",
+            "models": ["DynamicRidge"],
+            "train_panel": train_panel,
+            "history_raw": history,
+            "future_covariates": sanitize_future_covariates(future),
+            "price_ref": price_ref,
+            "first_seen": first_seen,
+        })

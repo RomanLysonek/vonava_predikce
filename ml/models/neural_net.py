@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -37,6 +39,27 @@ DEVICE = torch.device("mps" if torch.backends.mps.is_available() else
 def numeric_feature_columns(cfg: Config = CFG) -> list[str]:
     """Direct-panel numeric columns excluding embedded ``horizon``."""
     return [c for c in direct_panel_feature_names(cfg) if c != "horizon"]
+
+
+def make_numeric_preprocessor() -> Pipeline:
+    """Training-fitted numeric imputation plus missingness indicators.
+
+    Annual seasonal lags are legitimately unavailable for young products and
+    early history.  Keeping those rows is preferable to silently deleting
+    them; the fitted median and indicator columns make the missing state
+    explicit while preserving train/eval consistency.
+    """
+    return Pipeline([
+        (
+            "imputer",
+            SimpleImputer(
+                strategy="median",
+                add_indicator=True,
+                keep_empty_features=True,
+            ),
+        ),
+        ("scaler", StandardScaler()),
+    ])
 
 
 class QuantityNet(nn.Module):
@@ -78,12 +101,16 @@ class QuantityNet(nn.Module):
 
 def make_tensors(
     df: pd.DataFrame,
-    scaler: StandardScaler,
+    scaler,
     fit: bool,
     cfg: Config = CFG,
 ) -> dict[str, torch.Tensor]:
-    num = df[numeric_feature_columns(cfg)].to_numpy(dtype=np.float32)
+    num = df[numeric_feature_columns(cfg)].replace(
+        [np.inf, -np.inf], np.nan
+    ).to_numpy(dtype=np.float32)
     num = scaler.fit_transform(num) if fit else scaler.transform(num)
+    if not np.isfinite(num).all():
+        raise ValueError("Numeric preprocessing produced non-finite NN inputs")
     return {
         "num": torch.tensor(num, dtype=torch.float32),
         "prod": torch.tensor(df["product_idx"].to_numpy(dtype=np.int64)),
@@ -120,6 +147,7 @@ def nn_performance_signature(cfg: Config) -> dict:
         "reference_batch_size": cfg.reference_batch_size,
         "loss": "HuberLoss(delta=1.0)",
         "target": "baseline_relative_log1p_residual",
+        "numeric_preprocessing": "median_impute+missing_indicator+standardize",
     }
 
 
@@ -302,7 +330,7 @@ def train_model(
     elif DEVICE.type == "cuda":
         torch.cuda.manual_seed_all(seed)
 
-    model = QuantityNet(len(numeric_feature_columns(cfg)), cfg).to(DEVICE)
+    model = QuantityNet(int(tensors["num"].shape[1]), cfg).to(DEVICE)
     learning_rate = effective_learning_rate(cfg)
     opt = torch.optim.AdamW(
         model.parameters(), lr=learning_rate, weight_decay=cfg.weight_decay
@@ -338,7 +366,7 @@ def train_model(
                 torch.cuda.empty_cache()
             torch.manual_seed(seed)
             np.random.seed(seed)
-            model = QuantityNet(len(numeric_feature_columns(cfg)), cfg).to(DEVICE)
+            model = QuantityNet(int(tensors["num"].shape[1]), cfg).to(DEVICE)
             opt = torch.optim.AdamW(
                 model.parameters(), lr=learning_rate, weight_decay=cfg.weight_decay
             )
@@ -397,7 +425,7 @@ def predict_ensemble(models: list, tensors: dict) -> np.ndarray:
 
 def predict_direct(
     models: list,
-    scaler: StandardScaler,
+    scaler,
     panel: pd.DataFrame,
     cfg: Config = CFG,
 ) -> np.ndarray:

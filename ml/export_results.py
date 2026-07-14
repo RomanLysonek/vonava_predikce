@@ -44,6 +44,18 @@ def main() -> None:
     strategy_by_horizon = (
         pd.read_csv(horizon_path) if os.path.exists(horizon_path) else pd.DataFrame()
     )
+    strata_path = os.path.join(out, "validation_strata_summary.csv")
+    validation_strata_summary = (
+        pd.read_csv(strata_path) if os.path.exists(strata_path) else pd.DataFrame()
+    )
+    scores_path = os.path.join(out, "test_aligned_scores.csv")
+    test_aligned_scores = (
+        pd.read_csv(scores_path) if os.path.exists(scores_path) else pd.DataFrame()
+    )
+    diagnostics_path = os.path.join(out, "prediction_diagnostics.csv")
+    prediction_diagnostics = (
+        pd.read_csv(diagnostics_path) if os.path.exists(diagnostics_path) else pd.DataFrame()
+    )
 
     existing_path = os.path.join(out, "results.json")
     existing = {}
@@ -72,6 +84,7 @@ def main() -> None:
         primary_strategy=PrimaryStrategy(canonical_strategy if canonical_strategy in {"direct", "recursive"} else "auto"),
         submission_model=SubmissionModel(submission_model),
         selection_metric=config.get("selection_metric", "WAPE"),
+        selection_protocol=config.get("selection_protocol", "global"),
         nn_batch_size=str(CFG.batch_size),
         nn_lr_scaling=CFG.nn_lr_scaling,
         nn_training_backend=CFG.nn_training_backend,
@@ -109,6 +122,9 @@ def main() -> None:
         strategy_comparison=pair_summary, canonical_strategy=canonical_strategy,
         canonical_model=canonical_model, cv_results_all=cv_results_all,
         strategy_by_horizon=strategy_by_horizon,
+        validation_strata_summary=validation_strata_summary,
+        test_aligned_scores=test_aligned_scores,
+        prediction_diagnostics=prediction_diagnostics,
     )
 
 

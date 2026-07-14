@@ -8,7 +8,7 @@ from __future__ import annotations
 import pickle
 import sys
 
-from framework import Config, forecast_recursive
+from framework import Config, forecast_recursive, model_supports_strategy
 from models.dynamic_ridge import predict_dynamic_ridge, train_dynamic_ridge
 from models.lightgbm_model import predict_lightgbm, train_lightgbm
 from models.xgboost_model import predict_xgboost, train_xgboost
@@ -31,23 +31,23 @@ def run_job(job: dict) -> dict:
     train_panel = job["train_panel"]
     results = {}
     for name in job.get("models", list(TRAINERS)):
+        if not model_supports_strategy(name, strategy):
+            raise ValueError(f"{name} does not support {strategy} forecasting")
         model = TRAINERS[name](train_panel, cfg)
         if strategy == "direct":
             preds = PREDICTORS[name](model, job["eval_panel"], cfg)
             results[name] = preds.tolist()
         elif strategy == "recursive":
-            def predict_recursive_step(panel, *, model=model, name=name):
-                if name == "DynamicRidge":
-                    return predict_dynamic_ridge(model, panel, cfg, recursive=True)
-                return PREDICTORS[name](model, panel, cfg)
-
             recursive = forecast_recursive(
                 history_raw=job["history_raw"].copy(),
                 future_covariates=job["future_covariates"],
-                predict_step=predict_recursive_step,
+                predict_step=lambda panel, model=model, name=name: PREDICTORS[name](
+                    model, panel, cfg
+                ),
                 price_ref=job["price_ref"],
                 first_seen=job["first_seen"],
                 cfg=cfg,
+                first_available=job.get("first_available"),
             )
             results[name] = recursive.to_dict(orient="list")
         else:

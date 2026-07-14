@@ -279,25 +279,6 @@ def test_skill_calculation_with_primary_summary():
     assert skill == pytest.approx(0.2)
 
 
-def test_dynamic_ridge_recursive_prediction_clips_to_training_residual_support():
-    """Recursive Ridge cannot extrapolate beyond fitted residual support."""
-    class ExplosiveModel:
-        residual_bounds_ = (-1.0, 1.0)
-
-        def predict(self, panel):
-            return np.full(len(panel), 1_000.0)
-
-    cfg = Config()
-    panel = pd.DataFrame({"target_baseline": [10.0, 20.0]})
-    preds = predict_dynamic_ridge(
-        ExplosiveModel(), panel, cfg, recursive=True
-    )
-
-    expected = np.expm1(1.0 + np.log1p(panel["target_baseline"].to_numpy()))
-    np.testing.assert_allclose(preds, expected)
-    assert np.isfinite(preds).all()
-
-
 def test_dynamic_ridge_converts_infinite_numeric_features_to_missing():
     cfg = Config()
     df = pd.DataFrame({
@@ -315,5 +296,5 @@ def test_dynamic_ridge_converts_infinite_numeric_features_to_missing():
 
     test_df = df.iloc[[0]].copy()
     test_df["qty_lag_0"] = np.inf
-    preds = predict_dynamic_ridge(model, test_df, cfg, recursive=True)
+    preds = predict_dynamic_ridge(model, test_df, cfg)
     assert np.isfinite(preds).all()

@@ -184,7 +184,7 @@ async function main() {
     const productSelect = document.getElementById("product-select");
     const firstProduct = populateProductSelector(data);
 
-    configureStrategySelect(data, strategySelect, refresh);
+    configureStrategySelect(data, strategySelect, refresh, model.key);
     regimeSelect.value = data.config?.primary_evaluation_regime || "conditional";
 
     function refresh() {

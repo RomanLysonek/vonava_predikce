@@ -147,15 +147,55 @@ STATUS
         [CLEANUP] Duplicate unbounded tests removed; build_direct_panel
         hardening (horizon check); holdout renamed to benchmark.
 
-[ ] C1 recency weighting ablation grid (window x half-life)
-[ ] C2 NN loss function ablation (Huber-residual / MSE-residual / combined)
-[ ] C3 prediction-cap ablation (measure affected count, capped vs uncapped OOF)
-[ ] C4 OOF-fitted ensemble weight search (dev-fit, holdout-checked once)
-[ ] C5 dashboard depth: strategy selector and horizon curves are complete;
-        per-product error/bias, top-decile days, and the ablation showcase
-        remain for Tier C
-[ ] C6 stretch: dual web/app heads + effective price, holiday distance
-        features, static results.json for GitHub Pages portability
+[x] C0 source implementation: data-alignment and evaluation gate
+    - calendar gaps, observed unavailability and valid observations now have
+      separate rolling counts/rates; stockout_rate is an unavailable-rate alias
+    - first-row and first-confirmed-available lifecycle clocks are separate
+    - annual lags 364/365/371 are imputed for NN training with explicit
+      missingness indicators; complete-case feature dropping removed
+    - target_baseline has an explicit missing flag and origin-history fallback
+    - recursive Dynamic Ridge is marked unsupported/direct-only
+    - validation strata: winter_test_like / regular / holiday_event
+    - optional --selection-protocol test-aligned with frozen stratum weights
+    - development + recent-benchmark horizon summaries
+    - fallback/nonfinite/catastrophic/extreme-prediction diagnostics
+    - FINAL_AUDIT_ORIGINS frozen and excluded from normal pipeline execution
+    - 65 fast tests green in implementation environment
+[ ] C0 full real-data regression run and artifact regeneration
+
+[ ] C1 nonstationarity and recency ablations
+    - training window: all / 730d / 365d
+    - half-life: none / 365d / 180d / 90d
+    - same-weekday baseline variants
+    - recent-to-year ratios, rolling slopes and trend features
+
+[ ] C2 semantic feature-group ablations
+    - relative/channel-specific effective-price and price-change features
+    - app-only campaign, campaign mismatch and discount-without-campaign flags
+    - lifecycle/gap/unavailability groups (C0 primitives now available)
+    - market-level common-demand and campaign-intensity features
+    - holiday and retail-event distance features
+
+[ ] C3 objective and target-formulation ablations
+    - NN: Huber residual / MSE residual / combined / Log-Cosh
+    - trees: log1p / residual target / Tweedie
+    - prediction caps remain diagnostic only and event-stratified
+
+[ ] C4 channel-aware multitask model
+    - shared total-demand residual + auxiliary app-share heads
+    - upgrade recursive synthetic channel history before channel-history inputs
+
+[ ] C5 OOF-fitted ensemble weights
+    - development OOF only, nonnegative, sum-to-one
+    - common paired keys and test-aligned fold weights
+    - recent benchmark confirmation only; final audit checked once
+
+[ ] C6 dashboard depth and delivery
+    - strategy selector and horizon curves complete
+    - per-product error/bias, regime diagnostics, top-decile views
+    - channel-share diagnostics and ablation showcase
+    - static results.json / GitHub Pages portability
+
 
 Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;
 post strategy work both direct and recursive engines are supported):
@@ -180,7 +220,7 @@ post strategy work both direct and recursive engines are supported):
     - common end-of-origin feature cutoff with qty_lag_0 and inclusive rolling state
     - genuine one-step recursive training panel and recursive feedback engine
     - recursive NeuralNet three-seed ensemble
-    - recursive XGBoost, LightGBM, and Dynamic Ridge in isolated worker
+    - recursive XGBoost and LightGBM in isolated worker; Dynamic Ridge direct-only
     - strategy-aware B4 summaries and paired direct-vs-recursive diagnostics
     - development-only strategy selection
     - strategy-specific submissions and final_forecasts.parquet

@@ -1,41 +1,18 @@
-"""
-Notino Quantity Prediction - Interview Assignment
-====================================================
-Forecast total Quantity (QuantityApp + QuantityWeb) for 30 products over the
-7 days following the training window. Approach: PyTorch feed-forward network
-with product & campaign embeddings (non-tree-based, per the task brief),
-benchmarked against XGBoost/LightGBM and two naive baselines.
+"""Notino quantity forecasting pipeline.
 
-Pipeline
---------
-1. Load train/test parquet files.
-2. Engineer calendar, campaign and price features shared by train/test.
-3. Compute per-product rolling lag statistics on the chronological series.
-4. Walk-forward (rolling-origin) cross-validation over several historical
-   7-day windows, benchmarked against XGBoost, LightGBM (the "standard"
-   approach the task brief contrasts against) and two naive baselines
-   (seasonal-naive, moving-average), to get an honest, leakage-free
-   comparison. XGBoost/LightGBM run in a separate subprocess -- see
-   `tree_worker.py` for why.
-5. Train the final ensemble (multiple seeds) on all available history.
-6. Predict all 7 test days directly, in a single pass, from the stacked
-   (ForecastOrigin x Horizon x ProductId) panel built by
-   `framework.build_direct_panel` -- every horizon's inputs (origin-relative
-   rolling lags, target-relative seasonal lags) are already lookups into
-   observed data, never a value that would first need to be predicted, so
-   there's no recursive feedback loop and no risk of the old one-shot
-   shortcut (freezing lags at the last known value) making every day of
-   the 7-day horizon look identical to the model.
-7. Write submission.csv / submission.parquet (+ cv_results.csv, a plot).
+The orchestrator supports separately trained direct and recursive strategies,
+walk-forward development/recent-benchmark evaluation, conditional-demand and
+realized-sales reporting, model/strategy selection from development OOF, final
+forecast generation, checkpoint recovery, and dashboard artifact export.
 
-Run:   uv run python ml/pipeline.py   (run from the repo root)
-Tests: uv run pytest tests/
+Run from the repository root, for example::
 
-This file is the CV/training/export orchestrator. Each model's own
-train/predict definition lives under `models/` (`models/neural_net.py`,
-`models/xgboost_model.py`, `models/lightgbm_model.py`,
-`models/naive_baselines.py`); shared feature engineering, the direct
-multi-horizon panel builder and metrics live in `framework.py`.
+    uv run python ml/pipeline.py --forecast-strategy both --resume
+
+Model implementations live under ``ml/models``. Shared feature engineering,
+direct/one-step panels, recursive state transitions, model metadata, and
+metrics live in ``ml/framework.py``. Native XGBoost/LightGBM execution remains
+isolated from PyTorch in ``ml/tree_worker.py`` on macOS.
 """
 
 from __future__ import annotations
@@ -58,13 +35,13 @@ warnings.filterwarnings("ignore")
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 
 from framework import (
     CFG,
     MODEL_META,
     MODEL_ORDER,
     MODEL_SLUGS,
+    MODEL_STRATEGY_SUPPORT,
     Config,
     add_train_lags,
     build_direct_panel,
@@ -75,13 +52,18 @@ from framework import (
     compute_metrics,
     direct_panel_feature_names,
     load_raw,
+    model_supports_strategy,
     order_models,
+    prediction_columns_for_strategy,
     prepare_features,
+    product_reference_dates,
+    select_trainable_panel_rows,
 )
 from models.naive_baselines import moving_average_predict, seasonal_naive_predict
 from models.neural_net import (
-    DEVICE, effective_learning_rate, make_tensors, nn_performance_signature,
-    predict_direct, residual_log1p_target, resolve_training_backend, train_model,
+    DEVICE, effective_learning_rate, make_numeric_preprocessor, make_tensors,
+    nn_performance_signature, predict_direct, residual_log1p_target,
+    resolve_training_backend, train_model,
 )
 
 np.random.seed(CFG.seed)
@@ -114,6 +96,7 @@ class RuntimeOptions:
     primary_strategy: PrimaryStrategy = PrimaryStrategy.AUTO
     submission_model: SubmissionModel = SubmissionModel.NEURAL_NET
     selection_metric: str = "WAPE"
+    selection_protocol: str = "global"
     resume: bool = False
     reset_checkpoints: bool = False
     checkpoint_dir: str = "outputs/checkpoints"
@@ -135,6 +118,13 @@ def parse_args(argv=None) -> RuntimeOptions:
     parser.add_argument("--primary-strategy", choices=[s.value for s in PrimaryStrategy], default="auto")
     parser.add_argument("--submission-model", choices=[s.value for s in SubmissionModel], default="NeuralNet")
     parser.add_argument("--selection-metric", choices=["WAPE", "MAE", "RMSE"], default="WAPE")
+    parser.add_argument(
+        "--selection-protocol",
+        choices=["global", "test-aligned"],
+        default="global",
+        help=("Global uses the original conditional/common development metric; "
+              "test-aligned uses weighted winter/regular/event strata."),
+    )
     parser.add_argument(
         "--resume", action="store_true",
         help="Reuse completed per-fold CV checkpoints from an interrupted run",
@@ -181,6 +171,7 @@ def parse_args(argv=None) -> RuntimeOptions:
         primary_strategy=PrimaryStrategy(args.primary_strategy),
         submission_model=SubmissionModel(args.submission_model),
         selection_metric=args.selection_metric,
+        selection_protocol=args.selection_protocol,
         resume=args.resume,
         reset_checkpoints=args.reset_checkpoints,
         checkpoint_dir=args.checkpoint_dir,
@@ -260,7 +251,7 @@ def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
-CHECKPOINT_SCHEMA_VERSION = "direct-recursive-v3-ridge-stability"
+CHECKPOINT_SCHEMA_VERSION = "c0-data-alignment-v1"
 
 
 def _fold_checkpoint_path(
@@ -291,33 +282,8 @@ def _fold_checkpoint_signature(
 
 
 def _checkpoint_signature_compatible(actual: dict, expected: dict) -> bool:
-    if actual == expected:
-        return True
-    for key in ("schema_version", "strategy", "origin_type", "origin"):
-        if actual.get(key) != expected.get(key):
-            return False
-    actual_cfg = dict(actual.get("cfg") or {})
-    expected_cfg = dict(expected.get("cfg") or {})
-    # Backward compatibility with stability-v3 checkpoints created before the
-    # performance-only fields existed.  Reuse is valid only when every old
-    # semantic field still matches and the effective batch/LR policy is the
-    # same as the historical fixed-LR setup.
-    for key, value in actual_cfg.items():
-        if expected_cfg.get(key) != value:
-            return False
-    if "reference_batch_size" not in actual_cfg:
-        old_batch = int(actual_cfg.get("batch_size", 512))
-        if int(expected_cfg.get("batch_size", 512)) != old_batch:
-            return False
-        base_lr = float(actual_cfg.get("lr", 1e-3))
-        current_batch = int(expected_cfg.get("batch_size", old_batch))
-        reference = int(expected_cfg.get("reference_batch_size", old_batch))
-        scaling = expected_cfg.get("nn_lr_scaling", "fixed")
-        ratio = current_batch / reference
-        factor = {"fixed": 1.0, "sqrt": ratio ** 0.5, "linear": ratio}.get(scaling)
-        if factor is None or not np.isclose(base_lr * factor, base_lr):
-            return False
-    return True
+    """Require an exact semantic/training-policy checkpoint signature."""
+    return actual == expected
 
 
 def _load_fold_checkpoint(
@@ -386,6 +352,46 @@ DEVELOPMENT_ORIGINS = pd.to_datetime([
 ])
 
 
+
+# Frozen source-level audit origins, disjoint from the current development
+# windows and normal recent-benchmark protocol. They are intentionally not
+# executed by the normal pipeline or Tier-C screening commands. Run them only
+# once after C1-C5 decisions are frozen.
+FINAL_AUDIT_ORIGINS = pd.to_datetime([
+    "2024-01-17",  # winter/test-like regular week
+    "2024-05-15",  # ordinary week
+    "2024-11-14",  # pre-Black-Friday stress week
+])
+
+VALIDATION_STRATUM_WEIGHTS = {
+    "winter_test_like": 0.60,
+    "regular": 0.25,
+    "holiday_event": 0.15,
+}
+
+
+def classify_validation_stratum(
+    origin: pd.Timestamp,
+    horizon: int = 7,
+) -> str:
+    """Classify a forecast window for test-aligned reporting.
+
+    January/February regular weeks provide a larger but still test-like
+    winter sample.  Late-November/December windows are event stress tests;
+    all remaining development windows are ordinary regular periods.
+    """
+    target_dates = pd.date_range(
+        pd.Timestamp(origin) + pd.Timedelta(days=1), periods=horizon, freq="D"
+    )
+    if target_dates.month.isin([1, 2]).all():
+        return "winter_test_like"
+    if ((target_dates.month == 11) & (target_dates.day >= 20)).any() or (
+        target_dates.month == 12
+    ).any():
+        return "holiday_event"
+    return "regular"
+
+
 def recent_benchmark_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.DatetimeIndex:
     """Last `cfg.n_cv_folds` non-overlapping `cfg.horizon`-day origins ending
     at the most recent training data -- the closest pseudo-test periods to
@@ -401,7 +407,7 @@ def recent_benchmark_origins(hist_df: pd.DataFrame, cfg: Config = CFG) -> pd.Dat
 def run_structured_models(
     train_panel: pd.DataFrame,
     cfg: Config = CFG,
-    models: tuple = ("XGBoost", "LightGBM", "DynamicRidge"),
+    models: tuple | None = None,
     *,
     strategy: str = "direct",
     eval_panel: pd.DataFrame | None = None,
@@ -409,8 +415,15 @@ def run_structured_models(
     future_covariates: pd.DataFrame | None = None,
     price_ref: pd.Series | None = None,
     first_seen: pd.Series | None = None,
+    first_available: pd.Series | None = None,
 ) -> dict:
     """Train and predict structured models in the native-library worker."""
+    if models is None:
+        models = (
+            ("XGBoost", "LightGBM")
+            if strategy == "recursive"
+            else ("XGBoost", "LightGBM", "DynamicRidge")
+        )
     job = {
         "cfg": asdict(cfg),
         "strategy": strategy,
@@ -425,11 +438,14 @@ def run_structured_models(
         required = (history_raw, future_covariates, price_ref, first_seen)
         if any(value is None for value in required):
             raise ValueError("recursive structured prediction requires history, future covariates and references")
+        if first_available is None:
+            _, first_available = product_reference_dates(history_raw)
         job.update({
             "history_raw": history_raw,
             "future_covariates": sanitize_future_covariates(future_covariates),
             "price_ref": price_ref,
             "first_seen": first_seen,
+            "first_available": first_available,
         })
     else:
         raise ValueError(f"Unsupported strategy: {strategy}")
@@ -517,7 +533,6 @@ def run_walk_forward_cv_direct(
     the file write itself.
     """
     horizons = range(1, cfg.horizon + 1)
-    first_seen = hist_df.groupby("ProductId")["DateKey"].min()  # static historical fact, always in the past
     fold_frames = []
 
     for origin in origins:
@@ -546,23 +561,27 @@ def run_walk_forward_cv_direct(
         print(f"  [{origin_type}] origin {origin.date()}: eval {eval_start.date()}..{eval_end.date()}")
 
         price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
+        first_seen, first_available = product_reference_dates(fold_train_raw)
 
-        fold_train_feat = prepare_features(fold_train_raw, price_ref, first_seen)
+        fold_train_feat = prepare_features(
+            fold_train_raw, price_ref, first_seen, first_available
+        )
         fold_train_feat = add_train_lags(fold_train_feat, cfg.lag_windows)
-        fold_eval_feat = prepare_features(fold_eval_raw, price_ref, first_seen).reset_index(drop=True)
+        fold_eval_feat = prepare_features(
+            fold_eval_raw, price_ref, first_seen, first_available
+        ).reset_index(drop=True)
 
         panel = build_direct_panel(fold_train_feat, horizons, cfg=cfg, future_covariates=fold_eval_feat)
         # Leakage-safe training slice: a training row's own target must
         # already be observable as of `origin` -- an origin close to the
         # fold's own cutoff combined with a large horizon would otherwise
         # land on a target date this fold isn't allowed to have seen yet.
-        trainable = panel[panel["TargetDateKey"] <= origin]
-        train_available = trainable["TargetProductAvailable"].fillna(False)
-        train_panel = (trainable[train_available]
-                        .dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True))
+        train_panel = select_trainable_panel_rows(
+            panel, cutoff=origin, available_only=True
+        )
         eval_panel = panel[panel["OriginDateKey"] == origin].reset_index(drop=True)
 
-        scaler = StandardScaler()
+        scaler = make_numeric_preprocessor()
         tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
         y_residual = residual_log1p_target(train_panel)
         nn_start = time.perf_counter()
@@ -599,10 +618,17 @@ def run_walk_forward_cv_direct(
         fold_oof["origin"] = origin
         fold_oof["origin_type"] = origin_type
         fold_oof["strategy"] = "direct"
+        fold_oof["validation_stratum"] = classify_validation_stratum(
+            origin, cfg.horizon
+        )
         fold_oof["pred_NeuralNet"] = ensemble_preds
         fold_oof["pred_XGBoost"] = tree_preds["XGBoost"]
         fold_oof["pred_LightGBM"] = tree_preds["LightGBM"]
         fold_oof["pred_DynamicRidge"] = tree_preds["DynamicRidge"]
+        for name in ("NeuralNet", "XGBoost", "LightGBM", "DynamicRidge"):
+            fold_oof[f"fallback_{name}"] = False
+            fold_oof[f"nonfinite_{name}"] = False
+            fold_oof[f"catastrophic_{name}"] = False
         for seed in cfg.seeds:
             fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left")
@@ -632,13 +658,16 @@ def _recursive_panel_training_data(
     fold_train_raw: pd.DataFrame,
     price_ref: pd.Series,
     first_seen: pd.Series,
+    first_available: pd.Series,
     cfg: Config,
 ) -> pd.DataFrame:
-    panel = build_one_step_panel(fold_train_raw, price_ref, first_seen, cfg)
+    panel = build_one_step_panel(
+        fold_train_raw, price_ref, first_seen, cfg, first_available
+    )
     cutoff = fold_train_raw["DateKey"].max()
-    trainable = panel[panel["TargetDateKey"].le(cutoff)]
-    available = trainable["TargetProductAvailable"].fillna(False)
-    return trainable[available].dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True)
+    return select_trainable_panel_rows(
+        panel, cutoff=cutoff, available_only=True
+    )
 
 
 def _recursive_nn_predictions(
@@ -647,10 +676,11 @@ def _recursive_nn_predictions(
     future_covariates: pd.DataFrame,
     price_ref: pd.Series,
     first_seen: pd.Series,
+    first_available: pd.Series,
     cfg: Config,
     epochs: int,
 ):
-    scaler = StandardScaler()
+    scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
     y_residual = residual_log1p_target(train_panel)
     seed_models = [train_model(tensors, y_residual, cfg, epochs=epochs, seed=seed) for seed in cfg.seeds]
@@ -662,12 +692,12 @@ def _recursive_nn_predictions(
         seed_paths[seed] = forecast_recursive(
             history_raw, future_covariates,
             lambda panel, model=model: predict_direct([model], scaler, panel, cfg),
-            price_ref, first_seen, cfg,
+            price_ref, first_seen, cfg, first_available,
         )
     ensemble_path = forecast_recursive(
         history_raw, future_covariates,
         lambda panel: predict_direct(seed_models, scaler, panel, cfg),
-        price_ref, first_seen, cfg,
+        price_ref, first_seen, cfg, first_available,
     )
     return ensemble_path, seed_paths, scaler, seed_models
 
@@ -678,7 +708,6 @@ def run_walk_forward_cv_recursive(
     resume: bool = False,
 ) -> pd.DataFrame:
     """One-step training plus genuine recursive seven-day inference."""
-    first_seen = hist_df.groupby("ProductId")["DateKey"].min()
     fold_frames = []
     for origin in origins:
         fold_start = time.perf_counter()
@@ -703,35 +732,54 @@ def run_walk_forward_cv_recursive(
                 continue
         print(f"  [{origin_type}/recursive] origin {origin.date()}: eval {eval_start.date()}..{eval_end.date()}")
         price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
-        train_panel = _recursive_panel_training_data(fold_train_raw, price_ref, first_seen, cfg)
+        first_seen, first_available = product_reference_dates(fold_train_raw)
+        train_panel = _recursive_panel_training_data(
+            fold_train_raw, price_ref, first_seen, first_available, cfg
+        )
         future_covariates = sanitize_future_covariates(fold_eval_raw)
 
         nn_start = time.perf_counter()
         ensemble_path, seed_paths, _, _ = _recursive_nn_predictions(
-            train_panel, fold_train_raw, future_covariates, price_ref, first_seen, cfg, cfg.cv_epochs
+            train_panel, fold_train_raw, future_covariates, price_ref,
+            first_seen, first_available, cfg, cfg.cv_epochs
         )
         nn_seconds = time.perf_counter() - nn_start
 
         tree_start = time.perf_counter()
         structured = run_structured_models(
-            train_panel, cfg, strategy="recursive", history_raw=fold_train_raw,
-            future_covariates=future_covariates, price_ref=price_ref, first_seen=first_seen,
+            train_panel, cfg, models=("XGBoost", "LightGBM"),
+            strategy="recursive", history_raw=fold_train_raw,
+            future_covariates=future_covariates, price_ref=price_ref,
+            first_seen=first_seen, first_available=first_available,
         )
         tree_seconds = time.perf_counter() - tree_start
 
-        eval_feat = prepare_features(fold_eval_raw, price_ref, first_seen).reset_index(drop=True)
+        eval_feat = prepare_features(
+            fold_eval_raw, price_ref, first_seen, first_available
+        ).reset_index(drop=True)
         naive_df = fold_eval_raw[["ProductId", "DateKey", "Quantity", "ProductAvailable"]].copy()
         naive_df["baseline"] = compute_baseline(eval_feat, fold_train_raw)
         naive_df["pred_SeasonalNaive"] = seasonal_naive_predict(eval_feat, fold_train_raw, lag_days=cfg.horizon)
         naive_df["pred_MovingAvg28"] = moving_average_predict(eval_feat, fold_train_raw, window=28)
 
         fold_oof = ensemble_path.rename(columns={
-            "TargetDateKey": "DateKey", "forecast_horizon": "horizon", "prediction": "pred_NeuralNet"
-        })[["ProductId", "DateKey", "horizon", "pred_NeuralNet", "fallback_used"]]
-        fold_oof = fold_oof.rename(columns={"fallback_used": "fallback_NeuralNet"})
+            "TargetDateKey": "DateKey",
+            "forecast_horizon": "horizon",
+            "prediction": "pred_NeuralNet",
+            "fallback_used": "fallback_NeuralNet",
+            "nonfinite_raw": "nonfinite_NeuralNet",
+            "catastrophic_guard": "catastrophic_NeuralNet",
+        })[[
+            "ProductId", "DateKey", "horizon", "pred_NeuralNet",
+            "fallback_NeuralNet", "nonfinite_NeuralNet",
+            "catastrophic_NeuralNet",
+        ]]
         fold_oof["origin"] = origin
         fold_oof["origin_type"] = origin_type
         fold_oof["strategy"] = "recursive"
+        fold_oof["validation_stratum"] = classify_validation_stratum(
+            origin, cfg.horizon
+        )
         for seed, path in seed_paths.items():
             seed_col = path[["ProductId", "TargetDateKey", "prediction"]].rename(
                 columns={"TargetDateKey": "DateKey", "prediction": f"pred_NeuralNet_seed{seed}"}
@@ -739,9 +787,16 @@ def run_walk_forward_cv_recursive(
             fold_oof = fold_oof.merge(seed_col, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         for name, payload in structured.items():
             path = pd.DataFrame(payload)
-            pred_col = path[["ProductId", "TargetDateKey", "prediction", "fallback_used"]].rename(
-                columns={"TargetDateKey": "DateKey", "prediction": f"pred_{name}", "fallback_used": f"fallback_{name}"}
-            )
+            pred_col = path[[
+                "ProductId", "TargetDateKey", "prediction", "fallback_used",
+                "nonfinite_raw", "catastrophic_guard",
+            ]].rename(columns={
+                "TargetDateKey": "DateKey",
+                "prediction": f"pred_{name}",
+                "fallback_used": f"fallback_{name}",
+                "nonfinite_raw": f"nonfinite_{name}",
+                "catastrophic_guard": f"catastrophic_{name}",
+            })
             fold_oof = fold_oof.merge(pred_col, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         fold_oof = fold_oof.rename(columns={"Quantity": "actual"})
@@ -806,7 +861,14 @@ def summarize_oof(oof: pd.DataFrame, pred_columns: dict = None) -> pd.DataFrame:
       - aggregation: 'global' (micro) vs 'mean_fold' (macro)
     """
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    pred_columns = {
+        model: column
+        for model, column in pred_columns.items()
+        if column in oof.columns
+    }
     pred_cols = list(pred_columns.values())
+    if not pred_cols:
+        return pd.DataFrame()
     
     # Base masks for regimes
     regime_masks = {
@@ -884,7 +946,10 @@ def summarize_oof_by_strategy(oof: pd.DataFrame, pred_columns: dict = None) -> p
         return out
     frames = []
     for strategy, group in oof.groupby("strategy", sort=False):
-        summary = summarize_oof(group, pred_columns)
+        strategy_columns = prediction_columns_for_strategy(
+            pred_columns or OOF_MODEL_COLUMNS, strategy
+        )
+        summary = summarize_oof(group, strategy_columns)
         summary["strategy"] = strategy
         frames.append(summary)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -900,6 +965,11 @@ def summarize_strategy_pairs(oof: pd.DataFrame, evaluation_regime: str = "condit
     direct = oof[oof["strategy"].eq("direct")]
     recursive = oof[oof["strategy"].eq("recursive")]
     for model, col in pred_columns.items():
+        if not (
+            model_supports_strategy(model, "direct")
+            and model_supports_strategy(model, "recursive")
+        ):
+            continue
         if col not in direct or col not in recursive:
             continue
         left = direct[key_cols + ["actual", "ProductAvailable", col]].rename(columns={col: "direct_pred"})
@@ -932,7 +1002,148 @@ def summarize_strategy_pairs(oof: pd.DataFrame, evaluation_regime: str = "condit
     return pd.DataFrame(rows)
 
 
+def summarize_validation_strata(
+    oof: pd.DataFrame,
+    pred_columns: dict | None = None,
+) -> pd.DataFrame:
+    """Metric summaries by strategy and data-generating-process stratum."""
+    if oof.empty:
+        return pd.DataFrame()
+    if "validation_stratum" not in oof.columns:
+        work = oof.copy()
+        work["validation_stratum"] = [
+            classify_validation_stratum(origin)
+            for origin in work["origin"]
+        ]
+    else:
+        work = oof
+    frames = []
+    group_keys = ["strategy", "validation_stratum"]
+    if "origin_type" in work.columns:
+        group_keys = ["origin_type"] + group_keys
+    for keys, group in work.groupby(group_keys, sort=False):
+        if "origin_type" in work.columns:
+            origin_type, strategy, stratum = keys
+        else:
+            strategy, stratum = keys
+            origin_type = "development"
+        columns = prediction_columns_for_strategy(
+            pred_columns or OOF_MODEL_COLUMNS, strategy
+        )
+        summary = summarize_oof(group, columns)
+        if summary.empty:
+            continue
+        summary["origin_type"] = origin_type
+        summary["strategy"] = strategy
+        summary["validation_stratum"] = stratum
+        frames.append(summary)
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def compute_test_aligned_scores(
+    stratum_summary: pd.DataFrame,
+    metric: str = "WAPE",
+    weights: dict[str, float] | None = None,
+) -> pd.DataFrame:
+    """Weighted development score emphasizing winter/test-like weeks."""
+    if stratum_summary.empty:
+        return pd.DataFrame()
+    weights = weights or VALIDATION_STRATUM_WEIGHTS
+    selected = stratum_summary[
+        stratum_summary["evaluation_regime"].eq("conditional")
+        & stratum_summary["comparison_population"].eq("common")
+        & stratum_summary["aggregation"].eq("global")
+    ].copy()
+    if "origin_type" in selected.columns:
+        selected = selected[selected["origin_type"].eq("development")]
+    rows = []
+    for (strategy, model), group in selected.groupby(["strategy", "model"]):
+        available = group[group["validation_stratum"].isin(weights)].copy()
+        available = available[np.isfinite(available[metric])]
+        if available.empty:
+            continue
+        available["stratum_weight"] = available["validation_stratum"].map(weights)
+        total_weight = float(available["stratum_weight"].sum())
+        if total_weight <= 0:
+            continue
+        score = float(
+            np.average(available[metric], weights=available["stratum_weight"])
+        )
+        rows.append({
+            "strategy": strategy,
+            "model": model,
+            "metric": metric,
+            "test_aligned_score": score,
+            "weight_sum": total_weight,
+            "strata_present": ",".join(sorted(available["validation_stratum"].unique())),
+        })
+    return pd.DataFrame(rows)
+
+
+def summarize_prediction_diagnostics(
+    oof: pd.DataFrame,
+    pred_columns: dict | None = None,
+) -> pd.DataFrame:
+    """Expose fallback and extreme-prediction behavior by split/strategy."""
+    pred_columns = pred_columns or OOF_MODEL_COLUMNS
+    rows = []
+    for (origin_type, strategy), group in oof.groupby(
+        ["origin_type", "strategy"], sort=False
+    ):
+        columns = prediction_columns_for_strategy(pred_columns, strategy)
+        observed_max = pd.to_numeric(group["actual"], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        ).max()
+        for model, column in columns.items():
+            if column not in group.columns:
+                continue
+            values = pd.to_numeric(group[column], errors="coerce").to_numpy(dtype=float)
+            finite = np.isfinite(values)
+            finite_values = values[finite]
+            fallback_col = f"fallback_{model}"
+            nonfinite_col = f"nonfinite_{model}"
+            catastrophic_col = f"catastrophic_{model}"
+            fallback = (
+                group[fallback_col].fillna(False).astype(bool).to_numpy()
+                if fallback_col in group else np.zeros(len(group), dtype=bool)
+            )
+            nonfinite_raw = (
+                group[nonfinite_col].fillna(False).astype(bool).to_numpy()
+                if nonfinite_col in group else np.zeros(len(group), dtype=bool)
+            )
+            catastrophic = (
+                group[catastrophic_col].fillna(False).astype(bool).to_numpy()
+                if catastrophic_col in group else np.zeros(len(group), dtype=bool)
+            )
+            prediction_max = float(np.max(finite_values)) if finite_values.size else np.nan
+            prediction_p99 = float(np.quantile(finite_values, 0.99)) if finite_values.size else np.nan
+            rows.append({
+                "origin_type": origin_type,
+                "strategy": strategy,
+                "model": model,
+                "n_rows": int(len(group)),
+                "n_finite": int(finite.sum()),
+                "coverage": float(finite.mean()) if len(group) else np.nan,
+                "fallback_count": int(fallback.sum()),
+                "fallback_rate": float(fallback.mean()) if len(group) else np.nan,
+                "nonfinite_raw_count": int(nonfinite_raw.sum()),
+                "catastrophic_guard_count": int(catastrophic.sum()),
+                "prediction_max": prediction_max,
+                "prediction_p99": prediction_p99,
+                "observed_max": float(observed_max) if np.isfinite(observed_max) else np.nan,
+                "prediction_to_observed_max_ratio": (
+                    prediction_max / observed_max
+                    if np.isfinite(prediction_max) and np.isfinite(observed_max) and observed_max > 0
+                    else np.nan
+                ),
+            })
+    return pd.DataFrame(rows)
+
+
 def select_primary_strategy(dev_summary: pd.DataFrame, *, model: str, metric: str) -> str:
+    supported = MODEL_STRATEGY_SUPPORT.get(model, set())
+    if supported == {"direct"}:
+        return "direct"
     candidates = dev_summary[
         dev_summary["model"].eq(model)
         & dev_summary["evaluation_regime"].eq("conditional")
@@ -950,7 +1161,17 @@ def oof_to_legacy_cv_results(oof: pd.DataFrame, pred_columns: dict = None) -> pd
     fold/model/MAE/RMSE/WAPE/Bias/BiasRatio shape.
     B4/Fix: Use common populations per fold/regime for fair comparison."""
     pred_columns = pred_columns or OOF_MODEL_COLUMNS
-    pred_cols = [c for c in pred_columns.values() if c in oof.columns]
+    strategies = oof.get("strategy", pd.Series("direct", index=oof.index)).dropna().unique()
+    if len(strategies) == 1:
+        pred_columns = prediction_columns_for_strategy(
+            pred_columns, str(strategies[0])
+        )
+    pred_columns = {
+        model: column
+        for model, column in pred_columns.items()
+        if column in oof.columns
+    }
+    pred_cols = list(pred_columns.values())
 
     origins_sorted = sorted(oof["origin"].unique(), reverse=True)
     fold_of_origin = {origin: i for i, origin in enumerate(origins_sorted)}
@@ -1000,20 +1221,23 @@ def _prepare_final_direct_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
     `test_raw` itself, since nothing later exists in `train_raw` to look
     up)."""
     price_ref = train_raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = train_raw.groupby("ProductId")["DateKey"].min()
+    first_seen, first_available = product_reference_dates(train_raw)
 
-    train_feat = prepare_features(train_raw, price_ref, first_seen)
+    train_feat = prepare_features(
+        train_raw, price_ref, first_seen, first_available
+    )
     train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    test_feat = prepare_features(test_raw, price_ref, first_seen).reset_index(drop=True)
+    test_feat = prepare_features(
+        test_raw, price_ref, first_seen, first_available
+    ).reset_index(drop=True)
 
     horizons = range(1, cfg.horizon + 1)
     panel = build_direct_panel(train_feat, horizons, cfg=cfg, future_covariates=test_feat)
 
     last_train_date = train_raw["DateKey"].max()
-    trainable = panel[panel["TargetDateKey"] <= last_train_date]
-    train_available = trainable["TargetProductAvailable"].fillna(False)
-    train_panel = (trainable[train_available]
-                    .dropna(subset=direct_panel_feature_names(cfg)).reset_index(drop=True))
+    train_panel = select_trainable_panel_rows(
+        panel, cutoff=last_train_date, available_only=True
+    )
     eval_panel = panel[panel["OriginDateKey"] == last_train_date].reset_index(drop=True)
     return train_panel, eval_panel
 
@@ -1022,7 +1246,7 @@ def run_final_forecast_direct(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
                         cfg: Config = CFG):
     train_panel, eval_panel = _prepare_final_direct_panel(train_raw, test_raw, cfg)
 
-    scaler = StandardScaler()
+    scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
     y_residual = residual_log1p_target(train_panel)
 
@@ -1063,11 +1287,14 @@ def _align_recursive_path(path: pd.DataFrame, test_raw: pd.DataFrame) -> np.ndar
 
 def run_final_forecast_recursive(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG):
     price_ref = train_raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = train_raw.groupby("ProductId")["DateKey"].min()
-    train_panel = _recursive_panel_training_data(train_raw, price_ref, first_seen, cfg)
+    first_seen, first_available = product_reference_dates(train_raw)
+    train_panel = _recursive_panel_training_data(
+        train_raw, price_ref, first_seen, first_available, cfg
+    )
     future = sanitize_future_covariates(test_raw)
     path, _, _, _ = _recursive_nn_predictions(
-        train_panel, train_raw, future, price_ref, first_seen, cfg, cfg.final_epochs
+        train_panel, train_raw, future, price_ref, first_seen,
+        first_available, cfg, cfg.final_epochs
     )
     preds = _align_recursive_path(path, test_raw)
     submission = test_raw[["ProductId", "DateKey"]].copy()
@@ -1078,11 +1305,15 @@ def run_final_forecast_recursive(train_raw: pd.DataFrame, test_raw: pd.DataFrame
 def run_final_structured_forecast_recursive(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
                                             cfg: Config = CFG) -> tuple[dict, dict]:
     price_ref = train_raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = train_raw.groupby("ProductId")["DateKey"].min()
-    train_panel = _recursive_panel_training_data(train_raw, price_ref, first_seen, cfg)
+    first_seen, first_available = product_reference_dates(train_raw)
+    train_panel = _recursive_panel_training_data(
+        train_raw, price_ref, first_seen, first_available, cfg
+    )
     payloads = run_structured_models(
-        train_panel, cfg, strategy="recursive", history_raw=train_raw,
-        future_covariates=test_raw, price_ref=price_ref, first_seen=first_seen,
+        train_panel, cfg, models=("XGBoost", "LightGBM"),
+        strategy="recursive", history_raw=train_raw,
+        future_covariates=test_raw, price_ref=price_ref,
+        first_seen=first_seen, first_available=first_available,
     )
     aligned, paths = {}, {}
     for name, payload in payloads.items():
@@ -1205,7 +1436,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          canonical_strategy: str = "direct",
                          canonical_model: str = "NeuralNet",
                          cv_results_all: pd.DataFrame | None = None,
-                         strategy_by_horizon: pd.DataFrame | None = None) -> dict:
+                         strategy_by_horizon: pd.DataFrame | None = None,
+                         validation_strata_summary: pd.DataFrame | None = None,
+                         test_aligned_scores: pd.DataFrame | None = None,
+                         prediction_diagnostics: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
@@ -1265,9 +1499,19 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             }
         forecasts[model_name] = per_product
 
+    available_model_names = set(final_forecasts)
+    if forecasts_by_strategy:
+        for strategy_forecasts in forecasts_by_strategy.values():
+            available_model_names.update(strategy_forecasts)
     models_meta = [
-        {"key": name, "slug": MODEL_SLUGS[name], "skill_vs_seasonal_naive": skill_by_model.get(name), **MODEL_META[name]}
-        for name in MODEL_ORDER if name in final_forecasts
+        {
+            "key": name,
+            "slug": MODEL_SLUGS[name],
+            "skill_vs_seasonal_naive": skill_by_model.get(name),
+            "strategies": sorted(MODEL_STRATEGY_SUPPORT.get(name, {"direct"})),
+            **MODEL_META[name],
+        }
+        for name in MODEL_ORDER if name in available_model_names
     ]
 
     payload = {
@@ -1277,6 +1521,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "primary_strategy": canonical_strategy,
             "submission_model": runtime_options.submission_model.value if runtime_options else "NeuralNet",
             "selection_metric": runtime_options.selection_metric if runtime_options else "WAPE",
+            "selection_protocol": runtime_options.selection_protocol if runtime_options else "global",
             "primary_evaluation_regime": "conditional",
             "primary_comparison_population": "common",
             "primary_aggregation": "global",
@@ -1288,6 +1533,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "final_epochs": cfg.final_epochs,
             "seeds": list(cfg.seeds),
             "num_products": cfg.num_products,
+            "validation_stratum_weights": VALIDATION_STRATUM_WEIGHTS,
+            "final_audit_origins": [
+                str(pd.Timestamp(origin).date()) for origin in FINAL_AUDIT_ORIGINS
+            ],
             "nn_batch_size": cfg.batch_size,
             "nn_reference_batch_size": cfg.reference_batch_size,
             "nn_lr_scaling": cfg.nn_lr_scaling,
@@ -1342,13 +1591,44 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                                 if strategy_comparison is not None else []),
         "strategy_by_horizon": (strategy_by_horizon.round(6).to_dict(orient="records")
                                 if strategy_by_horizon is not None else []),
+        "validation_strata_summary": (
+            validation_strata_summary.round(6).to_dict(orient="records")
+            if validation_strata_summary is not None else []
+        ),
+        "test_aligned_scores": (
+            test_aligned_scores.round(6).to_dict(orient="records")
+            if test_aligned_scores is not None else []
+        ),
+        "prediction_diagnostics": (
+            prediction_diagnostics.round(6).to_dict(orient="records")
+            if prediction_diagnostics is not None else []
+        ),
         "selection": {
             "canonical_model": canonical_model,
             "canonical_strategy": canonical_strategy,
             "selected_from": "development",
+            "development_winner": canonical_strategy,
+            "benchmark_winner": None,
             "recent_benchmark_confirmation": None,
         },
     }
+
+    if benchmark_summary is not None and not benchmark_summary.empty:
+        benchmark_candidates = benchmark_summary[
+            benchmark_summary["model"].eq(canonical_model)
+            & benchmark_summary["evaluation_regime"].eq("conditional")
+            & benchmark_summary["comparison_population"].eq("common")
+            & benchmark_summary["aggregation"].eq("global")
+        ].copy()
+        if not benchmark_candidates.empty:
+            metric = runtime_options.selection_metric if runtime_options else "WAPE"
+            benchmark_winner = str(
+                benchmark_candidates.sort_values(metric).iloc[0]["strategy"]
+            )
+            payload["selection"]["benchmark_winner"] = benchmark_winner
+            payload["selection"]["recent_benchmark_confirmation"] = (
+                benchmark_winner == canonical_strategy
+            )
 
     payload = _json_safe(payload)
     out_path = path or os.path.join(cfg.output_dir, "results.json")
@@ -1365,25 +1645,63 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
 def _choose_canonical_model_strategy(
     options: RuntimeOptions,
     dev_summary: pd.DataFrame,
+    test_aligned_scores: pd.DataFrame | None = None,
 ) -> tuple[str, str]:
     strategies = set(dev_summary["strategy"].unique())
     requested_model = options.submission_model.value
+
+    def choose_from_test_aligned(model: str | None = None) -> tuple[str, str]:
+        if test_aligned_scores is None or test_aligned_scores.empty:
+            raise RuntimeError(
+                "Test-aligned selection requested but no stratum scores exist"
+            )
+        candidates = test_aligned_scores.copy()
+        if model is not None:
+            candidates = candidates[candidates["model"].eq(model)]
+        if candidates.empty:
+            raise RuntimeError(
+                f"No test-aligned candidates available for {model or 'auto model selection'}"
+            )
+        row = candidates.sort_values("test_aligned_score").iloc[0]
+        return str(row["model"]), str(row["strategy"])
+
     if options.submission_model is SubmissionModel.AUTO:
+        if options.selection_protocol == "test-aligned":
+            return choose_from_test_aligned()
         candidates = dev_summary[
             dev_summary["evaluation_regime"].eq("conditional")
             & dev_summary["comparison_population"].eq("common")
             & dev_summary["aggregation"].eq("global")
-            & dev_summary["model"].isin(["NeuralNet", "DynamicRidge", "XGBoost", "LightGBM"])
+            & dev_summary["model"].isin(
+                ["NeuralNet", "DynamicRidge", "XGBoost", "LightGBM"]
+            )
         ]
         row = candidates.sort_values(options.selection_metric).iloc[0]
         return str(row["model"]), str(row["strategy"])
+
+    if not any(model_supports_strategy(requested_model, s) for s in strategies):
+        raise RuntimeError(
+            f"{requested_model} does not support requested strategy set {sorted(strategies)}"
+        )
+    if MODEL_STRATEGY_SUPPORT.get(requested_model) == {"direct"}:
+        if strategies == {"recursive"}:
+            raise RuntimeError(f"{requested_model} is direct-only")
+        return requested_model, "direct"
     if len(strategies) == 1:
-        return requested_model, next(iter(strategies))
+        strategy = next(iter(strategies))
+        if not model_supports_strategy(requested_model, strategy):
+            raise RuntimeError(f"{requested_model} does not support {strategy}")
+        return requested_model, strategy
     if options.primary_strategy is PrimaryStrategy.AUTO:
+        if options.selection_protocol == "test-aligned":
+            return choose_from_test_aligned(requested_model)
         return requested_model, select_primary_strategy(
             dev_summary, model=requested_model, metric=options.selection_metric
         )
-    return requested_model, options.primary_strategy.value
+    strategy = options.primary_strategy.value
+    if not model_supports_strategy(requested_model, strategy):
+        raise RuntimeError(f"{requested_model} does not support {strategy}")
+    return requested_model, strategy
 
 
 def _forecast_dict_to_json(test_raw: pd.DataFrame, forecasts: dict) -> dict:
@@ -1409,6 +1727,9 @@ def main(argv=None) -> None:
     nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
+    print(
+        f"Selection: {options.selection_protocol} / {options.selection_metric}"
+    )
     print(
         "NN runtime: "
         f"batch={nn_runtime['batch_size']} "
@@ -1452,9 +1773,18 @@ def main(argv=None) -> None:
     oof = pd.concat([dev_oof, benchmark_oof], ignore_index=True)
     dev_summary = summarize_oof_by_strategy(dev_oof)
     benchmark_summary = summarize_oof_by_strategy(benchmark_oof)
-    pair_summary = summarize_strategy_pairs(dev_oof, evaluation_regime="conditional")
+    pair_summary = summarize_strategy_pairs(
+        dev_oof, evaluation_regime="conditional"
+    )
+    validation_strata_summary = summarize_validation_strata(oof)
+    test_aligned_scores = compute_test_aligned_scores(
+        validation_strata_summary, metric=options.selection_metric
+    )
+    prediction_diagnostics = summarize_prediction_diagnostics(oof)
 
-    canonical_model, canonical_strategy = _choose_canonical_model_strategy(options, dev_summary)
+    canonical_model, canonical_strategy = _choose_canonical_model_strategy(
+        options, dev_summary, test_aligned_scores
+    )
     print(f"\nCanonical selection: {canonical_model} / {canonical_strategy}")
 
     final_by_strategy: dict[str, dict[str, np.ndarray]] = {}
@@ -1485,12 +1815,24 @@ def main(argv=None) -> None:
                     "prediction_raw": float(pred),
                     "prediction_submission": int(round(max(float(pred), 0.0))),
                     "fallback_used": False,
+                    "nonfinite_raw": False,
+                    "catastrophic_guard": False,
                 })
         for model, path in paths.items():
-            fallback_map = path.set_index(["ProductId", "TargetDateKey"])["fallback_used"]
+            path_index = path.set_index(["ProductId", "TargetDateKey"])
+            fallback_map = path_index["fallback_used"]
+            nonfinite_map = path_index.get(
+                "nonfinite_raw", pd.Series(False, index=path_index.index)
+            )
+            catastrophic_map = path_index.get(
+                "catastrophic_guard", pd.Series(False, index=path_index.index)
+            )
             for row in raw_rows:
                 if row["strategy"] == strategy.value and row["model"] == model:
-                    row["fallback_used"] = bool(fallback_map.get((row["ProductId"], row["DateKey"]), False))
+                    key = (row["ProductId"], row["DateKey"])
+                    row["fallback_used"] = bool(fallback_map.get(key, False))
+                    row["nonfinite_raw"] = bool(nonfinite_map.get(key, False))
+                    row["catastrophic_guard"] = bool(catastrophic_map.get(key, False))
 
     canonical_preds = final_by_strategy[canonical_strategy][canonical_model]
     submission = test_raw[["ProductId", "DateKey"]].copy()
@@ -1501,7 +1843,10 @@ def main(argv=None) -> None:
     submission.to_csv(os.path.join(cfg.output_dir, "submission.csv"), index=False)
     for strategy, forecasts in final_by_strategy.items():
         strategy_submission = test_raw[["ProductId", "DateKey"]].copy()
-        strategy_submission["Quantity"] = np.round(np.clip(forecasts[canonical_model], 0, None)).astype(int)
+        strategy_model = canonical_model if canonical_model in forecasts else "NeuralNet"
+        strategy_submission["Quantity"] = np.round(
+            np.clip(forecasts[strategy_model], 0, None)
+        ).astype(int)
         strategy_submission.to_csv(os.path.join(cfg.output_dir, f"submission_{strategy}.csv"), index=False)
         strategy_submission.to_parquet(os.path.join(cfg.output_dir, f"submission_{strategy}.parquet"), index=False)
 
@@ -1511,17 +1856,31 @@ def main(argv=None) -> None:
     dev_summary.to_csv(os.path.join(cfg.output_dir, "dev_summary.csv"), index=False)
     benchmark_summary.to_csv(os.path.join(cfg.output_dir, "benchmark_summary.csv"), index=False)
     pair_summary.to_csv(os.path.join(cfg.output_dir, "strategy_pair_summary.csv"), index=False)
+    validation_strata_summary.to_csv(
+        os.path.join(cfg.output_dir, "validation_strata_summary.csv"), index=False
+    )
+    test_aligned_scores.to_csv(
+        os.path.join(cfg.output_dir, "test_aligned_scores.csv"), index=False
+    )
+    prediction_diagnostics.to_csv(
+        os.path.join(cfg.output_dir, "prediction_diagnostics.csv"), index=False
+    )
 
     by_horizon_frames = []
-    # Strategy horizon curves are a development-OOF diagnostic. Keeping the
-    # recent benchmark out prevents the presentation layer from implying it
-    # participated in strategy selection.
-    for strategy, group in dev_oof.groupby("strategy"):
+    # Export both development and recent-benchmark curves.  The explicit
+    # origin_type field prevents the presentation layer from implying that
+    # benchmark rows participated in development selection.
+    for (origin_type, strategy), group in oof.groupby(
+        ["origin_type", "strategy"], sort=False
+    ):
+        columns = prediction_columns_for_strategy(
+            OOF_MODEL_COLUMNS, strategy
+        )
         for horizon, hgroup in group.groupby("horizon"):
-            summary = summarize_oof(hgroup)
+            summary = summarize_oof(hgroup, columns)
             summary["strategy"] = strategy
             summary["horizon"] = horizon
-            summary["origin_type"] = "development"
+            summary["origin_type"] = origin_type
             by_horizon_frames.append(summary)
     strategy_by_horizon = pd.concat(by_horizon_frames, ignore_index=True)
     strategy_by_horizon.to_csv(os.path.join(cfg.output_dir, "strategy_by_horizon.csv"), index=False)
@@ -1549,6 +1908,9 @@ def main(argv=None) -> None:
         strategy_comparison=pair_summary, canonical_strategy=canonical_strategy,
         canonical_model=canonical_model, cv_results_all=cv_results_all,
         strategy_by_horizon=strategy_by_horizon,
+        validation_strata_summary=validation_strata_summary,
+        test_aligned_scores=test_aligned_scores,
+        prediction_diagnostics=prediction_diagnostics,
     )
     try:
         plot_forecast(train_raw, submission, cfg=cfg)

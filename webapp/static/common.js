@@ -30,8 +30,17 @@ function modelByKey(data, key) {
   return (data.models || []).find((m) => m.key === key || m.slug === key);
 }
 
-function availableStrategies(data) {
-  const keys = Object.keys(data.forecasts_by_strategy || {});
+function availableStrategies(data, modelKey = null) {
+  let keys = Object.keys(data.forecasts_by_strategy || {});
+  if (modelKey) {
+    const model = modelByKey(data, modelKey);
+    if (!model) return [];
+    const supported = model.strategies || keys;
+    keys = keys.filter((strategy) => (
+      supported.includes(strategy)
+      && Boolean(data.forecasts_by_strategy?.[strategy]?.[model.key])
+    ));
+  }
   if (keys.length) return keys;
   const canonical = data.selection?.canonical_strategy || data.config?.primary_strategy;
   return canonical ? [canonical] : ["direct"];
@@ -120,9 +129,10 @@ function cvRows(
   });
 }
 
-function configureStrategySelect(data, select, onChange) {
-  const strategies = availableStrategies(data);
-  const selected = canonicalStrategy(data);
+function configureStrategySelect(data, select, onChange, modelKey = null) {
+  const strategies = availableStrategies(data, modelKey);
+  const canonical = canonicalStrategy(data);
+  const selected = strategies.includes(canonical) ? canonical : strategies[0];
   select.innerHTML = strategies
     .map((strategy) => `<option value="${strategy}">${strategyLabel(strategy)}</option>`)
     .join("");

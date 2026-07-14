@@ -32,7 +32,6 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.preprocessing import StandardScaler
 
 from framework import (
     CFG,
@@ -40,13 +39,15 @@ from framework import (
     add_train_lags,
     build_direct_panel,
     compute_metrics,
-    direct_panel_feature_names,
     load_raw,
     prepare_features,
+    product_reference_dates,
+    select_trainable_panel_rows,
 )
 from models.neural_net import (
     DEVICE,
     effective_learning_rate,
+    make_numeric_preprocessor,
     make_tensors,
     nn_performance_signature,
     predict_direct,
@@ -115,22 +116,22 @@ def build_benchmark_fold(
         )
 
     price_ref = fold_train_raw.groupby("ProductId")["PriceLocalVat"].median()
-    first_seen = train_raw.groupby("ProductId")["DateKey"].min()
-    train_feat = prepare_features(fold_train_raw, price_ref, first_seen)
+    first_seen, first_available = product_reference_dates(fold_train_raw)
+    train_feat = prepare_features(
+        fold_train_raw, price_ref, first_seen, first_available
+    )
     train_feat = add_train_lags(train_feat, cfg.lag_windows)
-    eval_feat = prepare_features(fold_eval_raw, price_ref, first_seen).reset_index(drop=True)
+    eval_feat = prepare_features(
+        fold_eval_raw, price_ref, first_seen, first_available
+    ).reset_index(drop=True)
     panel = build_direct_panel(
         train_feat,
         range(1, cfg.horizon + 1),
         cfg=cfg,
         future_covariates=eval_feat,
     )
-    trainable = panel[panel["TargetDateKey"].le(origin)]
-    train_available = trainable["TargetProductAvailable"].fillna(False)
-    train_panel = (
-        trainable[train_available]
-        .dropna(subset=direct_panel_feature_names(cfg))
-        .reset_index(drop=True)
+    train_panel = select_trainable_panel_rows(
+        panel, cutoff=origin, available_only=True
     )
     eval_panel = panel[panel["OriginDateKey"].eq(origin)].reset_index(drop=True)
 
@@ -175,7 +176,7 @@ def run_candidate(
         nn_training_backend=training_backend,
         seeds=tuple(seeds),
     )
-    scaler = StandardScaler()
+    scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
     y_residual = residual_log1p_target(train_panel)
 

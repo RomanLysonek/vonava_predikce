@@ -63,6 +63,7 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
     submission["Quantity"] = [12, 13]
     final_forecasts = {
         "NeuralNet": np.array([12.0, 13.0]),
+        "DynamicRidge": np.array([12.2, 12.8]),
         "SeasonalNaive": np.array([11.0, 11.0]),
     }
     cv_results = pd.DataFrame([
@@ -98,10 +99,16 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
             "horizon": 1,
             "origin_type": "development",
         },
+        {
+            **summaries.iloc[0].to_dict(),
+            "horizon": 1,
+            "origin_type": "recent_benchmark",
+        },
     ])
     forecasts_by_strategy = {
         "direct": {
             "NeuralNet": {"1": {"dates": ["2026-01-03", "2026-01-04"], "quantity": [12.0, 13.0]}},
+            "DynamicRidge": {"1": {"dates": ["2026-01-03", "2026-01-04"], "quantity": [12.2, 12.8]}},
             "SeasonalNaive": {"1": {"dates": ["2026-01-03", "2026-01-04"], "quantity": [11.0, 11.0]}},
         },
         "recursive": {
@@ -109,6 +116,23 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
             "SeasonalNaive": {"1": {"dates": ["2026-01-03", "2026-01-04"], "quantity": [11.0, 11.0]}},
         },
     }
+    validation_strata = summaries.assign(
+        origin_type="development", validation_stratum="winter_test_like"
+    )
+    test_aligned_scores = pd.DataFrame([{
+        "strategy": "direct", "model": "NeuralNet", "metric": "WAPE",
+        "test_aligned_score": 0.2, "weight_sum": 1.0,
+        "strata_present": "winter_test_like",
+    }])
+    prediction_diagnostics = pd.DataFrame([{
+        "origin_type": "development", "strategy": "direct",
+        "model": "NeuralNet", "n_rows": 2, "n_finite": 2,
+        "coverage": 1.0, "fallback_count": 0, "fallback_rate": 0.0,
+        "nonfinite_raw_count": 0, "catastrophic_guard_count": 0,
+        "prediction_max": 13.0, "prediction_p99": 12.99,
+        "observed_max": 11.0, "prediction_to_observed_max_ratio": 13 / 11,
+    }])
+
     options = RuntimeOptions(
         forecast_strategy=ForecastStrategy.BOTH,
         primary_strategy=PrimaryStrategy.AUTO,
@@ -133,6 +157,9 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
         canonical_model="NeuralNet",
         cv_results_all=cv_results_all,
         strategy_by_horizon=by_horizon,
+        validation_strata_summary=validation_strata,
+        test_aligned_scores=test_aligned_scores,
+        prediction_diagnostics=prediction_diagnostics,
     )
 
     assert set(payload["forecasts_by_strategy"]) == {"direct", "recursive"}
@@ -141,8 +168,18 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
     assert {row["strategy"] for row in payload["cv_results_all"]} == {"direct", "recursive"}
     assert payload["strategy_comparison"][0]["winner"] == "direct"
     assert payload["strategy_by_horizon"]
+    assert {row["origin_type"] for row in payload["strategy_by_horizon"]} == {
+        "development", "recent_benchmark"
+    }
+    assert payload["validation_strata_summary"]
+    assert payload["test_aligned_scores"]
+    assert payload["prediction_diagnostics"]
+    ridge = next(model for model in payload["models"] if model["key"] == "DynamicRidge")
+    assert ridge["strategies"] == ["direct"]
     assert payload["selection"]["canonical_model"] == "NeuralNet"
     assert payload["selection"]["canonical_strategy"] == "direct"
+    assert payload["selection"]["benchmark_winner"] == "direct"
+    assert payload["selection"]["recent_benchmark_confirmation"] is True
     assert all(row.get("strategy") == "direct" for row in payload["benchmark_summary"])
     json.loads((tmp_path / "results.json").read_text())
 
@@ -231,6 +268,16 @@ def test_common_js_strategy_helpers_support_single_and_both_modes():
       if (context.availableStrategies(both).length !== 2) process.exit(5);
       const rows = context.summaryRows(both, {{ strategy: 'recursive', regime: 'conditional' }});
       if (rows.length !== 1 || rows[0].MAE !== 2) process.exit(6);
+
+      const withDirectOnlyRidge = {{
+        ...both,
+        models: [{{ key: 'DynamicRidge', slug: 'dynamicridge', strategies: ['direct'] }}],
+        forecasts_by_strategy: {{
+          direct: {{ DynamicRidge: {{}} }},
+          recursive: {{ NeuralNet: {{}} }},
+        }},
+      }};
+      if (context.availableStrategies(withDirectOnlyRidge, 'DynamicRidge').join(',') !== 'direct') process.exit(7);
     """
     subprocess.run(
         [node, "-e", script],

@@ -1,10 +1,11 @@
 """Per-model train/predict definitions: one file per entry in
 `framework.MODEL_ORDER` (neural_net, xgboost_model, lightgbm_model,
-naive_baselines).
+dynamic_ridge, naive_baselines).
 
 IMPORTANT -- do NOT add eager submodule imports here (e.g. no
 `from . import neural_net, xgboost_model`). `neural_net.py` imports torch;
-`xgboost_model.py`/`lightgbm_model.py` import xgboost/lightgbm. On macOS,
+`xgboost_model.py`/`lightgbm_model.py` import xgboost/lightgbm;
+`dynamic_ridge.py` uses scikit-learn inside the same native-model worker. On macOS,
 loading both runtimes in the same process segfaults as soon as either runs
 its native code (each bundles its own copy of the LLVM OpenMP runtime).
 `pipeline.py` (torch) and `tree_worker.py` (xgboost/lightgbm, run as a

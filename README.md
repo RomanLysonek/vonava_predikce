@@ -12,8 +12,10 @@ brief itself frames them as the standard comparison point.
 
 - **Features**: cyclic calendar encodings (day-of-week/month/day-of-year/
   week-of-year), campaign/discount/price info, price relative to a
-  product's own historical median, days-since-launch, and rolling
-  mean/std/median demand lags (7/14/28 days).
+  product's own historical median, separate first-row/first-available
+  lifecycle clocks, and rolling mean/std/median demand lags (7/14/28 days).
+  Calendar gaps, observed stockouts, and valid available observations are
+  represented separately rather than being collapsed into one rate.
 - **Categorical handling**: `CampaignSubTypeWeb/App` are category codes
   (-1, 0, 1, 2, 3, 4, 5, 16, 18, 19), not an ordinal scale, so they're fed
   through embedding layers instead of as raw numeric features.
@@ -21,6 +23,10 @@ brief itself frames them as the standard comparison point.
   numeric features plus product, campaign-web and campaign-app embeddings.
   Target is a **baseline-relative log residual**: `log1p(Quantity) - log1p(target_baseline)`.
   Trained with Huber loss.
+- **Missing seasonal history**: annual lags remain nullable for young
+  products and early history. The NN uses a train-fitted median imputer plus
+  missingness indicators, trees use native missing-value handling, and no
+  row is silently discarded merely because a 364/365/371-day lag is absent.
 - **Seeds**: random seeds for both the NN ensemble and the tree-based baselines are
   fixed (`Config.seeds`) to ensure reproducibility.
 - **Two forecast strategies**: **direct** predicts all seven target days
@@ -43,9 +49,11 @@ brief itself frames them as the standard comparison point.
   a final benchmark of recent performance. Each fold trains only on data
   strictly before its evaluation block, so the reported metrics mirror the
   real deployment scenario (no early-stopping on the eval fold, no leakage).
-- **Baselines**: XGBoost, LightGBM, and Dynamic Ridge use the same
-  strategy-specific feature contracts as the NN (native categorical support
-  or one-hot encoding as appropriate). 
+- **Baselines**: XGBoost and LightGBM support both direct and recursive
+  contracts. Dynamic Ridge is deliberately **direct-only**: its recursive
+  feedback was empirically unstable even after numerical overflow guards.
+  Structured models use native categorical support or one-hot encoding as
+  appropriate.
   **NeuralNet** and **Dynamic Ridge** predict a baseline-relative log residual, 
   while **XGBoost** and **LightGBM** predict `log1p(Quantity)` directly. 
   Two naive baselines are also included: seasonal-naive (value from 7 days prior) 
@@ -60,9 +68,27 @@ brief itself frames them as the standard comparison point.
   LightGBM and Dynamic Ridge remain comparison models unless
   `--submission-model` explicitly selects otherwise.
 
-## Results (walk-forward CV, 4 folds x 7 days, Conditional Demand)
+## Tier C0 data-alignment gate
 
-The results below are from the `recent_benchmark` origins:
+The current source includes the pre-ablation C0 corrections:
+
+- separate lifecycle, calendar-gap and unavailable-state features;
+- annual-lag imputation and explicit missingness indicators instead of
+  complete-case deletion;
+- Dynamic Ridge marked direct-only;
+- winter/test-like, regular and holiday-event validation strata;
+- optional test-aligned development selection;
+- both development and recent-benchmark horizon summaries;
+- fallback, non-finite and catastrophic-guard diagnostics;
+- three frozen `FINAL_AUDIT_ORIGINS` that normal runs never execute.
+
+After applying this source revision, regenerate outputs before quoting new
+metrics; the checked-in tables may still describe the pre-C0 baseline.
+
+## Archived pre-C0 results (walk-forward CV, Conditional Demand)
+
+The table below is retained only as historical context from the pre-C0
+`recent_benchmark` run. Regenerate all artifacts before presenting C0 metrics:
 
 | model         |   MAE |  RMSE |   MAPE |
 |---------------|------:|------:|-------:|
@@ -99,8 +125,8 @@ ml/
     lightgbm_model.py        LightGBM: train/predict directly on the panel
     dynamic_ridge.py        Dynamic Ridge: sklearn linear baseline with scaling/imputation
     naive_baselines.py        seasonal-naive + 28-day moving average
-  tree_worker.py         isolated structured-model dispatcher for direct and
-                          recursive XGBoost, LightGBM and Dynamic Ridge jobs
+  tree_worker.py         isolated structured-model dispatcher: direct and
+                          recursive XGBoost/LightGBM, direct-only Dynamic Ridge
   pipeline.py            strategy-aware CV/training/export orchestrator,
                           development-only selection and artifact generation
   benchmark_nn_batch_size.py
@@ -124,8 +150,6 @@ webapp/
                           model.html + model.js (shared per-model page template)
                           common.js              (shared nav + fetch/format helpers)
                           styles.css             (Chart.js loaded from CDN)
-archive/
-  solution_draft_v1.py   earlier draft, kept for reference only
 task.md                  original assignment brief (Czech)
 ```
 
@@ -137,6 +161,30 @@ uv run pytest tests/ -v              # unit tests
 ```
 
 Uses `mps` automatically on Apple Silicon if available, else CPU.
+
+### First C0 regression run
+
+C0 changes the feature schema and NN preprocessing, so regenerate checkpoints
+and outputs before using the new diagnostics or quoting metrics:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy both \
+  --primary-strategy auto \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol global \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed \
+  --reset-checkpoints \
+  --resume \
+  2>&1 | tee pipeline_c0_512_fixed.log
+```
+
+`global` and `512/fixed` intentionally preserve the pre-C0 selection/training
+policy for a controlled regression comparison. After this run is audited,
+Tier C screening may use `--selection-protocol test-aligned` and a separately
+benchmarked larger batch.
 
 ### Apple Silicon performance profile
 
@@ -161,8 +209,10 @@ The benchmark measures held-out WAPE/MAE and throughput, writes
 `outputs/nn_batch_benchmark.json`, and recommends the fastest policy within
 2% relative WAPE of the historical `512/fixed` reference. The pipeline's
 default `--nn-batch-size auto --nn-lr-scaling auto` consumes that recommendation
-only when it was measured on the same accelerator type; without it, the safe
-512/fixed policy is preserved.
+only when it was measured on the same accelerator type **and the exact current
+feature/preprocessing signature**; without that match, the safe 512/fixed
+policy is preserved. Pre-C0 benchmark files are therefore ignored
+automatically.
 
 Typical M4 Pro candidate order is 1024 -> 2048 -> 4096. With ~30% GPU usage at
 batch 512 and ample unified memory, 2048 is the most plausible first winner,
@@ -183,8 +233,9 @@ caffeinate -i uv run python ml/pipeline.py \
 ```
 
 Changing batch/LR policy invalidates checkpoints trained with a different
-model policy. Existing 512/fixed stability-v3 checkpoints remain reusable
-with the automatic safe fallback.
+model policy. C0 changes the feature schema and numeric preprocessing, so pre-C0
+checkpoints are intentionally incompatible. Use `--reset-checkpoints` for the
+first C0 regression run; later C0 checkpoints remain reusable with `--resume`.
 
 **macOS setup note:** XGBoost/LightGBM's macOS wheels need Homebrew's OpenMP
 runtime: `brew install libomp`. Separately, PyTorch bundles its *own* copy of
@@ -240,7 +291,8 @@ uv run python ml/pipeline.py --forecast-strategy recursive
 uv run python ml/pipeline.py --forecast-strategy both \
   --primary-strategy auto \
   --submission-model NeuralNet \
-  --selection-metric WAPE
+  --selection-metric WAPE \
+  --selection-protocol global
 ```
 
 - **Direct** trains on the stacked `(ForecastOrigin, Horizon, ProductId)`
@@ -248,14 +300,16 @@ uv run python ml/pipeline.py --forecast-strategy both \
 - **Recursive** trains genuine one-step models and then predicts one day at a
   time, appending each prediction to history before building the next step.
 - **Both** evaluates and exports both strategies independently. Automatic
-  strategy selection uses development OOF metrics from the
-  `conditional/common/global` population; the recent benchmark is reporting
-  only and never changes the selection.
+  strategy selection defaults to development OOF metrics from the
+  `conditional/common/global` population. `--selection-protocol test-aligned`
+  instead uses frozen winter/regular/event stratum weights. The recent
+  benchmark is reporting only and never changes the selection.
 
-All model families—NeuralNet, XGBoost, LightGBM, and Dynamic Ridge—are trained
-separately for direct and recursive use. Recursive inference receives only an
-explicit allowlist of future-known covariates and treats generated future rows
-as available, matching the conditional-demand forecast contract.
+NeuralNet, XGBoost, and LightGBM are trained separately for direct and
+recursive use. Dynamic Ridge remains a direct-only structured benchmark.
+Recursive inference receives only an explicit allowlist of future-known
+covariates and treats generated future rows as available, matching the
+conditional-demand forecast contract.
 
 The unrounded model-strategy forecasts are stored in
 `outputs/final_forecasts.parquet`. Strategy-specific submissions and paired
@@ -285,17 +339,8 @@ Use `--reset-checkpoints` after changing model or feature semantics. Each
 checkpoint includes a schema/config signature, so incompatible checkpoints
 are ignored rather than silently mixed into a new experiment.
 
-Before committing to the full run, the regression test for the previously
-failing recursive Dynamic Ridge fold can be executed directly:
-
-```bash
-uv run pytest -q \
-  tests/test_recursive_dynamic_ridge_real_fold.py::test_recursive_dynamic_ridge_real_2024_11_29_fold_is_finite
-```
-
-Recursive Dynamic Ridge constrains only its recursive residual extrapolation
-to the residual support observed during training. The generic recursive engine
-also replaces non-finite or catastrophically large numerical outputs with the
-recorded same-weekday baseline before they can contaminate later lag features.
-This is a numerical stability guard, not the prediction-cap optimization left
-for Tier C3.
+Dynamic Ridge is direct-only. The generic recursive engine still replaces
+non-finite or catastrophically large NeuralNet/tree outputs with the recorded
+same-weekday baseline before they can contaminate later lag features. This is
+a numerical stability guard, not the prediction-cap optimization left for
+Tier C3.

@@ -75,15 +75,32 @@ STATIC_NUMERIC_FEATURES = [
     "day_of_month", "is_weekend",
     "discount_web", "discount_app", "discount_max",
     "effective_price_web", "effective_price_app",
-    "is_sale", "price", "price_rel", "days_since_launch",
+    "is_sale", "price", "price_rel",
+    # Keep the historical name for compatibility, but distinguish the two
+    # lifecycle clocks explicitly.  Some products have rows long before they
+    # first become available, while others simply have no pre-launch rows.
+    "days_since_launch", "days_since_first_row",
+    "days_since_first_available", "is_pre_first_available",
 ]
 
 
 def lag_feature_names(lag_windows) -> list[str]:
+    """Origin-history feature names.
+
+    ``stockout_rate`` is retained as a backward-compatible alias for the
+    observed-unavailable rate.  Calendar gaps are tracked separately rather
+    than silently being counted as stockouts.
+    """
     names = []
     for w in lag_windows:
-        names += [f"qty_roll_mean_{w}", f"qty_roll_std_{w}", f"qty_roll_median_{w}",
-                  f"qty_available_count_{w}", f"stockout_rate_{w}"]
+        names += [
+            f"qty_roll_mean_{w}", f"qty_roll_std_{w}",
+            f"qty_roll_median_{w}", f"qty_available_count_{w}",
+            f"observed_count_{w}", f"unavailable_count_{w}",
+            f"calendar_gap_count_{w}", f"available_observation_rate_{w}",
+            f"observed_rate_{w}", f"unavailable_rate_{w}",
+            f"calendar_gap_rate_{w}", f"stockout_rate_{w}",
+        ]
     return names
 
 
@@ -96,9 +113,9 @@ def reindex_daily_calendar(df: pd.DataFrame) -> pd.DataFrame:
     previous". Two products in this dataset (1 and 30) have gaps sitting in
     the middle of otherwise-continuous, available history -- a data glitch,
     not a real absence from the catalog -- so a gap day's Quantity /
-    ProductAvailable are unknown, not zero: they're filled as NaN / <NA>,
-    which the availability-aware rolling stats in `add_train_lags` then
-    treat exactly like a stockout day. `is_gap_filled` records provenance.
+    ProductAvailable are unknown, not zero: they're filled as NaN / <NA>.
+    Availability-aware rolling features keep these calendar gaps separate
+    from observed stockouts. `is_gap_filled` records provenance.
     """
     frames = []
     for pid, sub in df.groupby("ProductId", sort=True):
@@ -121,6 +138,30 @@ def reindex_daily_calendar(df: pd.DataFrame) -> pd.DataFrame:
         if col in out.columns:
             out[col] = out.groupby("ProductId")[col].transform(lambda s: s.ffill().bfill())
     return out
+
+
+def product_reference_dates(
+    raw_df: pd.DataFrame,
+) -> tuple[pd.Series, pd.Series]:
+    """Training-only first-row and first-confirmed-available dates.
+
+    Products in this dataset encode lifecycle differently: some have no rows
+    before launch, while others have long observed-but-unavailable prefixes.
+    Keeping both clocks prevents those states from being conflated.
+    """
+    first_seen = raw_df.groupby("ProductId")["DateKey"].min()
+    gap = raw_df.get(
+        "is_gap_filled", pd.Series(False, index=raw_df.index)
+    ).astype("boolean").fillna(False).astype(bool)
+    available = raw_df["ProductAvailable"].fillna(False).astype(bool) & ~gap
+    first_available = (
+        raw_df.loc[available]
+        .groupby("ProductId")["DateKey"]
+        .min()
+        .reindex(first_seen.index)
+        .fillna(first_seen)
+    )
+    return first_seen, first_available
 
 
 def load_raw(cfg: Config = CFG) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -152,12 +193,17 @@ def add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def prepare_features(df: pd.DataFrame, price_ref: pd.Series, first_seen: pd.Series) -> pd.DataFrame:
-    """Add all features that do NOT depend on the target's own recent history.
+def prepare_features(
+    df: pd.DataFrame,
+    price_ref: pd.Series,
+    first_seen: pd.Series,
+    first_available: pd.Series | None = None,
+) -> pd.DataFrame:
+    """Add features that do not depend on the target's own recent history.
 
-    `price_ref` (per-product median price) and `first_seen` (per-product first
-    observed date) must be computed from training-only data by the caller, so
-    the same reference values are reused consistently across train/eval/test.
+    ``price_ref``, ``first_seen`` and ``first_available`` must be computed from
+    training-only data by the caller.  ``first_available`` is optional for
+    backward compatibility; when absent it falls back to ``first_seen``.
     """
     df = df.copy()
     df = add_calendar_features(df)
@@ -178,7 +224,20 @@ def prepare_features(df: pd.DataFrame, price_ref: pd.Series, first_seen: pd.Seri
 
     ref = df["ProductId"].map(price_ref).replace(0, np.nan)
     df["price_rel"] = (df["price"] / ref).fillna(1.0)
-    df["days_since_launch"] = (df["DateKey"] - df["ProductId"].map(first_seen)).dt.days
+    first_row_date = df["ProductId"].map(first_seen)
+    if first_available is None:
+        first_available = first_seen
+    first_available_date = df["ProductId"].map(first_available).fillna(first_row_date)
+    df["days_since_first_row"] = (df["DateKey"] - first_row_date).dt.days
+    # Historical compatibility: the old feature was actually days since the
+    # first row, not necessarily since launch/availability.
+    df["days_since_launch"] = df["days_since_first_row"]
+    df["days_since_first_available"] = (
+        df["DateKey"] - first_available_date
+    ).dt.days
+    df["is_pre_first_available"] = (
+        df["DateKey"] < first_available_date
+    ).astype(int)
 
     df["product_idx"] = df["ProductId"] - 1
     return df
@@ -229,31 +288,87 @@ def compute_baseline(target_df: pd.DataFrame, hist_df: pd.DataFrame) -> np.ndarr
     return _weighted_baseline(lag_matrix)
 
 
-def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.DataFrame:
-    """Rolling lag statistics computed strictly from the past (`shift(1)`),
-    grouped per product, using only observed-and-available demand. A
-    stockout day (ProductAvailable=False) or a reindexed calendar gap has
-    unknown true demand, so it's excluded (NaN) from `qty_available` before
-    rolling -- pandas' rolling mean/std/median already skip NaN internally
-    (subject to min_periods), so a stockout no longer silently drags the
-    average toward zero. `qty_available_count_{w}` / `stockout_rate_{w}`
-    expose how much real signal backs each window. Only usable on rows
-    where the target is known."""
-    df = df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
-    available = df["ProductAvailable"].fillna(False)
-    df["qty_available"] = df["Quantity"].where(available)
+def _availability_state(df: pd.DataFrame) -> pd.DataFrame:
+    """Return explicit observed/available/unavailable/gap state columns."""
+    state = pd.DataFrame(index=df.index)
+    if "is_gap_filled" in df.columns:
+        gap = df["is_gap_filled"].astype("boolean").fillna(False).astype(bool)
+    else:
+        gap = pd.Series(False, index=df.index)
+    product_available = df["ProductAvailable"].astype("boolean")
+    observed = ~gap
+    available = observed & product_available.fillna(False).astype(bool)
+    unavailable = observed & product_available.eq(False).fillna(False).astype(bool)
+    state["_is_gap"] = gap.astype(float)
+    state["_is_observed"] = observed.astype(float)
+    state["_is_available"] = available.astype(float)
+    state["_is_unavailable"] = unavailable.astype(float)
+    state["qty_available"] = pd.to_numeric(
+        df["Quantity"], errors="coerce"
+    ).where(available)
+    return state
 
-    g = df.groupby("ProductId")["qty_available"]
-    row_num = df.groupby("ProductId").cumcount()
+
+def _window_state_features(
+    df: pd.DataFrame,
+    windows: tuple,
+    *,
+    include_current: bool,
+) -> pd.DataFrame:
+    """Compute availability-aware rolling features with explicit states."""
+    state = _availability_state(df)
+    work = pd.concat([df[["ProductId", "DateKey"]].reset_index(drop=True),
+                      state.reset_index(drop=True)], axis=1)
+    qty_group = work.groupby("ProductId")["qty_available"]
+    observed_group = work.groupby("ProductId")["_is_observed"]
+    unavailable_group = work.groupby("ProductId")["_is_unavailable"]
+    gap_group = work.groupby("ProductId")["_is_gap"]
+    offset = 0 if include_current else 1
+    row_num = work.groupby("ProductId").cumcount() + (1 if include_current else 0)
+    out = work[["ProductId", "DateKey"]].copy()
+    out["qty_available"] = work["qty_available"]
+
+    def rolled(group, window, method, *, fill_std=False):
+        def apply(series):
+            base = series if offset == 0 else series.shift(offset)
+            result = getattr(base.rolling(window, min_periods=1), method)()
+            return result.fillna(0.0) if fill_std else result
+        return group.transform(apply)
+
     for w in windows:
-        df[f"qty_roll_mean_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).mean())
-        df[f"qty_roll_std_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).std().fillna(0))
-        df[f"qty_roll_median_{w}"] = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).median())
-        count = g.transform(lambda s: s.shift(1).rolling(w, min_periods=1).count())
-        df[f"qty_available_count_{w}"] = count
-        window_days = np.minimum(row_num, w).clip(lower=1)
-        df[f"stockout_rate_{w}"] = 1.0 - count / window_days
+        out[f"qty_roll_mean_{w}"] = rolled(qty_group, w, "mean")
+        out[f"qty_roll_std_{w}"] = rolled(qty_group, w, "std", fill_std=True)
+        out[f"qty_roll_median_{w}"] = rolled(qty_group, w, "median")
+        qty_count = rolled(qty_group, w, "count")
+        observed_count = rolled(observed_group, w, "sum")
+        unavailable_count = rolled(unavailable_group, w, "sum")
+        gap_count = rolled(gap_group, w, "sum")
+        denominator = np.minimum(row_num, w).clip(lower=1).astype(float)
+        out[f"qty_available_count_{w}"] = qty_count
+        out[f"observed_count_{w}"] = observed_count
+        out[f"unavailable_count_{w}"] = unavailable_count
+        out[f"calendar_gap_count_{w}"] = gap_count
+        out[f"available_observation_rate_{w}"] = qty_count / denominator
+        out[f"observed_rate_{w}"] = observed_count / denominator
+        out[f"unavailable_rate_{w}"] = unavailable_count / denominator
+        out[f"calendar_gap_rate_{w}"] = gap_count / denominator
+        out[f"stockout_rate_{w}"] = out[f"unavailable_rate_{w}"]
+    return out
 
+
+def add_train_lags(df: pd.DataFrame, windows: tuple = CFG.lag_windows) -> pd.DataFrame:
+    """Target-row history features computed strictly from prior days.
+
+    Calendar gaps and observed-unavailable rows are now represented
+    separately.  Only observed-and-available quantities enter demand rolling
+    statistics; ``stockout_rate`` is an alias of the explicit unavailable
+    rate rather than a mixture of stockouts and unknown calendar gaps.
+    """
+    df = df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True).copy()
+    history = _window_state_features(df, windows, include_current=False)
+    for col in history.columns:
+        if col not in {"ProductId", "DateKey"}:
+            df[col] = history[col].to_numpy()
     df["baseline"] = compute_baseline(df, df)
     return df
 
@@ -268,7 +383,12 @@ RECENT_POINT_LAGS = (0, 1, 2, 6, 7)
 # BASELINE_LAGS first, so `target_baseline` below can always read
 # seasonal_lag_{7,14,21,28} straight off the columns this computes for
 # every horizon -- weekly-seasonal lags plus 3 yearly-seasonal lags.
-SEASONAL_LAG_DAYS = BASELINE_LAGS + (364, 365, 371)
+ANNUAL_LAG_DAYS = (364, 365, 371)
+SEASONAL_LAG_DAYS = BASELINE_LAGS + ANNUAL_LAG_DAYS
+ANNUAL_LAG_MISSING_FEATURES = [
+    f"seasonal_lag_{lag}_missing" for lag in ANNUAL_LAG_DAYS
+]
+ORIGIN_LIFECYCLE_FEATURES = ["days_since_last_available", "ever_available_before"]
 
 # Columns whose VALUE must be shifted forward from the target row (the two
 # campaign category codes included, so the panel reflects whatever
@@ -294,36 +414,29 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
     `target_baseline` (Tier B2) is the weighted same-weekday baseline for
     the target date itself -- see `build_direct_panel`."""
     return (STATIC_NUMERIC_FEATURES + lag_feature_names(cfg.lag_windows)
+            + ORIGIN_LIFECYCLE_FEATURES
             + [f"qty_lag_{lag}" for lag in RECENT_POINT_LAGS]
             + [f"seasonal_lag_{lag}" for lag in SEASONAL_LAG_DAYS]
-            + ["target_baseline", "horizon"])
+            + ANNUAL_LAG_MISSING_FEATURES
+            + ["target_baseline_missing", "target_baseline", "horizon"])
 
 
 def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame:
-    """Build features known at the end of each origin day.
-
-    Unlike target-row lag features, these include the origin day's observed
-    available demand itself (`qty_lag_0`) and rolling windows ending at the
-    origin. This gives direct and recursive forecasting the same information
-    cutoff: all observations through and including ForecastOrigin are usable.
-    """
+    """Build features known at the end of each origin day."""
     df = feature_df.sort_values(["ProductId", "DateKey"]).reset_index(drop=True).copy()
-    if "qty_available" not in df.columns:
-        available = df["ProductAvailable"].fillna(False)
-        df["qty_available"] = df["Quantity"].where(available)
-    g = df.groupby("ProductId")["qty_available"]
-    out = df[["ProductId", "DateKey"]].copy()
+    state = _window_state_features(df, cfg.lag_windows, include_current=True)
+    out = state.drop(columns=["qty_available"]).copy()
+    qty_group = state.groupby("ProductId")["qty_available"]
     for lag in RECENT_POINT_LAGS:
-        out[f"qty_lag_{lag}"] = g.shift(lag)
-    row_num = df.groupby("ProductId").cumcount() + 1
-    for w in cfg.lag_windows:
-        out[f"qty_roll_mean_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).mean())
-        out[f"qty_roll_std_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).std().fillna(0))
-        out[f"qty_roll_median_{w}"] = g.transform(lambda x: x.rolling(w, min_periods=1).median())
-        count = g.transform(lambda x: x.rolling(w, min_periods=1).count())
-        out[f"qty_available_count_{w}"] = count
-        window_days = np.minimum(row_num, w).clip(lower=1)
-        out[f"stockout_rate_{w}"] = 1.0 - count / window_days
+        out[f"qty_lag_{lag}"] = qty_group.shift(lag)
+
+    availability = _availability_state(df)
+    available_date = df["DateKey"].where(availability["_is_available"].astype(bool))
+    last_available = available_date.groupby(df["ProductId"]).ffill()
+    out["days_since_last_available"] = (
+        df["DateKey"] - last_available
+    ).dt.days.astype(float)
+    out["ever_available_before"] = last_available.notna().astype(float)
     return out
 
 
@@ -383,11 +496,29 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
             panel_h[col] = target[col]
         for lag in SEASONAL_LAG_DAYS:
             panel_h[f"seasonal_lag_{lag}"] = g["qty_available"].shift(lag - h)
+        for lag in ANNUAL_LAG_DAYS:
+            panel_h[f"seasonal_lag_{lag}_missing"] = (
+                ~np.isfinite(panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float))
+            ).astype(float)
         lag_matrix = np.column_stack([
             panel_h[f"seasonal_lag_{lag}"].to_numpy(dtype=float)
             for lag in BASELINE_LAGS
         ])
-        panel_h["target_baseline"] = _weighted_baseline(lag_matrix)
+        raw_baseline = _weighted_baseline(lag_matrix)
+        panel_h["target_baseline_missing"] = (~np.isfinite(raw_baseline)).astype(float)
+        fallback = panel_h[f"qty_roll_median_{cfg.lag_windows[0]}"].to_numpy(dtype=float)
+        fallback = np.where(
+            np.isfinite(fallback), fallback,
+            panel_h[f"qty_roll_mean_{cfg.lag_windows[0]}"].to_numpy(dtype=float),
+        )
+        fallback = np.where(
+            np.isfinite(fallback), fallback,
+            panel_h["qty_lag_0"].to_numpy(dtype=float),
+        )
+        fallback = np.where(np.isfinite(fallback), fallback, 0.0)
+        panel_h["target_baseline"] = np.where(
+            np.isfinite(raw_baseline), raw_baseline, fallback
+        )
         frames.append(panel_h)
 
     panel = pd.concat(frames, ignore_index=True).rename(columns={"DateKey": "OriginDateKey"})
@@ -396,10 +527,45 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
     return panel[panel_index.isin(origin_index)].reset_index(drop=True)
 
 
-def build_one_step_panel(raw_df: pd.DataFrame, price_ref: pd.Series,
-                         first_seen: pd.Series, cfg: Config = CFG) -> pd.DataFrame:
+def select_trainable_panel_rows(
+    panel: pd.DataFrame,
+    *,
+    cutoff: pd.Timestamp | None = None,
+    available_only: bool = True,
+) -> pd.DataFrame:
+    """Select supervised rows without requiring every feature to be present.
+
+    Numeric feature missingness is handled by each model's fitted
+    preprocessing/native missing-value support.  This prevents annual lags
+    from silently deleting young-product and early-history observations.
+    """
+    mask = panel["target"].notna() & np.isfinite(
+        pd.to_numeric(panel["target"], errors="coerce")
+    )
+    mask &= panel["target_baseline"].notna() & np.isfinite(
+        pd.to_numeric(panel["target_baseline"], errors="coerce")
+    )
+    if cutoff is not None:
+        mask &= panel["TargetDateKey"].le(pd.Timestamp(cutoff))
+    if available_only:
+        mask &= (
+            panel["TargetProductAvailable"]
+            .astype("boolean")
+            .fillna(False)
+            .astype(bool)
+        )
+    return panel.loc[mask].reset_index(drop=True)
+
+
+def build_one_step_panel(
+    raw_df: pd.DataFrame,
+    price_ref: pd.Series,
+    first_seen: pd.Series,
+    cfg: Config = CFG,
+    first_available: pd.Series | None = None,
+) -> pd.DataFrame:
     """Build one-step-ahead training rows for recursive models."""
-    feat = prepare_features(raw_df, price_ref, first_seen)
+    feat = prepare_features(raw_df, price_ref, first_seen, first_available)
     feat = add_train_lags(feat, cfg.lag_windows)
     return build_direct_panel(feat, [1], cfg=cfg)
 
@@ -422,16 +588,25 @@ def sanitize_future_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def build_recursive_step_panel(history_raw: pd.DataFrame, target_covariates: pd.DataFrame,
-                               price_ref: pd.Series, first_seen: pd.Series,
-                               cfg: Config = CFG) -> pd.DataFrame:
+def build_recursive_step_panel(
+    history_raw: pd.DataFrame,
+    target_covariates: pd.DataFrame,
+    price_ref: pd.Series,
+    first_seen: pd.Series,
+    cfg: Config = CFG,
+    first_available: pd.Series | None = None,
+) -> pd.DataFrame:
     """Build the one-step panel for the next target day from current history."""
     future = sanitize_future_covariates(target_covariates)
     future["Quantity"] = np.nan
     future["ProductAvailable"] = pd.Series([pd.NA] * len(future), dtype="boolean")
-    history_feat = prepare_features(history_raw, price_ref, first_seen)
+    history_feat = prepare_features(
+        history_raw, price_ref, first_seen, first_available
+    )
     history_feat = add_train_lags(history_feat, cfg.lag_windows)
-    future_feat = prepare_features(future, price_ref, first_seen)
+    future_feat = prepare_features(
+        future, price_ref, first_seen, first_available
+    )
     panel = build_direct_panel(history_feat, [1], cfg=cfg, future_covariates=future_feat)
     origin = history_raw["DateKey"].max()
     step = panel[panel["OriginDateKey"].eq(origin)].reset_index(drop=True)
@@ -439,9 +614,15 @@ def build_recursive_step_panel(history_raw: pd.DataFrame, target_covariates: pd.
     return step
 
 
-def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFrame,
-                       predict_step, price_ref: pd.Series, first_seen: pd.Series,
-                       cfg: Config = CFG) -> pd.DataFrame:
+def forecast_recursive(
+    history_raw: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    predict_step,
+    price_ref: pd.Series,
+    first_seen: pd.Series,
+    cfg: Config = CFG,
+    first_available: pd.Series | None = None,
+) -> pd.DataFrame:
     """Forecast future dates sequentially, feeding predictions into history."""
     history = history_raw.copy().sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     future = sanitize_future_covariates(future_covariates)
@@ -451,7 +632,9 @@ def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFram
     results = []
     for forecast_horizon, target_date in enumerate(dates, start=1):
         current = future[future["DateKey"].eq(target_date)].copy()
-        step_panel = build_recursive_step_panel(history, current, price_ref, first_seen, cfg)
+        step_panel = build_recursive_step_panel(
+            history, current, price_ref, first_seen, cfg, first_available
+        )
         if not step_panel["horizon"].eq(1).all():
             raise AssertionError("Recursive model input horizon must always equal 1")
         prediction = np.asarray(predict_step(step_panel), dtype=float)
@@ -486,8 +669,9 @@ def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFram
             cfg.recursive_safety_floor,
             cfg.recursive_safety_multiplier * reference_scale,
         )
+        nonfinite_raw = ~np.isfinite(prediction)
         catastrophic = np.isfinite(prediction) & (prediction > safety_limit)
-        fallback = ~np.isfinite(prediction) | catastrophic
+        fallback = nonfinite_raw | catastrophic
 
         fallback_value = np.where(
             np.isfinite(baseline) & (baseline >= 0.0),
@@ -505,6 +689,8 @@ def forecast_recursive(history_raw: pd.DataFrame, future_covariates: pd.DataFram
         result["forecast_horizon"] = forecast_horizon
         result["prediction"] = prediction
         result["fallback_used"] = fallback
+        result["nonfinite_raw"] = nonfinite_raw
+        result["catastrophic_guard"] = catastrophic
         results.append(result)
 
         generated = current.merge(
@@ -535,6 +721,8 @@ def direct_panel_tree_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame
     """
     cols = direct_panel_feature_names(cfg) + TREE_CATEGORICAL_COLUMNS
     X = df[cols].copy()
+    numeric_cols = [c for c in direct_panel_feature_names(cfg) if c in X.columns]
+    X[numeric_cols] = X[numeric_cols].replace([np.inf, -np.inf], np.nan)
     # Fixed, cfg-derived category domains -- NOT a bare `.astype("category")`,
     # which would infer each column's categories from whatever values
     # happen to be present in THIS specific DataFrame. train_panel and
@@ -569,6 +757,31 @@ def direct_panel_tree_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame
 # Model registry/metadata & metrics
 # ---------------------------------------------------------------------------
 MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "DynamicRidge", "SeasonalNaive", "MovingAvg28"]
+MODEL_STRATEGY_SUPPORT = {
+    "NeuralNet": {"direct", "recursive"},
+    "XGBoost": {"direct", "recursive"},
+    "LightGBM": {"direct", "recursive"},
+    # Recursive Ridge is empirically unstable on this panel even after
+    # numerical overflow guards.  Keep it as a useful direct structured
+    # baseline rather than presenting a pathological recursive variant.
+    "DynamicRidge": {"direct"},
+    "SeasonalNaive": {"direct", "recursive"},
+    "MovingAvg28": {"direct", "recursive"},
+}
+
+
+def model_supports_strategy(model: str, strategy: str) -> bool:
+    return strategy in MODEL_STRATEGY_SUPPORT.get(model, set())
+
+
+def prediction_columns_for_strategy(
+    pred_columns: dict[str, str], strategy: str
+) -> dict[str, str]:
+    return {
+        model: column
+        for model, column in pred_columns.items()
+        if model_supports_strategy(model, strategy)
+    }
 
 # Colors match each model's own project branding, so the dashboard visually
 # echoes the tool it's describing: PyTorch's site/logo orange for the NN

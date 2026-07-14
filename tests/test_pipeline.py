@@ -533,8 +533,10 @@ def test_build_direct_panel_target_baseline_matches_compute_baseline():
     # (row-position shift(-h) can't reach a real row without future_covariates)
     # even though target_baseline itself stays valid there -- exclude those so
     # compute_baseline isn't asked to look up a NaT date.
-    valid = panel.dropna(subset=["target_baseline"])
-    valid = valid[valid["TargetDateKey"].notna()]
+    valid = panel[
+        panel["TargetDateKey"].notna()
+        & panel["target_baseline_missing"].eq(0.0)
+    ]
     assert len(valid) > 0
     target_rows = pd.DataFrame({
         "ProductId": valid["ProductId"].to_numpy(),
