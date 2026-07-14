@@ -39,6 +39,9 @@ import pandas as pd
 from framework import (
     BASELINE_VARIANTS,
     C2_FEATURE_GROUPS,
+    NN_LOSSES,
+    NN_TARGET_MODES,
+    TREE_TARGET_MODES,
     CFG,
     MODEL_META,
     MODEL_ORDER,
@@ -65,7 +68,7 @@ from framework import (
 from models.naive_baselines import moving_average_predict, seasonal_naive_predict
 from models.neural_net import (
     DEVICE, effective_learning_rate, make_numeric_preprocessor, make_tensors,
-    nn_performance_signature, predict_direct, residual_log1p_target,
+    neural_training_target, nn_performance_signature, predict_direct,
     resolve_training_backend, train_model,
 )
 
@@ -114,6 +117,16 @@ class RuntimeOptions:
     trend_features: str | None = None
     c2_config: str | None = None
     c2_feature_groups: str | None = None
+    c34_config: str | None = None
+    nn_loss: str | None = None
+    nn_target_mode: str | None = None
+    nn_combined_mse_weight: float | None = None
+    tree_target_mode: str | None = None
+    xgboost_target_mode: str | None = None
+    lightgbm_target_mode: str | None = None
+    channel_history_features: str | None = None
+    channel_aux_weight: float | None = None
+    channel_share_smoothing: float | None = None
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -198,6 +211,23 @@ def parse_args(argv=None) -> RuntimeOptions:
         help=("Comma-separated C2 groups, 'all', or 'none'. Available: "
               + ",".join(C2_FEATURE_GROUPS)),
     )
+    parser.add_argument(
+        "--c34-config", default=None,
+        help=("Recommendation JSON written by ml/run_c34_screening.py. "
+              "Explicit C3/C4 CLI options override it."),
+    )
+    parser.add_argument("--nn-loss", choices=NN_LOSSES, default=None)
+    parser.add_argument("--nn-target-mode", choices=NN_TARGET_MODES, default=None)
+    parser.add_argument("--nn-combined-mse-weight", type=float, default=None)
+    parser.add_argument("--tree-target-mode", choices=TREE_TARGET_MODES, default=None)
+    parser.add_argument("--xgboost-target-mode", choices=TREE_TARGET_MODES, default=None)
+    parser.add_argument("--lightgbm-target-mode", choices=TREE_TARGET_MODES, default=None)
+    parser.add_argument(
+        "--channel-history-features", choices=["on", "off"], default=None,
+        help="Enable leakage-safe historical app/web composition features",
+    )
+    parser.add_argument("--channel-aux-weight", type=float, default=None)
+    parser.add_argument("--channel-share-smoothing", type=float, default=None)
     args = parser.parse_args(argv)
     if args.nn_batch_size != "auto":
         try:
@@ -219,6 +249,14 @@ def parse_args(argv=None) -> RuntimeOptions:
                 raise ValueError
         except ValueError:
             parser.error("--recency-half-life-days must be 'none' or positive")
+    if args.nn_combined_mse_weight is not None and not (
+        0.0 <= args.nn_combined_mse_weight <= 1.0
+    ):
+        parser.error("--nn-combined-mse-weight must be between 0 and 1")
+    if args.channel_aux_weight is not None and args.channel_aux_weight < 0.0:
+        parser.error("--channel-aux-weight must be nonnegative")
+    if args.channel_share_smoothing is not None and args.channel_share_smoothing < 0.0:
+        parser.error("--channel-share-smoothing must be nonnegative")
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
@@ -239,6 +277,16 @@ def parse_args(argv=None) -> RuntimeOptions:
         trend_features=args.trend_features,
         c2_config=args.c2_config,
         c2_feature_groups=args.c2_feature_groups,
+        c34_config=args.c34_config,
+        nn_loss=args.nn_loss,
+        nn_target_mode=args.nn_target_mode,
+        nn_combined_mse_weight=args.nn_combined_mse_weight,
+        tree_target_mode=args.tree_target_mode,
+        xgboost_target_mode=args.xgboost_target_mode,
+        lightgbm_target_mode=args.lightgbm_target_mode,
+        channel_history_features=args.channel_history_features,
+        channel_aux_weight=args.channel_aux_weight,
+        channel_share_smoothing=args.channel_share_smoothing,
     )
 
 
@@ -361,6 +409,130 @@ def configure_c2_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     }
 
 
+def configure_c34_runtime(cfg: Config, options: RuntimeOptions) -> dict:
+    """Apply C3 objective and C4 multitask recommendations plus overrides."""
+    recommendation = {}
+    source = "C2 defaults"
+    if options.c34_config is not None:
+        with open(options.c34_config, encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Invalid C3/C4 recommendation in {options.c34_config}")
+        candidate = payload.get("recommendation", payload)
+        if isinstance(candidate, dict) and "config" in candidate:
+            candidate = candidate["config"]
+        recommendation = candidate if isinstance(candidate, dict) else {}
+        source = options.c34_config
+
+    def choose(name, explicit, default):
+        if explicit is not None:
+            return explicit, "CLI override"
+        if name in recommendation:
+            return recommendation[name], source
+        return default, "C2 default"
+
+    values = {}
+    values["nn_loss"], loss_source = choose(
+        "nn_loss", options.nn_loss, cfg.nn_loss
+    )
+    values["nn_target_mode"], target_source = choose(
+        "nn_target_mode", options.nn_target_mode, cfg.nn_target_mode
+    )
+    values["nn_combined_mse_weight"], combined_source = choose(
+        "nn_combined_mse_weight",
+        options.nn_combined_mse_weight,
+        cfg.nn_combined_mse_weight,
+    )
+    values["tree_target_mode"], tree_source = choose(
+        "tree_target_mode", options.tree_target_mode, cfg.tree_target_mode
+    )
+    values["xgboost_target_mode"], xgb_tree_source = choose(
+        "xgboost_target_mode", options.xgboost_target_mode,
+        cfg.xgboost_target_mode,
+    )
+    values["lightgbm_target_mode"], lgb_tree_source = choose(
+        "lightgbm_target_mode", options.lightgbm_target_mode,
+        cfg.lightgbm_target_mode,
+    )
+    values["enable_channel_history_features"], channel_history_source = choose(
+        "enable_channel_history_features",
+        (
+            options.channel_history_features == "on"
+            if options.channel_history_features is not None else None
+        ),
+        cfg.enable_channel_history_features,
+    )
+    values["channel_aux_weight"], aux_source = choose(
+        "channel_aux_weight", options.channel_aux_weight, cfg.channel_aux_weight
+    )
+    values["channel_share_smoothing"], smoothing_source = choose(
+        "channel_share_smoothing",
+        options.channel_share_smoothing,
+        cfg.channel_share_smoothing,
+    )
+
+    if values["nn_loss"] not in NN_LOSSES:
+        raise ValueError(f"Unknown nn_loss={values['nn_loss']!r}")
+    if values["nn_target_mode"] not in NN_TARGET_MODES:
+        raise ValueError(f"Unknown nn_target_mode={values['nn_target_mode']!r}")
+    if values["tree_target_mode"] not in TREE_TARGET_MODES:
+        raise ValueError(f"Unknown tree_target_mode={values['tree_target_mode']!r}")
+    for name in ("xgboost_target_mode", "lightgbm_target_mode"):
+        if values[name] is not None and values[name] not in TREE_TARGET_MODES:
+            raise ValueError(f"Unknown {name}={values[name]!r}")
+    combined_weight = float(values["nn_combined_mse_weight"])
+    if not 0.0 <= combined_weight <= 1.0:
+        raise ValueError("nn_combined_mse_weight must be between 0 and 1")
+    channel_history = values["enable_channel_history_features"]
+    if not isinstance(channel_history, (bool, np.bool_)):
+        raise ValueError("enable_channel_history_features must be boolean")
+    aux_weight = float(values["channel_aux_weight"])
+    smoothing = float(values["channel_share_smoothing"])
+    if not np.isfinite(aux_weight) or aux_weight < 0.0:
+        raise ValueError("channel_aux_weight must be finite and nonnegative")
+    if not np.isfinite(smoothing) or smoothing < 0.0:
+        raise ValueError("channel_share_smoothing must be finite and nonnegative")
+
+    cfg.nn_loss = str(values["nn_loss"])
+    cfg.nn_target_mode = str(values["nn_target_mode"])
+    cfg.nn_combined_mse_weight = combined_weight
+    cfg.tree_target_mode = str(values["tree_target_mode"])
+    cfg.xgboost_target_mode = (
+        None if values["xgboost_target_mode"] is None
+        else str(values["xgboost_target_mode"])
+    )
+    cfg.lightgbm_target_mode = (
+        None if values["lightgbm_target_mode"] is None
+        else str(values["lightgbm_target_mode"])
+    )
+    cfg.enable_channel_history_features = bool(channel_history)
+    cfg.channel_aux_weight = aux_weight
+    cfg.channel_share_smoothing = smoothing
+    return {
+        "nn_loss": cfg.nn_loss,
+        "nn_target_mode": cfg.nn_target_mode,
+        "nn_combined_mse_weight": cfg.nn_combined_mse_weight,
+        "tree_target_mode": cfg.tree_target_mode,
+        "xgboost_target_mode": cfg.xgboost_target_mode,
+        "lightgbm_target_mode": cfg.lightgbm_target_mode,
+        "enable_channel_history_features": cfg.enable_channel_history_features,
+        "channel_aux_weight": cfg.channel_aux_weight,
+        "channel_share_smoothing": cfg.channel_share_smoothing,
+        "sources": {
+            "nn_loss": loss_source,
+            "nn_target_mode": target_source,
+            "nn_combined_mse_weight": combined_source,
+            "tree_target_mode": tree_source,
+            "xgboost_target_mode": xgb_tree_source,
+            "lightgbm_target_mode": lgb_tree_source,
+            "enable_channel_history_features": channel_history_source,
+            "channel_aux_weight": aux_source,
+            "channel_share_smoothing": smoothing_source,
+        },
+        "config_file": options.c34_config,
+    }
+
+
 def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     """Resolve batch/LR/backend without guessing away model quality.
 
@@ -430,7 +602,7 @@ def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
-CHECKPOINT_SCHEMA_VERSION = "c2-semantic-features-v1"
+CHECKPOINT_SCHEMA_VERSION = "c34-objective-channel-history-v1"
 
 
 def _fold_checkpoint_path(
@@ -684,6 +856,8 @@ def run_walk_forward_cv_direct(
     hist_df: pd.DataFrame, origins, origin_type: str, cfg: Config = CFG,
     timings: list[dict] | None = None, *, checkpoint_dir: str | None = None,
     resume: bool = False,
+    run_neural: bool = True,
+    structured_models: tuple[str, ...] | None = None,
 ) -> pd.DataFrame:
     """Evaluate at each `origin` date (the last training day): trains only
     on data up to and including `origin` (no leakage) and predicts all
@@ -763,22 +937,40 @@ def run_walk_forward_cv_direct(
         )
         eval_panel = panel[panel["OriginDateKey"] == origin].reset_index(drop=True)
 
-        scaler = make_numeric_preprocessor()
-        tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
-        y_residual = residual_log1p_target(train_panel)
-        nn_start = time.perf_counter()
-        seed_models = [train_model(tensors, y_residual, cfg, epochs=cfg.cv_epochs, seed=seed)
-                       for seed in cfg.seeds]
-        nn_seconds = time.perf_counter() - nn_start
+        seed_preds: dict[int, np.ndarray] = {}
+        ensemble_output = None
+        nn_seconds = 0.0
+        if run_neural:
+            scaler = make_numeric_preprocessor()
+            tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
+            y_target = neural_training_target(train_panel, cfg)
+            nn_start = time.perf_counter()
+            seed_models = [
+                train_model(
+                    tensors, y_target, cfg, epochs=cfg.cv_epochs, seed=seed
+                )
+                for seed in cfg.seeds
+            ]
+            nn_seconds = time.perf_counter() - nn_start
+            seed_preds = {
+                seed: predict_direct([model], scaler, eval_panel, cfg)
+                for seed, model in zip(cfg.seeds, seed_models)
+            }
+            ensemble_output = predict_direct(
+                seed_models, scaler, eval_panel, cfg, return_diagnostics=True
+            )
 
-        # Per-seed predictions are independent diagnostics; the ensemble
-        # prediction below (averaging all seeds) is the one that matters --
-        # it's exactly what `run_final_forecast` submits.
-        seed_preds = {seed: predict_direct([model], scaler, eval_panel, cfg)
-                      for seed, model in zip(cfg.seeds, seed_models)}
-        ensemble_preds = predict_direct(seed_models, scaler, eval_panel, cfg)
+        requested_structured = (
+            ("XGBoost", "LightGBM", "DynamicRidge")
+            if structured_models is None else tuple(structured_models)
+        )
         tree_start = time.perf_counter()
-        tree_preds = run_tree_baselines(train_panel, eval_panel, cfg)
+        tree_preds = (
+            run_tree_baselines(
+                train_panel, eval_panel, cfg, models=requested_structured
+            )
+            if requested_structured else {}
+        )
         tree_seconds = time.perf_counter() - tree_start
 
         seasonal_pred = seasonal_naive_predict(fold_eval_feat, fold_train_raw, lag_days=cfg.horizon)
@@ -805,11 +997,33 @@ def run_walk_forward_cv_direct(
         fold_oof["validation_stratum"] = classify_validation_stratum(
             origin, cfg.horizon
         )
-        fold_oof["pred_NeuralNet"] = ensemble_preds
-        fold_oof["pred_XGBoost"] = tree_preds["XGBoost"]
-        fold_oof["pred_LightGBM"] = tree_preds["LightGBM"]
-        fold_oof["pred_DynamicRidge"] = tree_preds["DynamicRidge"]
-        for name in ("NeuralNet", "XGBoost", "LightGBM", "DynamicRidge"):
+        model_names: list[str] = []
+        if ensemble_output is not None:
+            fold_oof["pred_NeuralNet"] = ensemble_output["prediction"]
+            model_names.append("NeuralNet")
+            if "app_share" in ensemble_output:
+                fold_oof["pred_AppShare_NeuralNet"] = ensemble_output["app_share"]
+                fold_oof["pred_QuantityApp_NeuralNet"] = ensemble_output["prediction_app"]
+                fold_oof["pred_QuantityWeb_NeuralNet"] = ensemble_output["prediction_web"]
+                actual_total = pd.to_numeric(
+                    eval_panel.get("target", pd.Series(np.nan, index=eval_panel.index)),
+                    errors="coerce",
+                ).to_numpy(dtype=float)
+                actual_app = pd.to_numeric(
+                    eval_panel.get("target_app", pd.Series(np.nan, index=eval_panel.index)),
+                    errors="coerce",
+                ).to_numpy(dtype=float)
+                actual_share = np.divide(
+                    actual_app,
+                    actual_total,
+                    out=np.full(len(eval_panel), np.nan, dtype=float),
+                    where=np.isfinite(actual_total) & (actual_total > 0),
+                )
+                fold_oof["actual_AppShare"] = actual_share
+        for name, predictions in tree_preds.items():
+            fold_oof[f"pred_{name}"] = predictions
+            model_names.append(name)
+        for name in model_names:
             fold_oof[f"fallback_{name}"] = False
             fold_oof[f"nonfinite_{name}"] = False
             fold_oof[f"catastrophic_{name}"] = False
@@ -818,8 +1032,8 @@ def run_walk_forward_cv_direct(
             fold_oof[f"residual_raw_min_{name}"] = np.nan
             fold_oof[f"residual_raw_max_{name}"] = np.nan
             fold_oof[f"safety_limit_{name}"] = np.nan
-        for seed in cfg.seeds:
-            fold_oof[f"pred_NeuralNet_seed{seed}"] = seed_preds[seed]
+        for seed, predictions in seed_preds.items():
+            fold_oof[f"pred_NeuralNet_seed{seed}"] = predictions
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left")
         fold_oof = fold_oof.rename(columns={"Quantity": "actual"})
         fold_frames.append(fold_oof)
@@ -871,8 +1085,8 @@ def _recursive_nn_predictions(
 ):
     scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
-    y_residual = residual_log1p_target(train_panel)
-    seed_models = [train_model(tensors, y_residual, cfg, epochs=epochs, seed=seed) for seed in cfg.seeds]
+    y_target = neural_training_target(train_panel, cfg)
+    seed_models = [train_model(tensors, y_target, cfg, epochs=epochs, seed=seed) for seed in cfg.seeds]
 
     seed_paths = {}
     # Diagnostics: each seed gets its own path. The deployed ensemble path below
@@ -959,10 +1173,13 @@ def run_walk_forward_cv_recursive(
         naive_df["pred_SeasonalNaive"] = seasonal_naive_predict(eval_feat, fold_train_raw, lag_days=cfg.horizon)
         naive_df["pred_MovingAvg28"] = moving_average_predict(eval_feat, fold_train_raw, window=28)
 
-        fold_oof = ensemble_path.rename(columns={
+        renamed_path = ensemble_path.rename(columns={
             "TargetDateKey": "DateKey",
             "forecast_horizon": "horizon",
             "prediction": "pred_NeuralNet",
+            "app_share": "pred_AppShare_NeuralNet",
+            "prediction_app": "pred_QuantityApp_NeuralNet",
+            "prediction_web": "pred_QuantityWeb_NeuralNet",
             "fallback_used": "fallback_NeuralNet",
             "nonfinite_raw": "nonfinite_NeuralNet",
             "catastrophic_guard": "catastrophic_NeuralNet",
@@ -971,14 +1188,22 @@ def run_walk_forward_cv_recursive(
             "residual_raw_min": "residual_raw_min_NeuralNet",
             "residual_raw_max": "residual_raw_max_NeuralNet",
             "safety_limit": "safety_limit_NeuralNet",
-        })[[
+        })
+        path_columns = [
             "ProductId", "DateKey", "horizon", "pred_NeuralNet",
             "fallback_NeuralNet", "nonfinite_NeuralNet",
             "catastrophic_NeuralNet", "residual_guard_NeuralNet",
             "residual_nonfinite_NeuralNet", "residual_raw_min_NeuralNet",
-            "residual_raw_max_NeuralNet",
-            "safety_limit_NeuralNet",
-        ]]
+            "residual_raw_max_NeuralNet", "safety_limit_NeuralNet",
+        ]
+        path_columns += [
+            column for column in (
+                "pred_AppShare_NeuralNet",
+                "pred_QuantityApp_NeuralNet",
+                "pred_QuantityWeb_NeuralNet",
+            ) if column in renamed_path.columns
+        ]
+        fold_oof = renamed_path[path_columns].copy()
         fold_oof["origin"] = origin
         fold_oof["origin_type"] = origin_type
         fold_oof["strategy"] = "recursive"
@@ -1013,6 +1238,24 @@ def run_walk_forward_cv_recursive(
             fold_oof = fold_oof.merge(pred_col, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         fold_oof = fold_oof.merge(naive_df, on=["ProductId", "DateKey"], how="left", validate="one_to_one")
         fold_oof = fold_oof.rename(columns={"Quantity": "actual"})
+        if "pred_AppShare_NeuralNet" in fold_oof.columns:
+            channel_actual = fold_eval_raw[[
+                "ProductId", "DateKey", "QuantityApp", "QuantityWeb"
+            ]].copy()
+            total = (
+                channel_actual["QuantityApp"].to_numpy(dtype=float)
+                + channel_actual["QuantityWeb"].to_numpy(dtype=float)
+            )
+            channel_actual["actual_AppShare"] = np.divide(
+                channel_actual["QuantityApp"].to_numpy(dtype=float),
+                total,
+                out=np.full(len(channel_actual), np.nan, dtype=float),
+                where=np.isfinite(total) & (total > 0.0),
+            )
+            fold_oof = fold_oof.merge(
+                channel_actual[["ProductId", "DateKey", "actual_AppShare"]],
+                on=["ProductId", "DateKey"], how="left", validate="one_to_one",
+            )
         fold_frames.append(fold_oof)
 
         fold_seconds = time.perf_counter() - fold_start
@@ -1293,6 +1536,69 @@ def compute_test_aligned_scores(
     return pd.DataFrame(rows)
 
 
+def summarize_channel_share_oof(oof: pd.DataFrame) -> pd.DataFrame:
+    """C4 app-share diagnostics by split and strategy.
+
+    Total demand remains the submitted target. This table verifies whether the
+    auxiliary head learned a meaningful channel composition without allowing
+    share quality to conceal a deterioration in total-demand WAPE.
+    """
+    required = {"actual_AppShare", "pred_AppShare_NeuralNet", "actual"}
+    if not required.issubset(oof.columns):
+        return pd.DataFrame()
+    rows = []
+    group_columns = [column for column in ("origin_type", "strategy") if column in oof]
+    grouped = oof.groupby(group_columns, sort=False) if group_columns else [((), oof)]
+    for keys, group in grouped:
+        if group_columns and not isinstance(keys, tuple):
+            keys = (keys,)
+        context = dict(zip(group_columns, keys if group_columns else ()))
+        actual = pd.to_numeric(group["actual_AppShare"], errors="coerce").to_numpy(dtype=float)
+        predicted = pd.to_numeric(
+            group["pred_AppShare_NeuralNet"], errors="coerce"
+        ).to_numpy(dtype=float)
+        total = pd.to_numeric(group["actual"], errors="coerce").to_numpy(dtype=float)
+        mask = (
+            np.isfinite(actual) & np.isfinite(predicted)
+            & np.isfinite(total) & (total > 0.0)
+        )
+        n_expected = int((np.isfinite(actual) & np.isfinite(total) & (total > 0.0)).sum())
+        if mask.any():
+            error = predicted[mask] - actual[mask]
+            absolute = np.abs(error)
+            weights = total[mask]
+            weighted_mae = (
+                float(np.average(absolute, weights=weights))
+                if weights.sum() > 0 else np.nan
+            )
+            rows.append({
+                **context,
+                "model": "NeuralNet",
+                "n_expected": n_expected,
+                "n_scored": int(mask.sum()),
+                "coverage": float(mask.sum() / n_expected) if n_expected else np.nan,
+                "app_share_MAE": float(absolute.mean()),
+                "app_share_weighted_MAE": weighted_mae,
+                "app_share_bias": float(error.mean()),
+                "actual_app_share_mean": float(actual[mask].mean()),
+                "predicted_app_share_mean": float(predicted[mask].mean()),
+            })
+        else:
+            rows.append({
+                **context,
+                "model": "NeuralNet",
+                "n_expected": n_expected,
+                "n_scored": 0,
+                "coverage": 0.0 if n_expected else np.nan,
+                "app_share_MAE": np.nan,
+                "app_share_weighted_MAE": np.nan,
+                "app_share_bias": np.nan,
+                "actual_app_share_mean": np.nan,
+                "predicted_app_share_mean": np.nan,
+            })
+    return pd.DataFrame(rows)
+
+
 def _summarize_prediction_diagnostics_grouped(
     oof: pd.DataFrame,
     pred_columns: dict,
@@ -1508,27 +1814,44 @@ def _prepare_final_direct_panel(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
     return train_panel, eval_panel
 
 
-def run_final_forecast_direct(train_raw: pd.DataFrame, test_raw: pd.DataFrame,
-                        cfg: Config = CFG):
+def run_final_forecast_direct(
+    train_raw: pd.DataFrame,
+    test_raw: pd.DataFrame,
+    cfg: Config = CFG,
+    *,
+    return_diagnostics: bool = False,
+):
     train_panel, eval_panel = _prepare_final_direct_panel(train_raw, test_raw, cfg)
 
     scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
-    y_residual = residual_log1p_target(train_panel)
+    y_target = neural_training_target(train_panel, cfg)
 
     models = []
     for seed in cfg.seeds:
         seed_start = time.perf_counter()
         print(f"    seed {seed}")
-        models.append(train_model(tensors, y_residual, cfg, epochs=cfg.final_epochs, seed=seed))
+        models.append(train_model(tensors, y_target, cfg, epochs=cfg.final_epochs, seed=seed))
         print(f"      [timing] seed {seed}: {time.perf_counter() - seed_start:.1f}s")
 
-    preds = predict_direct(models, scaler, eval_panel, cfg)
+    output = predict_direct(
+        models, scaler, eval_panel, cfg, return_diagnostics=True
+    )
+    preds = output["prediction"]
     preds_aligned = _reindex_predictions(eval_panel, preds, "TargetDateKey", test_raw)
 
     submission = test_raw[["ProductId", "DateKey"]].copy()
     submission["Quantity"] = np.round(preds_aligned).astype(int)
-    return submission, preds_aligned
+    if not return_diagnostics:
+        return submission, preds_aligned
+
+    diagnostics = {"prediction": preds_aligned}
+    for key in ("app_share", "prediction_app", "prediction_web"):
+        if key in output:
+            diagnostics[key] = _reindex_predictions(
+                eval_panel, output[key], "TargetDateKey", test_raw
+            )
+    return submission, preds_aligned, diagnostics
 
 
 def run_final_tree_forecast_direct(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG) -> dict:
@@ -1549,6 +1872,22 @@ def _align_recursive_path(path: pd.DataFrame, test_raw: pd.DataFrame) -> np.ndar
         lookup, on=["ProductId", "DateKey"], how="left", validate="one_to_one"
     )
     return aligned["prediction"].to_numpy(dtype=float)
+
+
+def _align_recursive_column(
+    path: pd.DataFrame,
+    test_raw: pd.DataFrame,
+    column: str,
+) -> np.ndarray:
+    if column not in path.columns:
+        return np.full(len(test_raw), np.nan, dtype=float)
+    lookup = path[["ProductId", "TargetDateKey", column]].rename(
+        columns={"TargetDateKey": "DateKey"}
+    )
+    aligned = test_raw[["ProductId", "DateKey"]].merge(
+        lookup, on=["ProductId", "DateKey"], how="left", validate="one_to_one"
+    )
+    return aligned[column].to_numpy(dtype=float)
 
 
 def run_final_forecast_recursive(train_raw: pd.DataFrame, test_raw: pd.DataFrame, cfg: Config = CFG):
@@ -1718,7 +2057,8 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          validation_strata_summary: pd.DataFrame | None = None,
                          test_aligned_scores: pd.DataFrame | None = None,
                          prediction_diagnostics: pd.DataFrame | None = None,
-                         prediction_diagnostics_by_origin: pd.DataFrame | None = None) -> dict:
+                         prediction_diagnostics_by_origin: pd.DataFrame | None = None,
+                         channel_share_summary: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
@@ -1826,6 +2166,17 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "baseline_variant": cfg.baseline_variant,
             "enable_trend_features": cfg.enable_trend_features,
             "c2_feature_groups": list(cfg.c2_feature_groups),
+            "nn_loss": cfg.nn_loss,
+            "nn_target_mode": cfg.nn_target_mode,
+            "nn_huber_delta": cfg.nn_huber_delta,
+            "nn_combined_mse_weight": cfg.nn_combined_mse_weight,
+            "tree_target_mode": cfg.tree_target_mode,
+            "xgboost_target_mode": cfg.xgboost_target_mode,
+            "lightgbm_target_mode": cfg.lightgbm_target_mode,
+            "tree_tweedie_variance_power": cfg.tree_tweedie_variance_power,
+            "enable_channel_history_features": cfg.enable_channel_history_features,
+            "channel_aux_weight": cfg.channel_aux_weight,
+            "channel_share_smoothing": cfg.channel_share_smoothing,
             "nn_residual_guard_lower_quantile": cfg.nn_residual_guard_lower_quantile,
             "nn_residual_guard_upper_quantile": cfg.nn_residual_guard_upper_quantile,
             "nn_residual_guard_margin": cfg.nn_residual_guard_margin,
@@ -1895,6 +2246,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "prediction_diagnostics_by_origin": (
             prediction_diagnostics_by_origin.round(6).to_dict(orient="records")
             if prediction_diagnostics_by_origin is not None else []
+        ),
+        "channel_share_summary": (
+            channel_share_summary.round(6).to_dict(orient="records")
+            if channel_share_summary is not None else []
         ),
         "selection": {
             "canonical_model": canonical_model,
@@ -2021,6 +2376,7 @@ def main(argv=None) -> None:
     cfg = CFG
     c1_runtime = configure_c1_runtime(cfg, options)
     c2_runtime = configure_c2_runtime(cfg, options)
+    c34_runtime = configure_c34_runtime(cfg, options)
     nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
@@ -2040,6 +2396,16 @@ def main(argv=None) -> None:
         + f" ({c2_runtime['source']})"
     )
     print(
+        "C3/C4 policy: "
+        f"loss={c34_runtime['nn_loss']}, "
+        f"target={c34_runtime['nn_target_mode']}, "
+        f"channel_history={c34_runtime['enable_channel_history_features']}, "
+        f"channel_aux={c34_runtime['channel_aux_weight']}, "
+        f"tree_target={c34_runtime['tree_target_mode']}, "
+        f"xgb_target={c34_runtime['xgboost_target_mode']}, "
+        f"lgb_target={c34_runtime['lightgbm_target_mode']}"
+    )
+    print(
         "NN runtime: "
         f"batch={nn_runtime['batch_size']} "
         f"({nn_runtime['batch_source']}), "
@@ -2056,6 +2422,7 @@ def main(argv=None) -> None:
     timings: dict = {
         "cv_folds": [], "nn_runtime": nn_runtime,
         "c1_runtime": c1_runtime, "c2_runtime": c2_runtime,
+        "c34_runtime": c34_runtime,
     }
 
     train_raw, test_raw = load_raw(cfg)
@@ -2094,6 +2461,7 @@ def main(argv=None) -> None:
     )
     prediction_diagnostics = summarize_prediction_diagnostics(oof)
     prediction_diagnostics_by_origin = summarize_prediction_diagnostics_by_origin(oof)
+    channel_share_summary = summarize_channel_share_oof(oof)
 
     canonical_model, canonical_strategy = _choose_canonical_model_strategy(
         options, dev_summary, test_aligned_scores
@@ -2107,21 +2475,29 @@ def main(argv=None) -> None:
     for strategy in strategies:
         print(f"\n=== Final {strategy.value} forecasts ===")
         if strategy is ForecastStrategy.DIRECT:
-            nn_submission, nn_preds = run_final_forecast_direct(train_raw, test_raw, cfg)
+            nn_submission, nn_preds, nn_details = run_final_forecast_direct(
+                train_raw, test_raw, cfg, return_diagnostics=True
+            )
             structured = run_final_tree_forecast_direct(train_raw, test_raw, cfg)
             paths = {}
         else:
             nn_submission, nn_preds, nn_path = run_final_forecast_recursive(train_raw, test_raw, cfg)
+            nn_details = {
+                "prediction": nn_preds,
+                "app_share": _align_recursive_column(nn_path, test_raw, "app_share"),
+                "prediction_app": _align_recursive_column(nn_path, test_raw, "prediction_app"),
+                "prediction_web": _align_recursive_column(nn_path, test_raw, "prediction_web"),
+            }
             structured, paths = run_final_structured_forecast_recursive(train_raw, test_raw, cfg)
             paths["NeuralNet"] = nn_path
         forecasts = {"NeuralNet": nn_preds, **structured, **naive_final}
         final_by_strategy[strategy.value] = forecasts
         submissions_by_strategy[strategy.value] = nn_submission
         for model, preds in forecasts.items():
-            for (pid, date), pred in zip(
+            for row_index, ((pid, date), pred) in enumerate(zip(
                 test_raw[["ProductId", "DateKey"]].itertuples(index=False, name=None),
                 np.asarray(preds, dtype=float),
-            ):
+            )):
                 raw_rows.append({
                     "strategy": strategy.value, "model": model,
                     "ProductId": pid, "DateKey": date,
@@ -2135,6 +2511,18 @@ def main(argv=None) -> None:
                     "residual_raw_min": np.nan,
                     "residual_raw_max": np.nan,
                     "safety_limit": np.nan,
+                    "predicted_app_share": (
+                        float(nn_details.get("app_share", np.full(len(test_raw), np.nan))[row_index])
+                        if model == "NeuralNet" else np.nan
+                    ),
+                    "prediction_app": (
+                        float(nn_details.get("prediction_app", np.full(len(test_raw), np.nan))[row_index])
+                        if model == "NeuralNet" else np.nan
+                    ),
+                    "prediction_web": (
+                        float(nn_details.get("prediction_web", np.full(len(test_raw), np.nan))[row_index])
+                        if model == "NeuralNet" else np.nan
+                    ),
                 })
         for model, path in paths.items():
             path_index = path.set_index(["ProductId", "TargetDateKey"])
@@ -2209,6 +2597,9 @@ def main(argv=None) -> None:
         os.path.join(cfg.output_dir, "prediction_diagnostics_by_origin.csv"),
         index=False,
     )
+    channel_share_summary.to_csv(
+        os.path.join(cfg.output_dir, "channel_share_summary.csv"), index=False
+    )
 
     by_horizon_frames = []
     # Export both development and recent-benchmark curves.  The explicit
@@ -2256,6 +2647,7 @@ def main(argv=None) -> None:
         test_aligned_scores=test_aligned_scores,
         prediction_diagnostics=prediction_diagnostics,
         prediction_diagnostics_by_origin=prediction_diagnostics_by_origin,
+        channel_share_summary=channel_share_summary,
     )
     try:
         plot_forecast(train_raw, submission, cfg=cfg)

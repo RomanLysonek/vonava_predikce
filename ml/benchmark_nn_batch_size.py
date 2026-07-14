@@ -51,7 +51,7 @@ from models.neural_net import (
     make_tensors,
     nn_performance_signature,
     predict_direct,
-    residual_log1p_target,
+    neural_training_target,
     train_model,
 )
 
@@ -180,7 +180,7 @@ def run_candidate(
     )
     scaler = make_numeric_preprocessor()
     tensors = make_tensors(train_panel, scaler, fit=True, cfg=cfg)
-    y_residual = residual_log1p_target(train_panel)
+    y_target = neural_training_target(train_panel, cfg)
 
     models = []
     seed_stats = []
@@ -189,7 +189,7 @@ def run_candidate(
         stats = {}
         models.append(
             train_model(
-                tensors, y_residual, cfg, epochs=epochs, seed=seed,
+                tensors, y_target, cfg, epochs=epochs, seed=seed,
                 stats_out=stats,
             )
         )

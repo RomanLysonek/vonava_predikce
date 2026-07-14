@@ -552,3 +552,70 @@ The recommendation JSON contains separate fresh and resume commands for the
 full `512/fixed`, three-seed direct confirmation. The winning data-aware
 configuration is checked under `both` strategies only after C2/C3 choices are
 frozen; recursive execution is not duplicated across every semantic ablation.
+
+## Combined Tier C3 objectives and Tier C4 channel model
+
+The C2 screen selected all five semantic groups. No recency decay and the
+365-day half-life were effectively tied for the NeuralNet, so the combined
+C3/C4 runner carries both policies into one final sensitivity gate instead of
+requiring a separate full C2 confirmation first.
+
+C3 evaluates:
+
+- NeuralNet total-demand loss: Huber, MSE, Huber/MSE mixture, and Log-Cosh;
+- NeuralNet target: baseline-relative `log1p` residual or raw `log1p` demand;
+- XGBoost/LightGBM target: raw `log1p`, baseline-relative residual, or Tweedie,
+  selected independently for each tree family.
+
+C4 adds an optional leakage-safe channel state:
+
+- current and lag-7 app share;
+- volume-weighted 7/28-day app share;
+- recent-versus-long app-share movement;
+- recent app/web quantity levels;
+- an auxiliary app-share head sharing the total-demand representation.
+
+Total quantity remains the submitted target. The auxiliary head is selected
+only when it materially improves total-demand validation within the broad-WAPE
+guard. App-share error is a diagnostic/tiebreaker, never a substitute for total
+forecast quality. Recursive inference feeds the predicted share back into
+synthetic app/web history; models without a share head use the observed recent
+28-day mix rather than an all-app placeholder.
+
+### Fast C3/C4 screen
+
+```bash
+caffeinate -i uv run python ml/run_c34_screening.py \
+  --reset \
+  2>&1 | tee pipeline_c34_screening.log
+```
+
+The runner is substantially faster than C2 because NN candidates skip all
+structured models. Statistically identical NN configurations are reused in
+memory, and XGBoost/LightGBM are trained only for the three tree target
+formulations. Screening uses four stratified origins, one seed, 12
+epochs, and batch `2048/fixed`. Every stage retains its control unless the
+candidate improves test-aligned WAPE by at least 0.2% relative while remaining
+inside the 3% broad-development guard.
+
+Resume without deleting completed candidate folds:
+
+```bash
+caffeinate -i uv run python ml/run_c34_screening.py \
+  --resume \
+  2>&1 | tee -a pipeline_c34_screening.log
+```
+
+Artifacts:
+
+```text
+outputs/c34_screening/c34_screening_results.csv
+outputs/c34_screening/recommendation.json
+outputs/c34_screening/candidate_oof/*.csv
+outputs/c34_screening/checkpoints/
+```
+
+The recommendation contains the one full direct `512/fixed`, three-seed
+confirmation command. That single confirmation jointly validates the selected
+C2 features, C3 objective, and C4 channel formulation before Tier C5 ensemble
+fitting.

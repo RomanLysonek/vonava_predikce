@@ -24,6 +24,7 @@ from pipeline import (
     SubmissionModel,
     configure_c1_runtime,
     configure_c2_runtime,
+    configure_c34_runtime,
     configure_nn_runtime,
     export_results_json,
     load_raw,
@@ -69,6 +70,7 @@ def main(argv=None) -> None:
     )
     configure_c1_runtime(CFG, options)
     configure_c2_runtime(CFG, options)
+    configure_c34_runtime(CFG, options)
     configure_nn_runtime(CFG, options)
 
     out = CFG.output_dir
@@ -100,6 +102,9 @@ def main(argv=None) -> None:
     prediction_diagnostics_by_origin = _read_csv_if_present(
         os.path.join(out, "prediction_diagnostics_by_origin.csv"),
         parse_dates=["origin"],
+    )
+    channel_share_summary = _read_csv_if_present(
+        os.path.join(out, "channel_share_summary.csv")
     )
 
     existing_path = os.path.join(out, "results.json")
@@ -192,6 +197,7 @@ def main(argv=None) -> None:
         test_aligned_scores=test_aligned_scores,
         prediction_diagnostics=prediction_diagnostics,
         prediction_diagnostics_by_origin=prediction_diagnostics_by_origin,
+        channel_share_summary=channel_share_summary,
     )
     print("Artifact-only export complete; no model training was performed.")
 

@@ -216,16 +216,32 @@ STATUS
       ml/run_c2_screening.py
     - 91 fast tests green; native tree-worker integration exceeds the current
       Linux verification timeout and must be rerun on the user's Mac
-[ ] C2 screen + full 512/fixed direct confirmation on the user's Mac
+[x] C2 screen on the user's Mac
+    - all semantic groups selected
+    - no recency decay and half-life 365 were effectively tied for NeuralNet
+      (test-aligned WAPE 0.27594 vs 0.27627 in the fast screen)
+    - separate full C2 confirmation intentionally folded into the single
+      combined C2/C3/C4 confirmation to avoid another expensive near-duplicate run
 
-[ ] C3 objective and target-formulation ablations
-    - NN: Huber residual / MSE residual / combined / Log-Cosh
-    - trees: log1p / residual target / Tweedie
-    - prediction caps remain diagnostic only and event-stratified
+[x] C3 source implementation and fast combined screening framework
+    - NN: Huber / MSE / Huber+MSE / Log-Cosh
+    - NN target: baseline-relative residual / raw log1p
+    - trees: log1p / baseline-relative residual / Tweedie, selected
+      independently for XGBoost and LightGBM
+    - stage controls retained unless test-aligned WAPE improves materially
+      while remaining inside the broad-development guard
+    - NN candidates skip structured models; tree target modes run only in a
+      dedicated structured-only stage
+[ ] C3/C4 screen + one full 512/fixed direct confirmation on the user's Mac
 
-[ ] C4 channel-aware multitask model
-    - shared total-demand residual + auxiliary app-share heads
-    - upgrade recursive synthetic channel history before channel-history inputs
+[x] C4 source implementation
+    - shared total-demand head + optional auxiliary app-share head
+    - leakage-safe lag0/lag7 and 7/28-day channel-composition history features
+    - direct OOF app-share/app/web diagnostics and exported channel summary
+    - recursive synthetic history uses predicted app share; models without a
+      share head fall back to the observed recent channel mix
+    - channel-history-only and channel-history+auxiliary candidates screened
+      separately so representation and multitask-loss effects are identifiable
 
 [ ] C5 OOF-fitted ensemble weights
     - development OOF only, nonnegative, sum-to-one

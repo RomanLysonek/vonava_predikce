@@ -75,6 +75,26 @@ class Config:
     # or CLI. Keeping groups named and atomic makes ablations reproducible.
     c2_feature_groups: tuple[str, ...] = ()
 
+    # Tier C3: objective and target formulation. Defaults preserve the
+    # confirmed C2 estimator. ``combined`` mixes Huber and MSE per row;
+    # ``log1p`` predicts the raw log-count instead of a baseline residual.
+    nn_loss: str = "huber"              # huber | mse | combined | logcosh
+    nn_target_mode: str = "residual"    # residual | log1p
+    nn_huber_delta: float = 1.0
+    nn_combined_mse_weight: float = 0.25
+    tree_target_mode: str = "log1p"     # shared fallback
+    xgboost_target_mode: str | None = None
+    lightgbm_target_mode: str | None = None
+    tree_tweedie_variance_power: float = 1.5
+
+    # Tier C4: channel-composition state and auxiliary task. Channel-history
+    # features are opt-in so the confirmed C2 estimator remains reproducible.
+    # Positive auxiliary weight trains an app-share head through the shared
+    # representation while the submitted target stays total quantity.
+    enable_channel_history_features: bool = False
+    channel_aux_weight: float = 0.0
+    channel_share_smoothing: float = 0.5
+
 
 CFG = Config()
 np.random.seed(CFG.seed)
@@ -130,6 +150,23 @@ BASELINE_VARIANTS = {
 # mechanisms rather than individual columns so the ablation answers useful
 # questions without a combinatorial feature search.
 C2_FEATURE_GROUPS = ("price", "campaign", "lifecycle", "market", "event")
+
+NN_LOSSES = ("huber", "mse", "combined", "logcosh")
+NN_TARGET_MODES = ("residual", "log1p")
+TREE_TARGET_MODES = ("log1p", "residual", "tweedie")
+
+CHANNEL_HISTORY_FEATURES = [
+    "app_share_lag_0",
+    "app_share_lag_7",
+    "app_share_roll_7",
+    "app_share_roll_28",
+    "app_share_recent_long_delta",
+    "app_share_observed_count_28",
+    "app_qty_roll_mean_7",
+    "app_qty_roll_mean_28",
+    "web_qty_roll_mean_7",
+    "web_qty_roll_mean_28",
+]
 
 PRICE_TARGET_FEATURES = [
     "app_effective_price_log_advantage",
@@ -751,6 +788,7 @@ def direct_panel_feature_names(cfg: Config = CFG) -> list[str]:
             + ORIGIN_LIFECYCLE_FEATURES
             + [f"qty_lag_{lag}" for lag in RECENT_POINT_LAGS]
             + trend_origin + c2_origin
+            + (CHANNEL_HISTORY_FEATURES if cfg.enable_channel_history_features else [])
             + [f"seasonal_lag_{lag}" for lag in SEASONAL_LAG_DAYS]
             + ANNUAL_LAG_MISSING_FEATURES
             + trend_seasonal + c2_panel
@@ -792,6 +830,68 @@ def build_origin_state_features(feature_df: pd.DataFrame, cfg: Config = CFG) -> 
     qty_group = state.groupby("ProductId")["qty_available"]
     for lag in RECENT_POINT_LAGS:
         out[f"qty_lag_{lag}"] = qty_group.shift(lag)
+
+    if cfg.enable_channel_history_features:
+        # Channel-state features use only observations available by the origin.
+        # Unavailable/gap rows are excluded consistently with total-demand
+        # rolling features. Recursive synthetic rows are marked available and
+        # carry the model-predicted split, so the same contract remains valid
+        # beyond horizon one.
+        availability = _availability_state(df)
+        valid = availability["_is_available"].astype(bool)
+        app = pd.to_numeric(
+            df.get("QuantityApp", pd.Series(np.nan, index=df.index)),
+            errors="coerce",
+        ).where(valid)
+        web = pd.to_numeric(
+            df.get("QuantityWeb", pd.Series(np.nan, index=df.index)),
+            errors="coerce",
+        ).where(valid)
+        total = app + web
+        share = pd.Series(
+            np.divide(
+                app.to_numpy(dtype=float),
+                total.to_numpy(dtype=float),
+                out=np.full(len(df), np.nan, dtype=float),
+                where=np.isfinite(total.to_numpy(dtype=float))
+                & (total.to_numpy(dtype=float) > 0.0),
+            ),
+            index=df.index,
+        )
+        product = df["ProductId"]
+        share_group = share.groupby(product, sort=False)
+        app_group = app.groupby(product, sort=False)
+        web_group = web.groupby(product, sort=False)
+        total_group = total.groupby(product, sort=False)
+        out["app_share_lag_0"] = share
+        out["app_share_lag_7"] = share_group.shift(7)
+
+        share_roll = {}
+        for window in (7, 28):
+            app_sum = app_group.transform(
+                lambda series, w=window: series.rolling(w, min_periods=1).sum()
+            )
+            total_sum = total_group.transform(
+                lambda series, w=window: series.rolling(w, min_periods=1).sum()
+            )
+            share_roll[window] = np.divide(
+                app_sum.to_numpy(dtype=float),
+                total_sum.to_numpy(dtype=float),
+                out=np.full(len(df), np.nan, dtype=float),
+                where=np.isfinite(total_sum.to_numpy(dtype=float))
+                & (total_sum.to_numpy(dtype=float) > 0.0),
+            )
+            out[f"app_share_roll_{window}"] = share_roll[window]
+            out[f"app_qty_roll_mean_{window}"] = app_group.transform(
+                lambda series, w=window: series.rolling(w, min_periods=1).mean()
+            )
+            out[f"web_qty_roll_mean_{window}"] = web_group.transform(
+                lambda series, w=window: series.rolling(w, min_periods=1).mean()
+            )
+        out["app_share_recent_long_delta"] = share_roll[7] - share_roll[28]
+        out["app_share_observed_count_28"] = share_group.transform(
+            lambda series: series.rolling(28, min_periods=1).count()
+        )
 
     if c2_group_enabled(cfg, "price"):
         price_group = df.groupby("ProductId", sort=False)
@@ -950,16 +1050,24 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         if frame is not None and frame.duplicated(["ProductId", "DateKey"]).any():
             raise ValueError(f"{name} contains duplicate ProductId/DateKey keys")
 
+    train_feat = train_feat.copy()
+    if "QuantityApp" not in train_feat.columns:
+        train_feat["QuantityApp"] = train_feat.get("Quantity", np.nan)
+    if "QuantityWeb" not in train_feat.columns:
+        train_feat["QuantityWeb"] = 0.0
     train_feat = train_feat.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     origin_index = pd.MultiIndex.from_frame(train_feat[["ProductId", "DateKey"]])
     combined = train_feat.copy()
     if future_covariates is not None:
         future_covariates = future_covariates.copy()
-        for col in ("Quantity", "ProductAvailable"):
+        for col in ("Quantity", "QuantityApp", "QuantityWeb", "ProductAvailable"):
             if col not in future_covariates.columns:
                 future_covariates[col] = np.nan
         covariate_columns = target_covariate_columns(cfg)
-        keep = ["ProductId", "DateKey", "Quantity", "ProductAvailable"] + covariate_columns
+        keep = [
+            "ProductId", "DateKey", "Quantity", "QuantityApp", "QuantityWeb",
+            "ProductAvailable",
+        ] + covariate_columns
         combined = pd.concat([train_feat, future_covariates[keep]], ignore_index=True, sort=False)
     combined = combined.sort_values(["ProductId", "DateKey"]).reset_index(drop=True)
     if "qty_available" not in combined.columns:
@@ -977,10 +1085,15 @@ def build_direct_panel(train_feat: pd.DataFrame, horizons, cfg: Config = CFG,
         panel_h = origin.copy()
         panel_h["horizon"] = h
         covariate_columns = target_covariate_columns(cfg)
-        target_cols = ["DateKey", "Quantity", "ProductAvailable"] + covariate_columns
+        target_cols = [
+            "DateKey", "Quantity", "QuantityApp", "QuantityWeb",
+            "ProductAvailable",
+        ] + covariate_columns
         target = g[target_cols].shift(-h)
         panel_h["TargetDateKey"] = target["DateKey"]
         panel_h["target"] = target["Quantity"]
+        panel_h["target_app"] = target["QuantityApp"]
+        panel_h["target_web"] = target["QuantityWeb"]
         panel_h["TargetProductAvailable"] = target["ProductAvailable"]
         for col in covariate_columns:
             panel_h[col] = target[col]
@@ -1187,6 +1300,8 @@ def build_recursive_step_panel(
     """Build the one-step panel for the next target day from current history."""
     future = sanitize_future_covariates(target_covariates)
     future["Quantity"] = np.nan
+    future["QuantityApp"] = np.nan
+    future["QuantityWeb"] = np.nan
     future["ProductAvailable"] = pd.Series([pd.NA] * len(future), dtype="boolean")
     history_feat = prepare_features(
         history_raw, price_ref, first_seen, first_available, cfg
@@ -1259,12 +1374,17 @@ def forecast_recursive(
                 step_output.get("residual_raw_max", np.full(len(step_panel), np.nan)),
                 dtype=float,
             )
+            app_share = np.asarray(
+                step_output.get("app_share", np.full(len(step_panel), np.nan)),
+                dtype=float,
+            )
         else:
             prediction = np.asarray(step_output, dtype=float)
             residual_guard = np.zeros(len(step_panel), dtype=bool)
             residual_nonfinite = np.zeros(len(step_panel), dtype=bool)
             residual_raw_min = np.full(len(step_panel), np.nan, dtype=float)
             residual_raw_max = np.full(len(step_panel), np.nan, dtype=float)
+            app_share = np.full(len(step_panel), np.nan, dtype=float)
         if len(prediction) != len(step_panel):
             raise ValueError("predict_step returned a prediction vector with the wrong length")
         for name, values in (
@@ -1272,6 +1392,7 @@ def forecast_recursive(
             ("residual_nonfinite", residual_nonfinite),
             ("residual_raw_min", residual_raw_min),
             ("residual_raw_max", residual_raw_max),
+            ("app_share", app_share),
         ):
             if len(values) != len(step_panel):
                 raise ValueError(f"predict_step returned {name} with the wrong length")
@@ -1330,16 +1451,53 @@ def forecast_recursive(
         result["residual_raw_min"] = residual_raw_min
         result["residual_raw_max"] = residual_raw_max
         result["safety_limit"] = safety_limit
+        result["app_share"] = np.where(
+            np.isfinite(app_share), np.clip(app_share, 0.0, 1.0), np.nan
+        )
+        # Recursive channel-history features also need a semantically valid
+        # split when the predictor has no auxiliary share head (for example,
+        # a history-only NN candidate or a tree model). Fall back to the
+        # observed 28-day product share, then lag-0 share, rather than placing
+        # the entire synthetic total into one channel.
+        feedback_share = result["app_share"].to_numpy(dtype=float)
+        if cfg.enable_channel_history_features:
+            historical_share = step_panel.get(
+                "app_share_roll_28", pd.Series(np.nan, index=step_panel.index)
+            ).to_numpy(dtype=float)
+            lag0_share = step_panel.get(
+                "app_share_lag_0", pd.Series(np.nan, index=step_panel.index)
+            ).to_numpy(dtype=float)
+            historical_share = np.where(
+                np.isfinite(historical_share), historical_share, lag0_share
+            )
+            feedback_share = np.where(
+                np.isfinite(feedback_share), feedback_share, historical_share
+            )
+        feedback_share = np.where(
+            np.isfinite(feedback_share), np.clip(feedback_share, 0.0, 1.0), np.nan
+        )
+        result["feedback_app_share"] = feedback_share
+        result["prediction_app"] = result["prediction"] * result["app_share"]
+        result["prediction_web"] = result["prediction"] * (1.0 - result["app_share"])
         results.append(result)
 
         generated = current.merge(
-            result[["ProductId", "prediction"]], on="ProductId", how="left", validate="one_to_one"
+            result[["ProductId", "prediction", "feedback_app_share"]],
+            on="ProductId", how="left", validate="one_to_one"
         )
         generated["Quantity"] = generated.pop("prediction")
         generated["ProductAvailable"] = True
-        # Keep raw-schema compatibility for downstream data preparation.
-        generated["QuantityApp"] = generated["Quantity"]
-        generated["QuantityWeb"] = 0.0
+        share = generated.pop("feedback_app_share").to_numpy(dtype=float)
+        valid_share = np.isfinite(share)
+        generated["QuantityApp"] = np.where(
+            valid_share, generated["Quantity"].to_numpy(dtype=float) * share,
+            generated["Quantity"].to_numpy(dtype=float),
+        )
+        generated["QuantityWeb"] = np.where(
+            valid_share,
+            generated["Quantity"].to_numpy(dtype=float) * (1.0 - share),
+            0.0,
+        )
         history = pd.concat([history, generated], ignore_index=True, sort=False)
     return pd.concat(results, ignore_index=True)
 
