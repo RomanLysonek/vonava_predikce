@@ -1,0 +1,85 @@
+{
+  "schema_version": "c1-screening-v1",
+  "screening_policy": {
+    "origins": [
+      "2023-01-10",
+      "2024-06-20",
+      "2024-11-29",
+      "2025-02-10"
+    ],
+    "epochs": 12,
+    "seeds": [
+      42
+    ],
+    "batch_size": 2048,
+    "lr_scaling": "fixed",
+    "strategy": "direct",
+    "quality_tolerance": 0.03,
+    "selection_model": "NeuralNet",
+    "selection_metric": "test_aligned_WAPE"
+  },
+  "stage_winners": {
+    "recency": "half365",
+    "baseline": "baseline_weighted_4321",
+    "trend": "trend_off"
+  },
+  "recommendation": {
+    "config": {
+      "training_window_days": null,
+      "recency_half_life_days": 365.0,
+      "baseline_variant": "weighted_4321",
+      "enable_trend_features": false
+    },
+    "full_confirmation_command": "caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --c1-config outputs/c1_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --reset-checkpoints 2>&1 | tee pipeline_c1_direct_512_fixed.log",
+    "full_confirmation_resume_command": "caffeinate -i uv run python ml/pipeline.py --forecast-strategy direct --primary-strategy direct --submission-model NeuralNet --selection-metric WAPE --selection-protocol test-aligned --c1-config outputs/c1_screening/recommendation.json --nn-batch-size 512 --nn-lr-scaling fixed --resume 2>&1 | tee -a pipeline_c1_direct_512_fixed.log"
+  },
+  "base_config": {
+    "train_path": "data/train_data.parquet",
+    "test_path": "data/test_data.parquet",
+    "output_dir": "outputs",
+    "horizon": 7,
+    "lag_windows": [
+      7,
+      14,
+      28
+    ],
+    "num_products": 30,
+    "embed_dim_product": 12,
+    "embed_dim_campaign": 4,
+    "embed_dim_horizon": 4,
+    "hidden_dims": [
+      256,
+      128,
+      64
+    ],
+    "dropout": [
+      0.2,
+      0.15,
+      0.1
+    ],
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "batch_size": 2048,
+    "reference_batch_size": 512,
+    "nn_lr_scaling": "fixed",
+    "nn_training_backend": "auto",
+    "cv_epochs": 12,
+    "final_epochs": 12,
+    "seeds": [
+      42
+    ],
+    "n_cv_folds": 4,
+    "seed": 42,
+    "ridge_alpha": 10.0,
+    "ridge_prediction_cap": null,
+    "nn_residual_guard_lower_quantile": 0.001,
+    "nn_residual_guard_upper_quantile": 0.999,
+    "nn_residual_guard_margin": 1.0,
+    "recursive_safety_multiplier": 50.0,
+    "recursive_safety_floor": 10000.0,
+    "training_window_days": null,
+    "recency_half_life_days": null,
+    "baseline_variant": "weighted_4321",
+    "enable_trend_features": false
+  }
+}

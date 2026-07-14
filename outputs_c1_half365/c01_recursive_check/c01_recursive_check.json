@@ -1,0 +1,84 @@
+{
+  "schema_version": "c01-recursive-check-v1",
+  "config": {
+    "origins": [
+      "2023-07-01",
+      "2024-06-20",
+      "2024-11-29",
+      "2025-02-10"
+    ],
+    "epochs": 10,
+    "seed": 42,
+    "batch_size": 2048,
+    "recursive_safety_multiplier": 50.0,
+    "recursive_safety_floor": 10000.0,
+    "residual_guard_quantiles": [
+      0.001,
+      0.999
+    ],
+    "residual_guard_margin": 1.0
+  },
+  "passed": true,
+  "results": [
+    {
+      "origin": "2023-07-01",
+      "n": 210,
+      "WAPE": 0.5468633602435213,
+      "prediction_max": 137.13480376341897,
+      "observed_max": 84.0,
+      "prediction_to_observed_max_ratio": 1.6325571876597498,
+      "residual_guard_count": 0,
+      "residual_nonfinite_count": 0,
+      "catastrophic_guard_count": 0,
+      "fallback_count": 0,
+      "residual_raw_min": -1.0373965501785278,
+      "residual_raw_max": 2.3787848949432373,
+      "passed": true
+    },
+    {
+      "origin": "2024-06-20",
+      "n": 210,
+      "WAPE": 0.27109019430017256,
+      "prediction_max": 126.32496150069079,
+      "observed_max": 152.0,
+      "prediction_to_observed_max_ratio": 0.8310852730308604,
+      "residual_guard_count": 0,
+      "residual_nonfinite_count": 0,
+      "catastrophic_guard_count": 0,
+      "fallback_count": 0,
+      "residual_raw_min": -0.7663618922233582,
+      "residual_raw_max": 1.117046594619751,
+      "passed": true
+    },
+    {
+      "origin": "2024-11-29",
+      "n": 210,
+      "WAPE": 0.36538430302127417,
+      "prediction_max": 279.49378250833615,
+      "observed_max": 361.0,
+      "prediction_to_observed_max_ratio": 0.7742210041782165,
+      "residual_guard_count": 0,
+      "residual_nonfinite_count": 0,
+      "catastrophic_guard_count": 0,
+      "fallback_count": 0,
+      "residual_raw_min": -0.7142038941383362,
+      "residual_raw_max": 1.286452293395996,
+      "passed": true
+    },
+    {
+      "origin": "2025-02-10",
+      "n": 209,
+      "WAPE": 0.3171408689141824,
+      "prediction_max": 156.45701710382946,
+      "observed_max": 131.0,
+      "prediction_to_observed_max_ratio": 1.1943283748383928,
+      "residual_guard_count": 0,
+      "residual_nonfinite_count": 0,
+      "catastrophic_guard_count": 0,
+      "fallback_count": 0,
+      "residual_raw_min": -1.8506815433502197,
+      "residual_raw_max": 1.1090763807296753,
+      "passed": true
+    }
+  ]
+}

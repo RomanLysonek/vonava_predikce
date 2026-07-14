@@ -1593,20 +1593,32 @@ def plot_forecast(train_raw: pd.DataFrame, submission: pd.DataFrame,
 
 
 def _json_safe(obj):
-    """Recursively replace non-finite floats (NaN/Inf) with None.
+    """Convert pipeline payload values into strict JSON-compatible scalars.
 
-    Calendar-gap reindexing (`reindex_daily_calendar`) and zero-actual
-    slices in WAPE/BiasRatio legitimately produce NaN, and `json.dump`
-    silently allows non-standard literal NaN/Infinity tokens by default --
-    which then breaks the FIRST spec-compliant consumer downstream
-    (Starlette's `JSONResponse` in `webapp/server.py`, and any browser's
-    `JSON.parse`). Applied once here, at the JSON write boundary, so every
-    field is safe regardless of which pipeline stage produced the NaN.
+    DataFrame ``to_dict`` preserves pandas/NumPy scalar types, including
+    ``Timestamp`` values in per-origin diagnostics.  The JSON encoder does
+    not know how to serialize those objects.  Normalize them once at the
+    artifact boundary and reject any remaining non-standard NaN/Infinity
+    tokens when writing the file.
     """
     if isinstance(obj, dict):
-        return {k: _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
         return [_json_safe(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return [_json_safe(v) for v in obj.tolist()]
+    if obj is pd.NA or obj is pd.NaT:
+        return None
+    if isinstance(obj, (pd.Timestamp, np.datetime64, datetime)):
+        timestamp = pd.Timestamp(obj)
+        return None if pd.isna(timestamp) else timestamp.isoformat()
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        value = float(obj)
+        return value if np.isfinite(value) else None
     if isinstance(obj, float) and not np.isfinite(obj):
         return None
     return obj
@@ -1862,8 +1874,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
     payload = _json_safe(payload)
     out_path = path or os.path.join(cfg.output_dir, "results.json")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    with open(out_path, "w") as f:
-        json.dump(payload, f, indent=2)
+    tmp_path = f"{out_path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, allow_nan=False)
+    os.replace(tmp_path, out_path)
     print(f"Saved: {out_path}")
     return payload
 

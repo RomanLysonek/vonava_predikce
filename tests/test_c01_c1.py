@@ -18,8 +18,9 @@ from ml.framework import (
     select_trainable_panel_rows,
 )
 from ml.models.neural_net import predict_ensemble, residual_support_bounds
-from ml.pipeline import RuntimeOptions, configure_c1_runtime
+from ml.pipeline import RuntimeOptions, _json_safe, configure_c1_runtime
 from ml.run_c1_screening import _config_key, _extract_model_rows, _pick_winner
+from ml.export_results import _read_csv_if_present
 
 
 def _raw(periods=400, future=0):
@@ -346,3 +347,44 @@ def test_c1_screening_extracts_lowercase_summary_coverage():
     assert len(rows) == 1
     assert rows[0]["model"] == "NeuralNet"
     assert rows[0]["Coverage"] == 1.0
+
+
+def test_json_safe_serializes_timestamp_and_numpy_scalars_strictly():
+    payload = {
+        "origin": pd.Timestamp("2024-11-29"),
+        "generated": np.datetime64("2026-01-04"),
+        "count": np.int64(7),
+        "ratio": np.float64(0.25),
+        "flag": np.bool_(True),
+        "missing": np.float64(np.nan),
+        "nested": [pd.NaT, np.array([1, 2], dtype=np.int64)],
+    }
+    safe = _json_safe(payload)
+    assert safe["origin"].startswith("2024-11-29")
+    assert safe["generated"].startswith("2026-01-04")
+    assert safe["count"] == 7
+    assert safe["ratio"] == 0.25
+    assert safe["flag"] is True
+    assert safe["missing"] is None
+    assert safe["nested"] == [None, [1, 2]]
+    json.dumps(safe, allow_nan=False)
+
+
+def test_artifact_exporter_accepts_missing_and_empty_optional_csvs(tmp_path):
+    missing = tmp_path / "missing.csv"
+    assert _read_csv_if_present(str(missing)).empty
+
+    empty = tmp_path / "strategy_pair_summary.csv"
+    empty.write_bytes(b"")
+    assert _read_csv_if_present(str(empty)).empty
+
+    whitespace = tmp_path / "whitespace.csv"
+    whitespace.write_text("  \n")
+    assert _read_csv_if_present(str(whitespace)).empty
+
+    populated = tmp_path / "populated.csv"
+    populated.write_text("model,WAPE\nNeuralNet,0.3\n")
+    loaded = _read_csv_if_present(str(populated))
+    assert loaded.to_dict(orient="records") == [
+        {"model": "NeuralNet", "WAPE": 0.3}
+    ]
