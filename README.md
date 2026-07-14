@@ -103,6 +103,8 @@ ml/
                           recursive XGBoost, LightGBM and Dynamic Ridge jobs
   pipeline.py            strategy-aware CV/training/export orchestrator,
                           development-only selection and artifact generation
+  benchmark_nn_batch_size.py
+                          real-fold MPS/CUDA batch throughput + WAPE benchmark
   export_results.py      rebuilds results.json exclusively from persisted
                           artifacts; it never retrains models
 outputs/                 canonical and strategy-specific submissions, OOF and
@@ -114,6 +116,7 @@ tests/
                           strategy alignment, feedback and leakage tests
   test_webapp_strategy_sync.py
                           JSON contract and frontend smoke checks
+  test_nn_performance.py  batch/LR/backend and recommendation tests
 webapp/
   server.py              FastAPI app serving the dashboard + /api/results,
                           plus /model/{slug} for the per-model pages
@@ -134,6 +137,54 @@ uv run pytest tests/ -v              # unit tests
 ```
 
 Uses `mps` automatically on Apple Silicon if available, else CPU.
+
+### Apple Silicon performance profile
+
+The NN keeps a complete fold's tensors on MPS and shuffles/slices them on the
+device, avoiding a CPU-to-MPS copy for every mini-batch. This is a
+throughput-only implementation optimization: it does not change the feature
+set, target, epoch budget, or number of optimizer updates.
+
+A larger batch can improve GPU utilisation, but it also reduces optimizer
+updates per epoch and can change validation quality. Do not select it from GPU
+usage alone. Run the real-fold benchmark first:
+
+```bash
+caffeinate -i uv run python ml/benchmark_nn_batch_size.py \
+  --batch-sizes 512 1024 2048 4096 \
+  --lr-scalings fixed sqrt \
+  --epochs 10 \
+  --quality-tolerance 0.02
+```
+
+The benchmark measures held-out WAPE/MAE and throughput, writes
+`outputs/nn_batch_benchmark.json`, and recommends the fastest policy within
+2% relative WAPE of the historical `512/fixed` reference. The pipeline's
+default `--nn-batch-size auto --nn-lr-scaling auto` consumes that recommendation
+only when it was measured on the same accelerator type; without it, the safe
+512/fixed policy is preserved.
+
+Typical M4 Pro candidate order is 1024 -> 2048 -> 4096. With ~30% GPU usage at
+batch 512 and ample unified memory, 2048 is the most plausible first winner,
+but the repository deliberately requires the quality benchmark rather than
+hard-coding that guess.
+
+Manual override example:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy both \
+  --primary-strategy auto \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --nn-batch-size 2048 \
+  --nn-lr-scaling sqrt \
+  --resume
+```
+
+Changing batch/LR policy invalidates checkpoints trained with a different
+model policy. Existing 512/fixed stability-v3 checkpoints remain reusable
+with the automatic safe fallback.
 
 **macOS setup note:** XGBoost/LightGBM's macOS wheels need Homebrew's OpenMP
 runtime: `brew install libomp`. Separately, PyTorch bundles its *own* copy of

@@ -40,6 +40,9 @@ class Config:
     lr: float = 1e-3
     weight_decay: float = 1e-4
     batch_size: int = 512
+    reference_batch_size: int = 512
+    nn_lr_scaling: str = "fixed"        # fixed | sqrt | linear
+    nn_training_backend: str = "auto"   # auto | device_resident | dataloader
     cv_epochs: int = 30                   # per fold, no early stopping (avoids peeking at eval fold)
     final_epochs: int = 60                # for the submission ensemble
     seeds: tuple = (42, 123, 777)

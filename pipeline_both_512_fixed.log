@@ -1,0 +1,519 @@
+Device: mps
+Forecast strategy: both
+NN runtime: batch=512 (CLI override), lr=0.001 [fixed], backend=device_resident
+CV resume enabled: outputs/checkpoints
+
+=== DIRECT development CV ===
+  [development] origin 2022-02-01: eval 2022-02-02..2022-02-08
+      epoch   1/30 | train loss 0.1290
+      epoch  10/30 | train loss 0.0478
+      epoch  20/30 | train loss 0.0406
+      epoch  30/30 | train loss 0.0370
+      epoch   1/30 | train loss 0.1713
+      epoch  10/30 | train loss 0.0505
+      epoch  20/30 | train loss 0.0419
+      epoch  30/30 | train loss 0.0381
+      epoch   1/30 | train loss 0.1460
+      epoch  10/30 | train loss 0.0485
+      epoch  20/30 | train loss 0.0401
+      epoch  30/30 | train loss 0.0364
+    [timing] development 2022-02-01: NN 2.9s | trees 12.0s | fold total 15.2s
+  [development] origin 2022-06-15: eval 2022-06-16..2022-06-22
+      epoch   1/30 | train loss 0.1146
+      epoch  10/30 | train loss 0.0543
+      epoch  20/30 | train loss 0.0439
+      epoch  30/30 | train loss 0.0400
+      epoch   1/30 | train loss 0.1124
+      epoch  10/30 | train loss 0.0538
+      epoch  20/30 | train loss 0.0429
+      epoch  30/30 | train loss 0.0396
+      epoch   1/30 | train loss 0.1114
+      epoch  10/30 | train loss 0.0534
+      epoch  20/30 | train loss 0.0429
+      epoch  30/30 | train loss 0.0391
+    [timing] development 2022-06-15: NN 12.2s | trees 5.0s | fold total 17.6s
+  [development] origin 2022-11-20: eval 2022-11-21..2022-11-27
+      epoch   1/30 | train loss 0.0990
+      epoch  10/30 | train loss 0.0523
+      epoch  20/30 | train loss 0.0417
+      epoch  30/30 | train loss 0.0386
+      epoch   1/30 | train loss 0.0970
+      epoch  10/30 | train loss 0.0524
+      epoch  20/30 | train loss 0.0423
+      epoch  30/30 | train loss 0.0392
+      epoch   1/30 | train loss 0.1018
+      epoch  10/30 | train loss 0.0521
+      epoch  20/30 | train loss 0.0422
+      epoch  30/30 | train loss 0.0393
+    [timing] development 2022-11-20: NN 24.4s | trees 5.3s | fold total 30.2s
+  [development] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/30 | train loss 0.1110
+      epoch  10/30 | train loss 0.0572
+      epoch  20/30 | train loss 0.0466
+      epoch  30/30 | train loss 0.0435
+      epoch   1/30 | train loss 0.1088
+      epoch  10/30 | train loss 0.0571
+      epoch  20/30 | train loss 0.0468
+      epoch  30/30 | train loss 0.0438
+      epoch   1/30 | train loss 0.1108
+      epoch  10/30 | train loss 0.0564
+      epoch  20/30 | train loss 0.0463
+      epoch  30/30 | train loss 0.0428
+    [timing] development 2023-01-10: NN 28.9s | trees 5.4s | fold total 34.8s
+  [development] origin 2023-07-01: eval 2023-07-02..2023-07-08
+      epoch   1/30 | train loss 0.1103
+      epoch  10/30 | train loss 0.0572
+      epoch  20/30 | train loss 0.0462
+      epoch  30/30 | train loss 0.0430
+      epoch   1/30 | train loss 0.1096
+      epoch  10/30 | train loss 0.0572
+      epoch  20/30 | train loss 0.0464
+      epoch  30/30 | train loss 0.0433
+      epoch   1/30 | train loss 0.1120
+      epoch  10/30 | train loss 0.0569
+      epoch  20/30 | train loss 0.0461
+      epoch  30/30 | train loss 0.0428
+    [timing] development 2023-07-01: NN 42.5s | trees 5.7s | fold total 48.9s
+  [development] origin 2023-11-24: eval 2023-11-25..2023-12-01
+      epoch   1/30 | train loss 0.1140
+      epoch  10/30 | train loss 0.0589
+      epoch  20/30 | train loss 0.0474
+      epoch  30/30 | train loss 0.0444
+      epoch   1/30 | train loss 0.1149
+      epoch  10/30 | train loss 0.0590
+      epoch  20/30 | train loss 0.0479
+      epoch  30/30 | train loss 0.0447
+      epoch   1/30 | train loss 0.1163
+      epoch  10/30 | train loss 0.0586
+      epoch  20/30 | train loss 0.0476
+      epoch  30/30 | train loss 0.0440
+    [timing] development 2023-11-24: NN 55.0s | trees 6.0s | fold total 61.8s
+  [development] origin 2023-12-18: eval 2023-12-19..2023-12-25
+      epoch   1/30 | train loss 0.1136
+      epoch  10/30 | train loss 0.0586
+      epoch  20/30 | train loss 0.0475
+      epoch  30/30 | train loss 0.0442
+      epoch   1/30 | train loss 0.1134
+      epoch  10/30 | train loss 0.0588
+      epoch  20/30 | train loss 0.0479
+      epoch  30/30 | train loss 0.0445
+      epoch   1/30 | train loss 0.1150
+      epoch  10/30 | train loss 0.0580
+      epoch  20/30 | train loss 0.0472
+      epoch  30/30 | train loss 0.0441
+    [timing] development 2023-12-18: NN 57.3s | trees 6.0s | fold total 64.1s
+  [development] origin 2024-02-14: eval 2024-02-15..2024-02-21
+      epoch   1/30 | train loss 0.1150
+      epoch  10/30 | train loss 0.0593
+      epoch  20/30 | train loss 0.0484
+      epoch  30/30 | train loss 0.0449
+      epoch   1/30 | train loss 0.1156
+      epoch  10/30 | train loss 0.0599
+      epoch  20/30 | train loss 0.0482
+      epoch  30/30 | train loss 0.0450
+      epoch   1/30 | train loss 0.1163
+      epoch  10/30 | train loss 0.0592
+      epoch  20/30 | train loss 0.0481
+      epoch  30/30 | train loss 0.0449
+    [timing] development 2024-02-14: NN 63.8s | trees 6.1s | fold total 70.8s
+  [development] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/30 | train loss 0.1194
+      epoch  10/30 | train loss 0.0634
+      epoch  20/30 | train loss 0.0514
+      epoch  30/30 | train loss 0.0476
+      epoch   1/30 | train loss 0.1202
+      epoch  10/30 | train loss 0.0632
+      epoch  20/30 | train loss 0.0516
+      epoch  30/30 | train loss 0.0484
+      epoch   1/30 | train loss 0.1207
+      epoch  10/30 | train loss 0.0622
+      epoch  20/30 | train loss 0.0508
+      epoch  30/30 | train loss 0.0475
+    [timing] development 2024-06-20: NN 79.0s | trees 6.4s | fold total 86.4s
+  [development] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/30 | train loss 0.1141
+      epoch  10/30 | train loss 0.0601
+      epoch  20/30 | train loss 0.0494
+      epoch  30/30 | train loss 0.0465
+      epoch   1/30 | train loss 0.1138
+      epoch  10/30 | train loss 0.0596
+      epoch  20/30 | train loss 0.0495
+      epoch  30/30 | train loss 0.0465
+      epoch   1/30 | train loss 0.1145
+      epoch  10/30 | train loss 0.0603
+      epoch  20/30 | train loss 0.0492
+      epoch  30/30 | train loss 0.0465
+    [timing] development 2024-11-29: NN 95.8s | trees 6.8s | fold total 103.7s
+  [development] origin 2024-12-20: eval 2024-12-21..2024-12-27
+      epoch   1/30 | train loss 0.1139
+      epoch  10/30 | train loss 0.0602
+      epoch  20/30 | train loss 0.0496
+      epoch  30/30 | train loss 0.0465
+      epoch   1/30 | train loss 0.1140
+      epoch  10/30 | train loss 0.0601
+      epoch  20/30 | train loss 0.0498
+      epoch  30/30 | train loss 0.0470
+      epoch   1/30 | train loss 0.1144
+      epoch  10/30 | train loss 0.0602
+      epoch  20/30 | train loss 0.0494
+      epoch  30/30 | train loss 0.0465
+    [timing] development 2024-12-20: NN 97.9s | trees 6.9s | fold total 105.9s
+  [development] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/30 | train loss 0.1159
+      epoch  10/30 | train loss 0.0616
+      epoch  20/30 | train loss 0.0510
+      epoch  30/30 | train loss 0.0479
+      epoch   1/30 | train loss 0.1167
+      epoch  10/30 | train loss 0.0620
+      epoch  20/30 | train loss 0.0512
+      epoch  30/30 | train loss 0.0483
+      epoch   1/30 | train loss 0.1167
+      epoch  10/30 | train loss 0.0618
+      epoch  20/30 | train loss 0.0511
+      epoch  30/30 | train loss 0.0481
+    [timing] development 2025-02-10: NN 103.2s | trees 6.9s | fold total 111.3s
+
+=== DIRECT recent-benchmark CV ===
+  [recent_benchmark] origin 2026-01-04: eval 2026-01-05..2026-01-11
+      epoch   1/30 | train loss 0.1092
+      epoch  10/30 | train loss 0.0611
+      epoch  20/30 | train loss 0.0521
+      epoch  30/30 | train loss 0.0492
+      epoch   1/30 | train loss 0.1097
+      epoch  10/30 | train loss 0.0617
+      epoch  20/30 | train loss 0.0522
+      epoch  30/30 | train loss 0.0495
+      epoch   1/30 | train loss 0.1096
+      epoch  10/30 | train loss 0.0612
+      epoch  20/30 | train loss 0.0520
+      epoch  30/30 | train loss 0.0492
+    [timing] recent_benchmark 2026-01-04: NN 138.5s | trees 8.3s | fold total 148.2s
+  [recent_benchmark] origin 2025-12-28: eval 2025-12-29..2026-01-04
+      epoch   1/30 | train loss 0.1090
+      epoch  10/30 | train loss 0.0617
+      epoch  20/30 | train loss 0.0520
+      epoch  30/30 | train loss 0.0494
+      epoch   1/30 | train loss 0.1094
+      epoch  10/30 | train loss 0.0619
+      epoch  20/30 | train loss 0.0525
+      epoch  30/30 | train loss 0.0496
+      epoch   1/30 | train loss 0.1095
+      epoch  10/30 | train loss 0.0614
+      epoch  20/30 | train loss 0.0525
+      epoch  30/30 | train loss 0.0496
+    [timing] recent_benchmark 2025-12-28: NN 138.2s | trees 7.6s | fold total 147.2s
+  [recent_benchmark] origin 2025-12-21: eval 2025-12-22..2025-12-28
+      epoch   1/30 | train loss 0.1076
+      epoch  10/30 | train loss 0.0608
+      epoch  20/30 | train loss 0.0517
+      epoch  30/30 | train loss 0.0488
+      epoch   1/30 | train loss 0.1088
+      epoch  10/30 | train loss 0.0607
+      epoch  20/30 | train loss 0.0512
+      epoch  30/30 | train loss 0.0486
+      epoch   1/30 | train loss 0.1082
+      epoch  10/30 | train loss 0.0605
+      epoch  20/30 | train loss 0.0511
+      epoch  30/30 | train loss 0.0482
+    [timing] recent_benchmark 2025-12-21: NN 137.8s | trees 7.7s | fold total 146.8s
+  [recent_benchmark] origin 2025-12-14: eval 2025-12-15..2025-12-21
+      epoch   1/30 | train loss 0.1080
+      epoch  10/30 | train loss 0.0607
+      epoch  20/30 | train loss 0.0513
+      epoch  30/30 | train loss 0.0482
+      epoch   1/30 | train loss 0.1083
+      epoch  10/30 | train loss 0.0607
+      epoch  20/30 | train loss 0.0513
+      epoch  30/30 | train loss 0.0487
+      epoch   1/30 | train loss 0.1081
+      epoch  10/30 | train loss 0.0601
+      epoch  20/30 | train loss 0.0511
+      epoch  30/30 | train loss 0.0482
+    [timing] recent_benchmark 2025-12-14: NN 136.4s | trees 7.7s | fold total 145.5s
+
+=== RECURSIVE development CV ===
+  [development/recursive] origin 2022-02-01: eval 2022-02-02..2022-02-08
+      epoch   1/30 | train loss 0.2241
+      epoch  10/30 | train loss 0.0927
+      epoch  20/30 | train loss 0.0784
+      epoch  30/30 | train loss 0.0767
+      epoch   1/30 | train loss 0.2649
+      epoch  10/30 | train loss 0.1016
+      epoch  20/30 | train loss 0.0891
+      epoch  30/30 | train loss 0.0907
+      epoch   1/30 | train loss 0.2222
+      epoch  10/30 | train loss 0.1003
+      epoch  20/30 | train loss 0.0931
+      epoch  30/30 | train loss 0.0865
+    [timing] development/recursive 2022-02-01: NN 8.1s | structured 10.0s | fold total 18.4s
+  [development/recursive] origin 2022-06-15: eval 2022-06-16..2022-06-22
+      epoch   1/30 | train loss 0.1600
+      epoch  10/30 | train loss 0.0701
+      epoch  20/30 | train loss 0.0662
+      epoch  30/30 | train loss 0.0632
+      epoch   1/30 | train loss 0.1703
+      epoch  10/30 | train loss 0.0761
+      epoch  20/30 | train loss 0.0641
+      epoch  30/30 | train loss 0.0655
+      epoch   1/30 | train loss 0.1660
+      epoch  10/30 | train loss 0.0719
+      epoch  20/30 | train loss 0.0654
+      epoch  30/30 | train loss 0.0644
+    [timing] development/recursive 2022-06-15: NN 11.3s | structured 11.6s | fold total 23.2s
+  [development/recursive] origin 2022-11-20: eval 2022-11-21..2022-11-27
+      epoch   1/30 | train loss 0.1353
+      epoch  10/30 | train loss 0.0667
+      epoch  20/30 | train loss 0.0613
+      epoch  30/30 | train loss 0.0591
+      epoch   1/30 | train loss 0.1359
+      epoch  10/30 | train loss 0.0669
+      epoch  20/30 | train loss 0.0599
+      epoch  30/30 | train loss 0.0586
+      epoch   1/30 | train loss 0.1391
+      epoch  10/30 | train loss 0.0689
+      epoch  20/30 | train loss 0.0617
+      epoch  30/30 | train loss 0.0604
+    [timing] development/recursive 2022-11-20: NN 15.5s | structured 13.5s | fold total 29.4s
+  [development/recursive] origin 2023-01-10: eval 2023-01-11..2023-01-17
+      epoch   1/30 | train loss 0.1450
+      epoch  10/30 | train loss 0.0734
+      epoch  20/30 | train loss 0.0661
+      epoch  30/30 | train loss 0.0640
+      epoch   1/30 | train loss 0.1480
+      epoch  10/30 | train loss 0.0739
+      epoch  20/30 | train loss 0.0663
+      epoch  30/30 | train loss 0.0643
+      epoch   1/30 | train loss 0.1512
+      epoch  10/30 | train loss 0.0742
+      epoch  20/30 | train loss 0.0678
+      epoch  30/30 | train loss 0.0645
+    [timing] development/recursive 2023-01-10: NN 17.0s | structured 14.8s | fold total 32.3s
+  [development/recursive] origin 2023-07-01: eval 2023-07-02..2023-07-08
+      epoch   1/30 | train loss 0.1422
+      epoch  10/30 | train loss 0.0747
+      epoch  20/30 | train loss 0.0683
+      epoch  30/30 | train loss 0.0663
+      epoch   1/30 | train loss 0.1398
+      epoch  10/30 | train loss 0.0761
+      epoch  20/30 | train loss 0.0686
+      epoch  30/30 | train loss 0.0662
+      epoch   1/30 | train loss 0.1451
+      epoch  10/30 | train loss 0.0765
+      epoch  20/30 | train loss 0.0680
+      epoch  30/30 | train loss 0.0660
+    [timing] development/recursive 2023-07-01: NN 22.1s | structured 16.9s | fold total 39.5s
+  [development/recursive] origin 2023-11-24: eval 2023-11-25..2023-12-01
+      epoch   1/30 | train loss 0.1378
+      epoch  10/30 | train loss 0.0749
+      epoch  20/30 | train loss 0.0675
+      epoch  30/30 | train loss 0.0645
+      epoch   1/30 | train loss 0.1406
+      epoch  10/30 | train loss 0.0758
+      epoch  20/30 | train loss 0.0690
+      epoch  30/30 | train loss 0.0657
+      epoch   1/30 | train loss 0.1392
+      epoch  10/30 | train loss 0.0763
+      epoch  20/30 | train loss 0.0674
+      epoch  30/30 | train loss 0.0661
+    [timing] development/recursive 2023-11-24: NN 26.2s | structured 18.0s | fold total 44.8s
+  [development/recursive] origin 2023-12-18: eval 2023-12-19..2023-12-25
+      epoch   1/30 | train loss 0.1380
+      epoch  10/30 | train loss 0.0746
+      epoch  20/30 | train loss 0.0667
+      epoch  30/30 | train loss 0.0641
+      epoch   1/30 | train loss 0.1377
+      epoch  10/30 | train loss 0.0744
+      epoch  20/30 | train loss 0.0679
+      epoch  30/30 | train loss 0.0651
+      epoch   1/30 | train loss 0.1426
+      epoch  10/30 | train loss 0.0764
+      epoch  20/30 | train loss 0.0682
+      epoch  30/30 | train loss 0.0657
+    [timing] development/recursive 2023-12-18: NN 26.9s | structured 18.4s | fold total 46.0s
+  [development/recursive] origin 2024-02-14: eval 2024-02-15..2024-02-21
+      epoch   1/30 | train loss 0.1405
+      epoch  10/30 | train loss 0.0760
+      epoch  20/30 | train loss 0.0677
+      epoch  30/30 | train loss 0.0648
+      epoch   1/30 | train loss 0.1392
+      epoch  10/30 | train loss 0.0764
+      epoch  20/30 | train loss 0.0680
+      epoch  30/30 | train loss 0.0653
+      epoch   1/30 | train loss 0.1398
+      epoch  10/30 | train loss 0.0755
+      epoch  20/30 | train loss 0.0675
+      epoch  30/30 | train loss 0.0649
+    [timing] development/recursive 2024-02-14: NN 28.2s | structured 19.1s | fold total 48.0s
+  [development/recursive] origin 2024-06-20: eval 2024-06-21..2024-06-27
+      epoch   1/30 | train loss 0.1388
+      epoch  10/30 | train loss 0.0778
+      epoch  20/30 | train loss 0.0696
+      epoch  30/30 | train loss 0.0671
+      epoch   1/30 | train loss 0.1407
+      epoch  10/30 | train loss 0.0784
+      epoch  20/30 | train loss 0.0708
+      epoch  30/30 | train loss 0.0678
+      epoch   1/30 | train loss 0.1425
+      epoch  10/30 | train loss 0.0776
+      epoch  20/30 | train loss 0.0692
+      epoch  30/30 | train loss 0.0664
+    [timing] development/recursive 2024-06-20: NN 32.5s | structured 20.9s | fold total 54.2s
+  [development/recursive] origin 2024-11-29: eval 2024-11-30..2024-12-06
+      epoch   1/30 | train loss 0.1259
+      epoch  10/30 | train loss 0.0729
+      epoch  20/30 | train loss 0.0657
+      epoch  30/30 | train loss 0.0635
+      epoch   1/30 | train loss 0.1280
+      epoch  10/30 | train loss 0.0742
+      epoch  20/30 | train loss 0.0670
+      epoch  30/30 | train loss 0.0637
+      epoch   1/30 | train loss 0.1328
+      epoch  10/30 | train loss 0.0733
+      epoch  20/30 | train loss 0.0667
+      epoch  30/30 | train loss 0.0639
+    [timing] development/recursive 2024-11-29: NN 37.5s | structured 22.9s | fold total 61.3s
+  [development/recursive] origin 2024-12-20: eval 2024-12-21..2024-12-27
+      epoch   1/30 | train loss 0.1276
+      epoch  10/30 | train loss 0.0730
+      epoch  20/30 | train loss 0.0667
+      epoch  30/30 | train loss 0.0635
+      epoch   1/30 | train loss 0.1312
+      epoch  10/30 | train loss 0.0741
+      epoch  20/30 | train loss 0.0673
+      epoch  30/30 | train loss 0.0652
+      epoch   1/30 | train loss 0.1321
+      epoch  10/30 | train loss 0.0733
+      epoch  20/30 | train loss 0.0654
+      epoch  30/30 | train loss 0.0631
+    [timing] development/recursive 2024-12-20: NN 38.2s | structured 22.8s | fold total 62.0s
+  [development/recursive] origin 2025-02-10: eval 2025-02-11..2025-02-17
+      epoch   1/30 | train loss 0.1307
+      epoch  10/30 | train loss 0.0746
+      epoch  20/30 | train loss 0.0669
+      epoch  30/30 | train loss 0.0648
+      epoch   1/30 | train loss 0.1332
+      epoch  10/30 | train loss 0.0754
+      epoch  20/30 | train loss 0.0685
+      epoch  30/30 | train loss 0.0654
+      epoch   1/30 | train loss 0.1333
+      epoch  10/30 | train loss 0.0744
+      epoch  20/30 | train loss 0.0670
+      epoch  30/30 | train loss 0.0643
+    [timing] development/recursive 2025-02-10: NN 39.8s | structured 23.9s | fold total 64.6s
+
+=== RECURSIVE recent-benchmark CV ===
+  [recent_benchmark/recursive] origin 2026-01-04: eval 2026-01-05..2026-01-11
+      epoch   1/30 | train loss 0.1207
+      epoch  10/30 | train loss 0.0727
+      epoch  20/30 | train loss 0.0657
+      epoch  30/30 | train loss 0.0630
+      epoch   1/30 | train loss 0.1232
+      epoch  10/30 | train loss 0.0735
+      epoch  20/30 | train loss 0.0662
+      epoch  30/30 | train loss 0.0638
+      epoch   1/30 | train loss 0.1247
+      epoch  10/30 | train loss 0.0727
+      epoch  20/30 | train loss 0.0655
+      epoch  30/30 | train loss 0.0625
+    [timing] recent_benchmark/recursive 2026-01-04: NN 50.2s | structured 27.9s | fold total 79.2s
+  [recent_benchmark/recursive] origin 2025-12-28: eval 2025-12-29..2026-01-04
+      epoch   1/30 | train loss 0.1199
+      epoch  10/30 | train loss 0.0725
+      epoch  20/30 | train loss 0.0651
+      epoch  30/30 | train loss 0.0630
+      epoch   1/30 | train loss 0.1228
+      epoch  10/30 | train loss 0.0732
+      epoch  20/30 | train loss 0.0659
+      epoch  30/30 | train loss 0.0635
+      epoch   1/30 | train loss 0.1232
+      epoch  10/30 | train loss 0.0718
+      epoch  20/30 | train loss 0.0655
+      epoch  30/30 | train loss 0.0628
+    [timing] recent_benchmark/recursive 2025-12-28: NN 50.2s | structured 28.0s | fold total 79.3s
+  [recent_benchmark/recursive] origin 2025-12-21: eval 2025-12-22..2025-12-28
+      epoch   1/30 | train loss 0.1184
+      epoch  10/30 | train loss 0.0708
+      epoch  20/30 | train loss 0.0644
+      epoch  30/30 | train loss 0.0622
+      epoch   1/30 | train loss 0.1211
+      epoch  10/30 | train loss 0.0721
+      epoch  20/30 | train loss 0.0654
+      epoch  30/30 | train loss 0.0626
+      epoch   1/30 | train loss 0.1238
+      epoch  10/30 | train loss 0.0714
+      epoch  20/30 | train loss 0.0650
+      epoch  30/30 | train loss 0.0620
+    [timing] recent_benchmark/recursive 2025-12-21: NN 49.9s | structured 28.2s | fold total 79.2s
+  [recent_benchmark/recursive] origin 2025-12-14: eval 2025-12-15..2025-12-21
+      epoch   1/30 | train loss 0.1199
+      epoch  10/30 | train loss 0.0714
+      epoch  20/30 | train loss 0.0650
+      epoch  30/30 | train loss 0.0623
+      epoch   1/30 | train loss 0.1220
+      epoch  10/30 | train loss 0.0721
+      epoch  20/30 | train loss 0.0655
+      epoch  30/30 | train loss 0.0627
+      epoch   1/30 | train loss 0.1234
+      epoch  10/30 | train loss 0.0715
+      epoch  20/30 | train loss 0.0643
+      epoch  30/30 | train loss 0.0621
+    [timing] recent_benchmark/recursive 2025-12-14: NN 49.5s | structured 27.5s | fold total 78.0s
+
+Canonical selection: NeuralNet / direct
+
+=== Final direct forecasts ===
+    seed 42
+      epoch   1/60 | train loss 0.1091
+      epoch  10/60 | train loss 0.0615
+      epoch  20/60 | train loss 0.0521
+      epoch  30/60 | train loss 0.0479
+      epoch  40/60 | train loss 0.0455
+      epoch  50/60 | train loss 0.0438
+      epoch  60/60 | train loss 0.0434
+      [timing] seed 42: 89.9s
+    seed 123
+      epoch   1/60 | train loss 0.1102
+      epoch  10/60 | train loss 0.0618
+      epoch  20/60 | train loss 0.0524
+      epoch  30/60 | train loss 0.0481
+      epoch  40/60 | train loss 0.0456
+      epoch  50/60 | train loss 0.0442
+      epoch  60/60 | train loss 0.0435
+      [timing] seed 123: 90.4s
+    seed 777
+      epoch   1/60 | train loss 0.1098
+      epoch  10/60 | train loss 0.0614
+      epoch  20/60 | train loss 0.0523
+      epoch  30/60 | train loss 0.0478
+      epoch  40/60 | train loss 0.0456
+      epoch  50/60 | train loss 0.0441
+      epoch  60/60 | train loss 0.0437
+      [timing] seed 777: 90.8s
+
+=== Final recursive forecasts ===
+      epoch   1/60 | train loss 0.1216
+      epoch  10/60 | train loss 0.0725
+      epoch  20/60 | train loss 0.0651
+      epoch  30/60 | train loss 0.0610
+      epoch  40/60 | train loss 0.0580
+      epoch  50/60 | train loss 0.0568
+      epoch  60/60 | train loss 0.0561
+      epoch   1/60 | train loss 0.1229
+      epoch  10/60 | train loss 0.0731
+      epoch  20/60 | train loss 0.0662
+      epoch  30/60 | train loss 0.0619
+      epoch  40/60 | train loss 0.0588
+      epoch  50/60 | train loss 0.0577
+      epoch  60/60 | train loss 0.0559
+      epoch   1/60 | train loss 0.1252
+      epoch  10/60 | train loss 0.0728
+      epoch  20/60 | train loss 0.0650
+      epoch  30/60 | train loss 0.0615
+      epoch  40/60 | train loss 0.0586
+      epoch  50/60 | train loss 0.0569
+      epoch  60/60 | train loss 0.0558
+Saved: outputs/results.json
+Saved: outputs/forecast_plot.png
+
+Saved canonical submission: NeuralNet/direct
+Total runtime: 42.7 min

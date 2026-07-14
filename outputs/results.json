@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T16:28:53.932277+00:00",
+  "generated_at": "2026-07-13T19:36:36.564812+00:00",
   "config": {
     "forecast_strategy": "both",
     "primary_strategy": "direct",
@@ -23,13 +23,18 @@
       123,
       777
     ],
-    "num_products": 30
+    "num_products": 30,
+    "nn_batch_size": 512,
+    "nn_reference_batch_size": 512,
+    "nn_lr_scaling": "fixed",
+    "nn_effective_learning_rate": 0.001,
+    "nn_training_backend": "device_resident"
   },
   "models": [
     {
       "key": "NeuralNet",
       "slug": "neuralnet",
-      "skill_vs_seasonal_naive": 0.5558079038233925,
+      "skill_vs_seasonal_naive": 0.5792644053116525,
       "label": "Neural Net",
       "short": "PyTorch",
       "color": "#EE4C2C",
@@ -99,14 +104,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 17.807,
-      "RMSE": 29.474,
-      "MAPE": 59.392,
-      "WAPE": 0.306,
-      "sMAPE": 0.352,
-      "RMSLE": 0.485,
-      "Bias": 11.407,
-      "BiasRatio": 0.196,
+      "MAE": 15.111,
+      "RMSE": 23.72,
+      "MAPE": 56.004,
+      "WAPE": 0.26,
+      "sMAPE": 0.337,
+      "RMSLE": 0.468,
+      "Bias": 8.316,
+      "BiasRatio": 0.143,
       "n": 209
     },
     {
@@ -114,14 +119,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 17.807,
-      "RMSE": 29.474,
-      "MAPE": 59.392,
-      "WAPE": 0.306,
-      "sMAPE": 0.352,
-      "RMSLE": 0.485,
-      "Bias": 11.407,
-      "BiasRatio": 0.196,
+      "MAE": 15.111,
+      "RMSE": 23.72,
+      "MAPE": 56.004,
+      "WAPE": 0.26,
+      "sMAPE": 0.337,
+      "RMSLE": 0.468,
+      "Bias": 8.316,
+      "BiasRatio": 0.143,
       "n": 209
     },
     {
@@ -129,14 +134,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 10.296,
-      "RMSE": 14.556,
-      "MAPE": 163.138,
-      "WAPE": 0.694,
-      "sMAPE": 0.696,
-      "RMSLE": 0.874,
-      "Bias": 8.218,
-      "BiasRatio": 0.554,
+      "MAE": 10.906,
+      "RMSE": 15.939,
+      "MAPE": 174.786,
+      "WAPE": 0.735,
+      "sMAPE": 0.718,
+      "RMSLE": 0.904,
+      "Bias": 8.874,
+      "BiasRatio": 0.598,
       "n": 210
     },
     {
@@ -144,14 +149,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 10.296,
-      "RMSE": 14.556,
-      "MAPE": 163.138,
-      "WAPE": 0.694,
-      "sMAPE": 0.696,
-      "RMSLE": 0.874,
-      "Bias": 8.218,
-      "BiasRatio": 0.554,
+      "MAE": 10.906,
+      "RMSE": 15.939,
+      "MAPE": 174.786,
+      "WAPE": 0.735,
+      "sMAPE": 0.718,
+      "RMSLE": 0.904,
+      "Bias": 8.874,
+      "BiasRatio": 0.598,
       "n": 210
     },
     {
@@ -159,14 +164,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 6.014,
-      "RMSE": 9.348,
-      "MAPE": 67.554,
-      "WAPE": 0.334,
+      "MAE": 5.901,
+      "RMSE": 8.881,
+      "MAPE": 66.11,
+      "WAPE": 0.328,
       "sMAPE": 0.454,
-      "RMSLE": 0.572,
-      "Bias": -0.078,
-      "BiasRatio": -0.004,
+      "RMSLE": 0.556,
+      "Bias": -0.181,
+      "BiasRatio": -0.01,
       "n": 210
     },
     {
@@ -174,14 +179,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 6.014,
-      "RMSE": 9.348,
-      "MAPE": 67.554,
-      "WAPE": 0.334,
+      "MAE": 5.901,
+      "RMSE": 8.881,
+      "MAPE": 66.11,
+      "WAPE": 0.328,
       "sMAPE": 0.454,
-      "RMSLE": 0.572,
-      "Bias": -0.078,
-      "BiasRatio": -0.004,
+      "RMSLE": 0.556,
+      "Bias": -0.181,
+      "BiasRatio": -0.01,
       "n": 210
     },
     {
@@ -189,14 +194,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 7.194,
-      "RMSE": 9.821,
-      "MAPE": 41.92,
-      "WAPE": 0.315,
-      "sMAPE": 0.396,
-      "RMSLE": 0.594,
-      "Bias": -1.506,
-      "BiasRatio": -0.066,
+      "MAE": 7.203,
+      "RMSE": 9.798,
+      "MAPE": 39.938,
+      "WAPE": 0.316,
+      "sMAPE": 0.387,
+      "RMSLE": 0.577,
+      "Bias": -1.433,
+      "BiasRatio": -0.063,
       "n": 210
     },
     {
@@ -204,14 +209,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 7.194,
-      "RMSE": 9.821,
-      "MAPE": 41.92,
-      "WAPE": 0.315,
-      "sMAPE": 0.396,
-      "RMSLE": 0.594,
-      "Bias": -1.506,
-      "BiasRatio": -0.066,
+      "MAE": 7.203,
+      "RMSE": 9.798,
+      "MAPE": 39.938,
+      "WAPE": 0.316,
+      "sMAPE": 0.387,
+      "RMSLE": 0.577,
+      "Bias": -1.433,
+      "BiasRatio": -0.063,
       "n": 210
     },
     {
@@ -827,14 +832,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.9988095238095238,
-      "MAE": 10.318598277094253,
-      "RMSE": 17.760586595374797,
-      "MAPE": 83.02926462894314,
-      "WAPE": 0.3631876475429827,
-      "sMAPE": 0.47465490895843465,
-      "RMSLE": 0.6480847435607237,
-      "Bias": 4.501876720512581,
-      "BiasRatio": 0.15845427564332992,
+      "MAE": 9.773702908791291,
+      "RMSE": 15.732595102607632,
+      "MAPE": 84.24288073062223,
+      "WAPE": 0.34400875699441597,
+      "sMAPE": 0.4742791882058589,
+      "RMSLE": 0.6477935380466231,
+      "Bias": 3.888943414047307,
+      "BiasRatio": 0.1368806277797412,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -949,21 +954,21 @@
       "strategy": "direct"
     }
   ],
-  "skill_vs_seasonal_naive": 0.5558079038233925,
+  "skill_vs_seasonal_naive": 0.5792644053116525,
   "cv_results_all": [
     {
       "fold": 3,
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 17.807,
-      "RMSE": 29.474,
-      "MAPE": 59.392,
-      "WAPE": 0.306,
-      "sMAPE": 0.352,
-      "RMSLE": 0.485,
-      "Bias": 11.407,
-      "BiasRatio": 0.196,
+      "MAE": 15.111,
+      "RMSE": 23.72,
+      "MAPE": 56.004,
+      "WAPE": 0.26,
+      "sMAPE": 0.337,
+      "RMSLE": 0.468,
+      "Bias": 8.316,
+      "BiasRatio": 0.143,
       "n": 209,
       "strategy": "direct"
     },
@@ -972,14 +977,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 17.807,
-      "RMSE": 29.474,
-      "MAPE": 59.392,
-      "WAPE": 0.306,
-      "sMAPE": 0.352,
-      "RMSLE": 0.485,
-      "Bias": 11.407,
-      "BiasRatio": 0.196,
+      "MAE": 15.111,
+      "RMSE": 23.72,
+      "MAPE": 56.004,
+      "WAPE": 0.26,
+      "sMAPE": 0.337,
+      "RMSLE": 0.468,
+      "Bias": 8.316,
+      "BiasRatio": 0.143,
       "n": 209,
       "strategy": "direct"
     },
@@ -988,14 +993,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 10.296,
-      "RMSE": 14.556,
-      "MAPE": 163.138,
-      "WAPE": 0.694,
-      "sMAPE": 0.696,
-      "RMSLE": 0.874,
-      "Bias": 8.218,
-      "BiasRatio": 0.554,
+      "MAE": 10.906,
+      "RMSE": 15.939,
+      "MAPE": 174.786,
+      "WAPE": 0.735,
+      "sMAPE": 0.718,
+      "RMSLE": 0.904,
+      "Bias": 8.874,
+      "BiasRatio": 0.598,
       "n": 210,
       "strategy": "direct"
     },
@@ -1004,14 +1009,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 10.296,
-      "RMSE": 14.556,
-      "MAPE": 163.138,
-      "WAPE": 0.694,
-      "sMAPE": 0.696,
-      "RMSLE": 0.874,
-      "Bias": 8.218,
-      "BiasRatio": 0.554,
+      "MAE": 10.906,
+      "RMSE": 15.939,
+      "MAPE": 174.786,
+      "WAPE": 0.735,
+      "sMAPE": 0.718,
+      "RMSLE": 0.904,
+      "Bias": 8.874,
+      "BiasRatio": 0.598,
       "n": 210,
       "strategy": "direct"
     },
@@ -1020,14 +1025,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 6.014,
-      "RMSE": 9.348,
-      "MAPE": 67.554,
-      "WAPE": 0.334,
+      "MAE": 5.901,
+      "RMSE": 8.881,
+      "MAPE": 66.11,
+      "WAPE": 0.328,
       "sMAPE": 0.454,
-      "RMSLE": 0.572,
-      "Bias": -0.078,
-      "BiasRatio": -0.004,
+      "RMSLE": 0.556,
+      "Bias": -0.181,
+      "BiasRatio": -0.01,
       "n": 210,
       "strategy": "direct"
     },
@@ -1036,14 +1041,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 6.014,
-      "RMSE": 9.348,
-      "MAPE": 67.554,
-      "WAPE": 0.334,
+      "MAE": 5.901,
+      "RMSE": 8.881,
+      "MAPE": 66.11,
+      "WAPE": 0.328,
       "sMAPE": 0.454,
-      "RMSLE": 0.572,
-      "Bias": -0.078,
-      "BiasRatio": -0.004,
+      "RMSLE": 0.556,
+      "Bias": -0.181,
+      "BiasRatio": -0.01,
       "n": 210,
       "strategy": "direct"
     },
@@ -1052,14 +1057,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 7.194,
-      "RMSE": 9.821,
-      "MAPE": 41.92,
-      "WAPE": 0.315,
-      "sMAPE": 0.396,
-      "RMSLE": 0.594,
-      "Bias": -1.506,
-      "BiasRatio": -0.066,
+      "MAE": 7.203,
+      "RMSE": 9.798,
+      "MAPE": 39.938,
+      "WAPE": 0.316,
+      "sMAPE": 0.387,
+      "RMSLE": 0.577,
+      "Bias": -1.433,
+      "BiasRatio": -0.063,
       "n": 210,
       "strategy": "direct"
     },
@@ -1068,14 +1073,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 7.194,
-      "RMSE": 9.821,
-      "MAPE": 41.92,
-      "WAPE": 0.315,
-      "sMAPE": 0.396,
-      "RMSLE": 0.594,
-      "Bias": -1.506,
-      "BiasRatio": -0.066,
+      "MAE": 7.203,
+      "RMSE": 9.798,
+      "MAPE": 39.938,
+      "WAPE": 0.316,
+      "sMAPE": 0.387,
+      "RMSLE": 0.577,
+      "Bias": -1.433,
+      "BiasRatio": -0.063,
       "n": 210,
       "strategy": "direct"
     },
@@ -1084,14 +1089,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 20.923,
-      "RMSE": 33.72,
-      "MAPE": 56.871,
-      "WAPE": 0.358,
-      "sMAPE": 0.385,
-      "RMSLE": 0.487,
-      "Bias": 12.052,
-      "BiasRatio": 0.206,
+      "MAE": 19.311,
+      "RMSE": 31.225,
+      "MAPE": 51.625,
+      "WAPE": 0.331,
+      "sMAPE": 0.368,
+      "RMSLE": 0.459,
+      "Bias": 10.151,
+      "BiasRatio": 0.174,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1100,14 +1105,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 20.923,
-      "RMSE": 33.72,
-      "MAPE": 56.871,
-      "WAPE": 0.358,
-      "sMAPE": 0.385,
-      "RMSLE": 0.487,
-      "Bias": 12.052,
-      "BiasRatio": 0.206,
+      "MAE": 19.311,
+      "RMSE": 31.225,
+      "MAPE": 51.625,
+      "WAPE": 0.331,
+      "sMAPE": 0.368,
+      "RMSLE": 0.459,
+      "Bias": 10.151,
+      "BiasRatio": 0.174,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1116,14 +1121,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 9.453,
-      "RMSE": 13.17,
-      "MAPE": 158.43,
-      "WAPE": 0.637,
-      "sMAPE": 0.662,
-      "RMSLE": 0.848,
-      "Bias": 7.253,
-      "BiasRatio": 0.489,
+      "MAE": 9.239,
+      "RMSE": 13.075,
+      "MAPE": 158.165,
+      "WAPE": 0.623,
+      "sMAPE": 0.658,
+      "RMSLE": 0.847,
+      "Bias": 7.138,
+      "BiasRatio": 0.481,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1132,14 +1137,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 9.453,
-      "RMSE": 13.17,
-      "MAPE": 158.43,
-      "WAPE": 0.637,
-      "sMAPE": 0.662,
-      "RMSLE": 0.848,
-      "Bias": 7.253,
-      "BiasRatio": 0.489,
+      "MAE": 9.239,
+      "RMSE": 13.075,
+      "MAPE": 158.165,
+      "WAPE": 0.623,
+      "sMAPE": 0.658,
+      "RMSLE": 0.847,
+      "Bias": 7.138,
+      "BiasRatio": 0.481,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1148,14 +1153,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 6.963,
-      "RMSE": 11.044,
-      "MAPE": 78.622,
-      "WAPE": 0.387,
-      "sMAPE": 0.483,
-      "RMSLE": 0.609,
-      "Bias": 0.587,
-      "BiasRatio": 0.033,
+      "MAE": 6.81,
+      "RMSE": 10.089,
+      "MAPE": 75.748,
+      "WAPE": 0.378,
+      "sMAPE": 0.487,
+      "RMSLE": 0.608,
+      "Bias": -0.309,
+      "BiasRatio": -0.017,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1164,14 +1169,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 6.963,
-      "RMSE": 11.044,
-      "MAPE": 78.622,
-      "WAPE": 0.387,
-      "sMAPE": 0.483,
-      "RMSLE": 0.609,
-      "Bias": 0.587,
-      "BiasRatio": 0.033,
+      "MAE": 6.81,
+      "RMSE": 10.089,
+      "MAPE": 75.748,
+      "WAPE": 0.378,
+      "sMAPE": 0.487,
+      "RMSLE": 0.608,
+      "Bias": -0.309,
+      "BiasRatio": -0.017,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1180,14 +1185,14 @@
       "model": "NeuralNet",
       "regime": "realized",
       "comparison_population": "common",
-      "MAE": 7.106,
-      "RMSE": 9.506,
-      "MAPE": 41.451,
-      "WAPE": 0.311,
-      "sMAPE": 0.4,
-      "RMSLE": 0.613,
-      "Bias": -1.957,
-      "BiasRatio": -0.086,
+      "MAE": 6.758,
+      "RMSE": 8.909,
+      "MAPE": 39.304,
+      "WAPE": 0.296,
+      "sMAPE": 0.387,
+      "RMSLE": 0.599,
+      "Bias": -2.121,
+      "BiasRatio": -0.093,
       "n": 210,
       "strategy": "recursive"
     },
@@ -1196,14 +1201,14 @@
       "model": "NeuralNet",
       "regime": "conditional",
       "comparison_population": "common",
-      "MAE": 7.106,
-      "RMSE": 9.506,
-      "MAPE": 41.451,
-      "WAPE": 0.311,
-      "sMAPE": 0.4,
-      "RMSLE": 0.613,
-      "Bias": -1.957,
-      "BiasRatio": -0.086,
+      "MAE": 6.758,
+      "RMSE": 8.909,
+      "MAPE": 39.304,
+      "WAPE": 0.296,
+      "sMAPE": 0.387,
+      "RMSLE": 0.599,
+      "Bias": -2.121,
+      "BiasRatio": -0.093,
       "n": 210,
       "strategy": "recursive"
     },
@@ -2500,14 +2505,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.318598,
-      "RMSE": 17.760587,
-      "MAPE": 83.029265,
-      "WAPE": 0.363188,
-      "sMAPE": 0.474655,
-      "RMSLE": 0.648085,
-      "Bias": 4.501877,
-      "BiasRatio": 0.158454,
+      "MAE": 9.773703,
+      "RMSE": 15.732595,
+      "MAPE": 84.242881,
+      "WAPE": 0.344009,
+      "sMAPE": 0.474279,
+      "RMSLE": 0.647794,
+      "Bias": 3.888943,
+      "BiasRatio": 0.136881,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -2522,14 +2527,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.327513,
-      "RMSE": 15.799409,
-      "MAPE": 83.001125,
-      "WAPE": 0.412354,
-      "sMAPE": 0.474509,
-      "RMSLE": 0.631323,
-      "Bias": 4.510097,
-      "BiasRatio": 0.169949,
+      "MAE": 9.780057,
+      "RMSE": 14.584487,
+      "MAPE": 84.209262,
+      "WAPE": 0.409566,
+      "sMAPE": 0.474116,
+      "RMSLE": 0.626124,
+      "Bias": 3.894213,
+      "BiasRatio": 0.167095,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -2544,14 +2549,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.318598,
-      "RMSE": 17.760587,
-      "MAPE": 83.029265,
-      "WAPE": 0.363188,
-      "sMAPE": 0.474655,
-      "RMSLE": 0.648085,
-      "Bias": 4.501877,
-      "BiasRatio": 0.158454,
+      "MAE": 9.773703,
+      "RMSE": 15.732595,
+      "MAPE": 84.242881,
+      "WAPE": 0.344009,
+      "sMAPE": 0.474279,
+      "RMSLE": 0.647794,
+      "Bias": 3.888943,
+      "BiasRatio": 0.136881,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -2566,14 +2571,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.327513,
-      "RMSE": 15.799409,
-      "MAPE": 83.001125,
-      "WAPE": 0.412354,
-      "sMAPE": 0.474509,
-      "RMSLE": 0.631323,
-      "Bias": 4.510097,
-      "BiasRatio": 0.169949,
+      "MAE": 9.780057,
+      "RMSE": 14.584487,
+      "MAPE": 84.209262,
+      "WAPE": 0.409566,
+      "sMAPE": 0.474116,
+      "RMSLE": 0.626124,
+      "Bias": 3.894213,
+      "BiasRatio": 0.167095,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -2588,14 +2593,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.318598,
-      "RMSE": 17.760587,
-      "MAPE": 83.029265,
-      "WAPE": 0.363188,
-      "sMAPE": 0.474655,
-      "RMSLE": 0.648085,
-      "Bias": 4.501877,
-      "BiasRatio": 0.158454,
+      "MAE": 9.773703,
+      "RMSE": 15.732595,
+      "MAPE": 84.242881,
+      "WAPE": 0.344009,
+      "sMAPE": 0.474279,
+      "RMSLE": 0.647794,
+      "Bias": 3.888943,
+      "BiasRatio": 0.136881,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -2610,14 +2615,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.327513,
-      "RMSE": 15.799409,
-      "MAPE": 83.001125,
-      "WAPE": 0.412354,
-      "sMAPE": 0.474509,
-      "RMSLE": 0.631323,
-      "Bias": 4.510097,
-      "BiasRatio": 0.169949,
+      "MAE": 9.780057,
+      "RMSE": 14.584487,
+      "MAPE": 84.209262,
+      "WAPE": 0.409566,
+      "sMAPE": 0.474116,
+      "RMSLE": 0.626124,
+      "Bias": 3.894213,
+      "BiasRatio": 0.167095,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -2632,14 +2637,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.318598,
-      "RMSE": 17.760587,
-      "MAPE": 83.029265,
-      "WAPE": 0.363188,
-      "sMAPE": 0.474655,
-      "RMSLE": 0.648085,
-      "Bias": 4.501877,
-      "BiasRatio": 0.158454,
+      "MAE": 9.773703,
+      "RMSE": 15.732595,
+      "MAPE": 84.242881,
+      "WAPE": 0.344009,
+      "sMAPE": 0.474279,
+      "RMSLE": 0.647794,
+      "Bias": 3.888943,
+      "BiasRatio": 0.136881,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -2654,14 +2659,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.99881,
-      "MAE": 10.327513,
-      "RMSE": 15.799409,
-      "MAPE": 83.001125,
-      "WAPE": 0.412354,
-      "sMAPE": 0.474509,
-      "RMSLE": 0.631323,
-      "Bias": 4.510097,
-      "BiasRatio": 0.169949,
+      "MAE": 9.780057,
+      "RMSE": 14.584487,
+      "MAPE": 84.209262,
+      "WAPE": 0.409566,
+      "sMAPE": 0.474116,
+      "RMSLE": 0.626124,
+      "Bias": 3.894213,
+      "BiasRatio": 0.167095,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -2676,14 +2681,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 19.511592,
-      "MAPE": 83.843497,
-      "WAPE": 0.389718,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.652351,
-      "Bias": 4.483547,
-      "BiasRatio": 0.157258,
+      "MAE": 10.529502,
+      "RMSE": 18.214576,
+      "MAPE": 81.210705,
+      "WAPE": 0.369317,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.643648,
+      "Bias": 3.714753,
+      "BiasRatio": 0.130293,
       "n": 840.0,
       "strategy": "recursive"
     },
@@ -2698,14 +2703,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 16.859903,
-      "MAPE": 83.843497,
-      "WAPE": 0.423379,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.639174,
-      "Bias": 4.483547,
-      "BiasRatio": 0.16053,
+      "MAE": 10.529502,
+      "RMSE": 15.824303,
+      "MAPE": 81.210705,
+      "WAPE": 0.406935,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.628394,
+      "Bias": 3.714753,
+      "BiasRatio": 0.136218,
       "n": 210.0,
       "strategy": "recursive"
     },
@@ -2720,14 +2725,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 19.511592,
-      "MAPE": 83.843497,
-      "WAPE": 0.389718,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.652351,
-      "Bias": 4.483547,
-      "BiasRatio": 0.157258,
+      "MAE": 10.529502,
+      "RMSE": 18.214576,
+      "MAPE": 81.210705,
+      "WAPE": 0.369317,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.643648,
+      "Bias": 3.714753,
+      "BiasRatio": 0.130293,
       "n": 840.0,
       "strategy": "recursive"
     },
@@ -2742,14 +2747,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 16.859903,
-      "MAPE": 83.843497,
-      "WAPE": 0.423379,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.639174,
-      "Bias": 4.483547,
-      "BiasRatio": 0.16053,
+      "MAE": 10.529502,
+      "RMSE": 15.824303,
+      "MAPE": 81.210705,
+      "WAPE": 0.406935,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.628394,
+      "Bias": 3.714753,
+      "BiasRatio": 0.136218,
       "n": 210.0,
       "strategy": "recursive"
     },
@@ -2764,14 +2769,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 19.511592,
-      "MAPE": 83.843497,
-      "WAPE": 0.389718,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.652351,
-      "Bias": 4.483547,
-      "BiasRatio": 0.157258,
+      "MAE": 10.529502,
+      "RMSE": 18.214576,
+      "MAPE": 81.210705,
+      "WAPE": 0.369317,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.643648,
+      "Bias": 3.714753,
+      "BiasRatio": 0.130293,
       "n": 840.0,
       "strategy": "recursive"
     },
@@ -2786,14 +2791,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 16.859903,
-      "MAPE": 83.843497,
-      "WAPE": 0.423379,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.639174,
-      "Bias": 4.483547,
-      "BiasRatio": 0.16053,
+      "MAE": 10.529502,
+      "RMSE": 15.824303,
+      "MAPE": 81.210705,
+      "WAPE": 0.406935,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.628394,
+      "Bias": 3.714753,
+      "BiasRatio": 0.136218,
       "n": 210.0,
       "strategy": "recursive"
     },
@@ -2808,14 +2813,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 19.511592,
-      "MAPE": 83.843497,
-      "WAPE": 0.389718,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.652351,
-      "Bias": 4.483547,
-      "BiasRatio": 0.157258,
+      "MAE": 10.529502,
+      "RMSE": 18.214576,
+      "MAPE": 81.210705,
+      "WAPE": 0.369317,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.643648,
+      "Bias": 3.714753,
+      "BiasRatio": 0.130293,
       "n": 840.0,
       "strategy": "recursive"
     },
@@ -2830,14 +2835,14 @@
       "n_predicted": 840,
       "n_scored": 840,
       "coverage": 1.0,
-      "MAE": 11.111141,
-      "RMSE": 16.859903,
-      "MAPE": 83.843497,
-      "WAPE": 0.423379,
-      "sMAPE": 0.482253,
-      "RMSLE": 0.639174,
-      "Bias": 4.483547,
-      "BiasRatio": 0.16053,
+      "MAE": 10.529502,
+      "RMSE": 15.824303,
+      "MAPE": 81.210705,
+      "WAPE": 0.406935,
+      "sMAPE": 0.47504,
+      "RMSLE": 0.628394,
+      "Bias": 3.714753,
+      "BiasRatio": 0.136218,
       "n": 210.0,
       "strategy": "recursive"
     },
@@ -4614,14 +4619,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.892872,
-      "MAE": 15.782919,
-      "RMSE": 25.839083,
-      "MAPE": 86.496713,
-      "WAPE": 0.375153,
-      "sMAPE": 0.418996,
-      "RMSLE": 0.628592,
-      "Bias": 1.949505,
-      "BiasRatio": 0.046339,
+      "MAE": 15.881521,
+      "RMSE": 25.726038,
+      "MAPE": 89.262002,
+      "WAPE": 0.377497,
+      "sMAPE": 0.42332,
+      "RMSLE": 0.637572,
+      "Bias": 1.925736,
+      "BiasRatio": 0.045774,
       "n": 2167.0,
       "strategy": "direct"
     },
@@ -4636,14 +4641,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.892872,
-      "MAE": 15.604031,
-      "RMSE": 21.881837,
-      "MAPE": 88.024793,
-      "WAPE": 0.426644,
-      "sMAPE": 0.422826,
-      "RMSLE": 0.577,
-      "Bias": 1.986241,
-      "BiasRatio": 0.179546,
+      "MAE": 15.715433,
+      "RMSE": 21.84212,
+      "MAPE": 91.268992,
+      "WAPE": 0.430818,
+      "sMAPE": 0.427719,
+      "RMSLE": 0.583962,
+      "Bias": 1.9702,
+      "BiasRatio": 0.179087,
       "n": 180.583333,
       "strategy": "direct"
     },
@@ -4658,14 +4663,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.892872,
-      "MAE": 15.782919,
-      "RMSE": 25.839083,
-      "MAPE": 86.496713,
-      "WAPE": 0.375153,
-      "sMAPE": 0.418996,
-      "RMSLE": 0.628592,
-      "Bias": 1.949505,
-      "BiasRatio": 0.046339,
+      "MAE": 15.881521,
+      "RMSE": 25.726038,
+      "MAPE": 89.262002,
+      "WAPE": 0.377497,
+      "sMAPE": 0.42332,
+      "RMSLE": 0.637572,
+      "Bias": 1.925736,
+      "BiasRatio": 0.045774,
       "n": 2167.0,
       "strategy": "direct"
     },
@@ -4680,14 +4685,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.892872,
-      "MAE": 15.604031,
-      "RMSE": 21.881837,
-      "MAPE": 88.024793,
-      "WAPE": 0.426644,
-      "sMAPE": 0.422826,
-      "RMSLE": 0.577,
-      "Bias": 1.986241,
-      "BiasRatio": 0.179546,
+      "MAE": 15.715433,
+      "RMSE": 21.84212,
+      "MAPE": 91.268992,
+      "WAPE": 0.430818,
+      "sMAPE": 0.427719,
+      "RMSLE": 0.583962,
+      "Bias": 1.9702,
+      "BiasRatio": 0.179087,
       "n": 180.583333,
       "strategy": "direct"
     },
@@ -4702,14 +4707,14 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.90514,
-      "MAE": 15.786589,
-      "RMSE": 25.844499,
-      "MAPE": 86.355798,
-      "WAPE": 0.375075,
-      "sMAPE": 0.418578,
-      "RMSLE": 0.628132,
-      "Bias": 1.946788,
-      "BiasRatio": 0.046254,
+      "MAE": 15.884123,
+      "RMSE": 25.731035,
+      "MAPE": 89.066732,
+      "WAPE": 0.377393,
+      "sMAPE": 0.422852,
+      "RMSLE": 0.636921,
+      "Bias": 1.921895,
+      "BiasRatio": 0.045663,
       "n": 2166.0,
       "strategy": "direct"
     },
@@ -4724,14 +4729,14 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.90514,
-      "MAE": 15.60479,
-      "RMSE": 21.883912,
-      "MAPE": 87.883135,
-      "WAPE": 0.42656,
-      "sMAPE": 0.422417,
-      "RMSLE": 0.576239,
-      "Bias": 1.982826,
-      "BiasRatio": 0.179455,
+      "MAE": 15.715442,
+      "RMSE": 21.844111,
+      "MAPE": 91.079772,
+      "WAPE": 0.430707,
+      "sMAPE": 0.427266,
+      "RMSLE": 0.582956,
+      "Bias": 1.965698,
+      "BiasRatio": 0.178969,
       "n": 180.5,
       "strategy": "direct"
     },
@@ -4746,14 +4751,14 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.90514,
-      "MAE": 15.786589,
-      "RMSE": 25.844499,
-      "MAPE": 86.355798,
-      "WAPE": 0.375075,
-      "sMAPE": 0.418578,
-      "RMSLE": 0.628132,
-      "Bias": 1.946788,
-      "BiasRatio": 0.046254,
+      "MAE": 15.884123,
+      "RMSE": 25.731035,
+      "MAPE": 89.066732,
+      "WAPE": 0.377393,
+      "sMAPE": 0.422852,
+      "RMSLE": 0.636921,
+      "Bias": 1.921895,
+      "BiasRatio": 0.045663,
       "n": 2166.0,
       "strategy": "direct"
     },
@@ -4768,14 +4773,14 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.90514,
-      "MAE": 15.60479,
-      "RMSE": 21.883912,
-      "MAPE": 87.883135,
-      "WAPE": 0.42656,
-      "sMAPE": 0.422417,
-      "RMSLE": 0.576239,
-      "Bias": 1.982826,
-      "BiasRatio": 0.179455,
+      "MAE": 15.715442,
+      "RMSE": 21.844111,
+      "MAPE": 91.079772,
+      "WAPE": 0.430707,
+      "sMAPE": 0.427266,
+      "RMSLE": 0.582956,
+      "Bias": 1.965698,
+      "BiasRatio": 0.178969,
       "n": 180.5,
       "strategy": "direct"
     },
@@ -4790,14 +4795,14 @@
       "n_predicted": 2427,
       "n_scored": 2403,
       "coverage": 1.0,
-      "MAE": 62.144372,
-      "RMSE": 2127.074787,
-      "MAPE": 136.631357,
-      "WAPE": 1.523355,
-      "sMAPE": 0.460536,
-      "RMSLE": 0.743016,
-      "Bias": 52.925963,
-      "BiasRatio": 1.297382,
+      "MAE": 18.47967,
+      "RMSE": 50.567541,
+      "MAPE": 114.466654,
+      "WAPE": 0.452995,
+      "sMAPE": 0.46259,
+      "RMSLE": 0.727544,
+      "Bias": 9.163994,
+      "BiasRatio": 0.224638,
       "n": 2403.0,
       "strategy": "recursive"
     },
@@ -4812,14 +4817,14 @@
       "n_predicted": 2427,
       "n_scored": 2403,
       "coverage": 1.0,
-      "MAE": 65.441718,
-      "RMSE": 656.095437,
-      "MAPE": 135.678689,
-      "WAPE": 0.941457,
-      "sMAPE": 0.458601,
-      "RMSLE": 0.676904,
-      "Bias": 56.025595,
-      "BiasRatio": 0.732209,
+      "MAE": 18.430736,
+      "RMSE": 32.688968,
+      "MAPE": 112.156116,
+      "WAPE": 0.499357,
+      "sMAPE": 0.460943,
+      "RMSLE": 0.666129,
+      "Bias": 8.923939,
+      "BiasRatio": 0.294223,
       "n": 200.25,
       "strategy": "recursive"
     },
@@ -4834,14 +4839,14 @@
       "n_predicted": 2427,
       "n_scored": 2427,
       "coverage": 1.0,
-      "MAE": 61.585466,
-      "RMSE": 2116.532486,
-      "MAPE": 135.403853,
-      "WAPE": 1.522635,
-      "sMAPE": 0.458454,
-      "RMSLE": 0.749297,
-      "Bias": 52.346967,
-      "BiasRatio": 1.294223,
+      "MAE": 18.352554,
+      "RMSE": 50.354169,
+      "MAPE": 113.458331,
+      "WAPE": 0.453747,
+      "sMAPE": 0.460487,
+      "RMSLE": 0.734111,
+      "Bias": 9.017749,
+      "BiasRatio": 0.222954,
       "n": 2427.0,
       "strategy": "recursive"
     },
@@ -4856,14 +4861,14 @@
       "n_predicted": 2427,
       "n_scored": 2427,
       "coverage": 1.0,
-      "MAE": 62.820448,
-      "RMSE": 639.595075,
-      "MAPE": 134.032847,
-      "WAPE": 0.938714,
-      "sMAPE": 0.456623,
-      "RMSLE": 0.682024,
-      "Bias": 53.513018,
-      "BiasRatio": 0.728547,
+      "MAE": 18.215493,
+      "RMSE": 32.318378,
+      "MAPE": 111.624725,
+      "WAPE": 0.499645,
+      "sMAPE": 0.459023,
+      "RMSLE": 0.673181,
+      "Bias": 8.830396,
+      "BiasRatio": 0.293606,
       "n": 202.25,
       "strategy": "recursive"
     },
@@ -4878,14 +4883,14 @@
       "n_predicted": 2393,
       "n_scored": 2390,
       "coverage": 1.0,
-      "MAE": 62.462368,
-      "RMSE": 2132.851839,
-      "MAPE": 135.402462,
-      "WAPE": 1.52296,
-      "sMAPE": 0.455286,
-      "RMSLE": 0.738355,
-      "Bias": 53.193817,
-      "BiasRatio": 1.296973,
+      "MAE": 18.560375,
+      "RMSE": 50.703447,
+      "MAPE": 113.127932,
+      "WAPE": 0.45254,
+      "sMAPE": 0.457415,
+      "RMSLE": 0.722722,
+      "Bias": 9.194027,
+      "BiasRatio": 0.224169,
       "n": 2390.0,
       "strategy": "recursive"
     },
@@ -4900,14 +4905,14 @@
       "n_predicted": 2393,
       "n_scored": 2390,
       "coverage": 1.0,
-      "MAE": 65.468795,
-      "RMSE": 656.123766,
-      "MAPE": 133.928709,
-      "WAPE": 0.94063,
-      "sMAPE": 0.452396,
-      "RMSLE": 0.669693,
-      "Bias": 56.006023,
-      "BiasRatio": 0.731356,
+      "MAE": 18.457871,
+      "RMSE": 32.71674,
+      "MAPE": 110.41398,
+      "WAPE": 0.498535,
+      "sMAPE": 0.454813,
+      "RMSLE": 0.658985,
+      "Bias": 8.901991,
+      "BiasRatio": 0.293374,
       "n": 199.166667,
       "strategy": "recursive"
     },
@@ -4922,14 +4927,14 @@
       "n_predicted": 2393,
       "n_scored": 2393,
       "coverage": 1.0,
-      "MAE": 62.440476,
-      "RMSE": 2131.51538,
-      "MAPE": 135.35808,
-      "WAPE": 1.52224,
-      "sMAPE": 0.457223,
-      "RMSLE": 0.748017,
-      "Bias": 53.070716,
-      "BiasRatio": 1.293814,
+      "MAE": 18.593521,
+      "RMSE": 50.709193,
+      "MAPE": 113.111474,
+      "WAPE": 0.453293,
+      "sMAPE": 0.459349,
+      "RMSLE": 0.732609,
+      "Bias": 9.126087,
+      "BiasRatio": 0.222485,
       "n": 2393.0,
       "strategy": "recursive"
     },
@@ -4944,14 +4949,14 @@
       "n_predicted": 2393,
       "n_scored": 2393,
       "coverage": 1.0,
-      "MAE": 64.710744,
-      "RMSE": 651.047587,
-      "MAPE": 133.66279,
-      "WAPE": 0.937887,
-      "sMAPE": 0.454479,
-      "RMSLE": 0.67812,
-      "Bias": 55.182336,
-      "BiasRatio": 0.727694,
+      "MAE": 18.448419,
+      "RMSE": 32.622144,
+      "MAPE": 110.494522,
+      "WAPE": 0.498823,
+      "sMAPE": 0.456921,
+      "RMSLE": 0.669159,
+      "Bias": 8.830028,
+      "BiasRatio": 0.292757,
       "n": 199.416667,
       "strategy": "recursive"
     },
@@ -6728,14 +6733,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.319,
-      "RMSE": 17.761,
-      "MAPE": 83.029,
-      "WAPE": 0.363,
-      "sMAPE": 0.475,
+      "MAE": 9.774,
+      "RMSE": 15.733,
+      "MAPE": 84.243,
+      "WAPE": 0.344,
+      "sMAPE": 0.474,
       "RMSLE": 0.648,
-      "Bias": 4.502,
-      "BiasRatio": 0.158,
+      "Bias": 3.889,
+      "BiasRatio": 0.137,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -6750,14 +6755,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.328,
-      "RMSE": 15.799,
-      "MAPE": 83.001,
-      "WAPE": 0.412,
-      "sMAPE": 0.475,
-      "RMSLE": 0.631,
-      "Bias": 4.51,
-      "BiasRatio": 0.17,
+      "MAE": 9.78,
+      "RMSE": 14.584,
+      "MAPE": 84.209,
+      "WAPE": 0.41,
+      "sMAPE": 0.474,
+      "RMSLE": 0.626,
+      "Bias": 3.894,
+      "BiasRatio": 0.167,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -6772,14 +6777,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.319,
-      "RMSE": 17.761,
-      "MAPE": 83.029,
-      "WAPE": 0.363,
-      "sMAPE": 0.475,
+      "MAE": 9.774,
+      "RMSE": 15.733,
+      "MAPE": 84.243,
+      "WAPE": 0.344,
+      "sMAPE": 0.474,
       "RMSLE": 0.648,
-      "Bias": 4.502,
-      "BiasRatio": 0.158,
+      "Bias": 3.889,
+      "BiasRatio": 0.137,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -6794,14 +6799,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.328,
-      "RMSE": 15.799,
-      "MAPE": 83.001,
-      "WAPE": 0.412,
-      "sMAPE": 0.475,
-      "RMSLE": 0.631,
-      "Bias": 4.51,
-      "BiasRatio": 0.17,
+      "MAE": 9.78,
+      "RMSE": 14.584,
+      "MAPE": 84.209,
+      "WAPE": 0.41,
+      "sMAPE": 0.474,
+      "RMSLE": 0.626,
+      "Bias": 3.894,
+      "BiasRatio": 0.167,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -6816,14 +6821,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.319,
-      "RMSE": 17.761,
-      "MAPE": 83.029,
-      "WAPE": 0.363,
-      "sMAPE": 0.475,
+      "MAE": 9.774,
+      "RMSE": 15.733,
+      "MAPE": 84.243,
+      "WAPE": 0.344,
+      "sMAPE": 0.474,
       "RMSLE": 0.648,
-      "Bias": 4.502,
-      "BiasRatio": 0.158,
+      "Bias": 3.889,
+      "BiasRatio": 0.137,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -6838,14 +6843,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.328,
-      "RMSE": 15.799,
-      "MAPE": 83.001,
-      "WAPE": 0.412,
-      "sMAPE": 0.475,
-      "RMSLE": 0.631,
-      "Bias": 4.51,
-      "BiasRatio": 0.17,
+      "MAE": 9.78,
+      "RMSE": 14.584,
+      "MAPE": 84.209,
+      "WAPE": 0.41,
+      "sMAPE": 0.474,
+      "RMSLE": 0.626,
+      "Bias": 3.894,
+      "BiasRatio": 0.167,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -6860,14 +6865,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.319,
-      "RMSE": 17.761,
-      "MAPE": 83.029,
-      "WAPE": 0.363,
-      "sMAPE": 0.475,
+      "MAE": 9.774,
+      "RMSE": 15.733,
+      "MAPE": 84.243,
+      "WAPE": 0.344,
+      "sMAPE": 0.474,
       "RMSLE": 0.648,
-      "Bias": 4.502,
-      "BiasRatio": 0.158,
+      "Bias": 3.889,
+      "BiasRatio": 0.137,
       "n": 839.0,
       "strategy": "direct"
     },
@@ -6882,14 +6887,14 @@
       "n_predicted": 839,
       "n_scored": 839,
       "coverage": 0.999,
-      "MAE": 10.328,
-      "RMSE": 15.799,
-      "MAPE": 83.001,
-      "WAPE": 0.412,
-      "sMAPE": 0.475,
-      "RMSLE": 0.631,
-      "Bias": 4.51,
-      "BiasRatio": 0.17,
+      "MAE": 9.78,
+      "RMSE": 14.584,
+      "MAPE": 84.209,
+      "WAPE": 0.41,
+      "sMAPE": 0.474,
+      "RMSLE": 0.626,
+      "Bias": 3.894,
+      "BiasRatio": 0.167,
       "n": 209.75,
       "strategy": "direct"
     },
@@ -7786,13 +7791,13 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.893,
-      "MAE": 15.783,
-      "RMSE": 25.839,
-      "MAPE": 86.497,
-      "WAPE": 0.375,
-      "sMAPE": 0.419,
-      "RMSLE": 0.629,
-      "Bias": 1.95,
+      "MAE": 15.882,
+      "RMSE": 25.726,
+      "MAPE": 89.262,
+      "WAPE": 0.377,
+      "sMAPE": 0.423,
+      "RMSLE": 0.638,
+      "Bias": 1.926,
       "BiasRatio": 0.046,
       "n": 2167.0,
       "strategy": "direct"
@@ -7808,14 +7813,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.893,
-      "MAE": 15.604,
-      "RMSE": 21.882,
-      "MAPE": 88.025,
-      "WAPE": 0.427,
-      "sMAPE": 0.423,
-      "RMSLE": 0.577,
-      "Bias": 1.986,
-      "BiasRatio": 0.18,
+      "MAE": 15.715,
+      "RMSE": 21.842,
+      "MAPE": 91.269,
+      "WAPE": 0.431,
+      "sMAPE": 0.428,
+      "RMSLE": 0.584,
+      "Bias": 1.97,
+      "BiasRatio": 0.179,
       "n": 180.583,
       "strategy": "direct"
     },
@@ -7830,13 +7835,13 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.893,
-      "MAE": 15.783,
-      "RMSE": 25.839,
-      "MAPE": 86.497,
-      "WAPE": 0.375,
-      "sMAPE": 0.419,
-      "RMSLE": 0.629,
-      "Bias": 1.95,
+      "MAE": 15.882,
+      "RMSE": 25.726,
+      "MAPE": 89.262,
+      "WAPE": 0.377,
+      "sMAPE": 0.423,
+      "RMSLE": 0.638,
+      "Bias": 1.926,
       "BiasRatio": 0.046,
       "n": 2167.0,
       "strategy": "direct"
@@ -7852,14 +7857,14 @@
       "n_predicted": 2167,
       "n_scored": 2167,
       "coverage": 0.893,
-      "MAE": 15.604,
-      "RMSE": 21.882,
-      "MAPE": 88.025,
-      "WAPE": 0.427,
-      "sMAPE": 0.423,
-      "RMSLE": 0.577,
-      "Bias": 1.986,
-      "BiasRatio": 0.18,
+      "MAE": 15.715,
+      "RMSE": 21.842,
+      "MAPE": 91.269,
+      "WAPE": 0.431,
+      "sMAPE": 0.428,
+      "RMSLE": 0.584,
+      "Bias": 1.97,
+      "BiasRatio": 0.179,
       "n": 180.583,
       "strategy": "direct"
     },
@@ -7874,13 +7879,13 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.905,
-      "MAE": 15.787,
-      "RMSE": 25.844,
-      "MAPE": 86.356,
-      "WAPE": 0.375,
-      "sMAPE": 0.419,
-      "RMSLE": 0.628,
-      "Bias": 1.947,
+      "MAE": 15.884,
+      "RMSE": 25.731,
+      "MAPE": 89.067,
+      "WAPE": 0.377,
+      "sMAPE": 0.423,
+      "RMSLE": 0.637,
+      "Bias": 1.922,
       "BiasRatio": 0.046,
       "n": 2166.0,
       "strategy": "direct"
@@ -7896,13 +7901,13 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.905,
-      "MAE": 15.605,
-      "RMSE": 21.884,
-      "MAPE": 87.883,
-      "WAPE": 0.427,
-      "sMAPE": 0.422,
-      "RMSLE": 0.576,
-      "Bias": 1.983,
+      "MAE": 15.715,
+      "RMSE": 21.844,
+      "MAPE": 91.08,
+      "WAPE": 0.431,
+      "sMAPE": 0.427,
+      "RMSLE": 0.583,
+      "Bias": 1.966,
       "BiasRatio": 0.179,
       "n": 180.5,
       "strategy": "direct"
@@ -7918,13 +7923,13 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.905,
-      "MAE": 15.787,
-      "RMSE": 25.844,
-      "MAPE": 86.356,
-      "WAPE": 0.375,
-      "sMAPE": 0.419,
-      "RMSLE": 0.628,
-      "Bias": 1.947,
+      "MAE": 15.884,
+      "RMSE": 25.731,
+      "MAPE": 89.067,
+      "WAPE": 0.377,
+      "sMAPE": 0.423,
+      "RMSLE": 0.637,
+      "Bias": 1.922,
       "BiasRatio": 0.046,
       "n": 2166.0,
       "strategy": "direct"
@@ -7940,13 +7945,13 @@
       "n_predicted": 2166,
       "n_scored": 2166,
       "coverage": 0.905,
-      "MAE": 15.605,
-      "RMSE": 21.884,
-      "MAPE": 87.883,
-      "WAPE": 0.427,
-      "sMAPE": 0.422,
-      "RMSLE": 0.576,
-      "Bias": 1.983,
+      "MAE": 15.715,
+      "RMSE": 21.844,
+      "MAPE": 91.08,
+      "WAPE": 0.431,
+      "sMAPE": 0.427,
+      "RMSLE": 0.583,
+      "Bias": 1.966,
       "BiasRatio": 0.179,
       "n": 180.5,
       "strategy": "direct"
@@ -8836,7 +8841,7 @@
     {
       "ProductId": 1,
       "DateKey": "2026-01-12",
-      "Quantity": 13
+      "Quantity": 12
     },
     {
       "ProductId": 1,
@@ -8846,12 +8851,12 @@
     {
       "ProductId": 1,
       "DateKey": "2026-01-14",
-      "Quantity": 7
+      "Quantity": 8
     },
     {
       "ProductId": 1,
       "DateKey": "2026-01-15",
-      "Quantity": 5
+      "Quantity": 6
     },
     {
       "ProductId": 1,
@@ -8861,12 +8866,12 @@
     {
       "ProductId": 1,
       "DateKey": "2026-01-17",
-      "Quantity": 6
+      "Quantity": 7
     },
     {
       "ProductId": 1,
       "DateKey": "2026-01-18",
-      "Quantity": 7
+      "Quantity": 8
     },
     {
       "ProductId": 2,
@@ -8876,7 +8881,7 @@
     {
       "ProductId": 2,
       "DateKey": "2026-01-13",
-      "Quantity": 12
+      "Quantity": 11
     },
     {
       "ProductId": 2,
@@ -8906,17 +8911,17 @@
     {
       "ProductId": 3,
       "DateKey": "2026-01-12",
-      "Quantity": 20
+      "Quantity": 18
     },
     {
       "ProductId": 3,
       "DateKey": "2026-01-13",
-      "Quantity": 17
+      "Quantity": 13
     },
     {
       "ProductId": 3,
       "DateKey": "2026-01-14",
-      "Quantity": 16
+      "Quantity": 13
     },
     {
       "ProductId": 3,
@@ -8931,7 +8936,7 @@
     {
       "ProductId": 3,
       "DateKey": "2026-01-17",
-      "Quantity": 11
+      "Quantity": 10
     },
     {
       "ProductId": 3,
@@ -8941,7 +8946,7 @@
     {
       "ProductId": 4,
       "DateKey": "2026-01-12",
-      "Quantity": 5
+      "Quantity": 4
     },
     {
       "ProductId": 4,
@@ -8971,57 +8976,57 @@
     {
       "ProductId": 4,
       "DateKey": "2026-01-18",
-      "Quantity": 3
+      "Quantity": 4
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-12",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 5,
+      "DateKey": "2026-01-13",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 5,
+      "DateKey": "2026-01-14",
       "Quantity": 24
     },
     {
       "ProductId": 5,
-      "DateKey": "2026-01-13",
-      "Quantity": 26
-    },
-    {
-      "ProductId": 5,
-      "DateKey": "2026-01-14",
-      "Quantity": 25
-    },
-    {
-      "ProductId": 5,
       "DateKey": "2026-01-15",
-      "Quantity": 25
+      "Quantity": 27
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-16",
-      "Quantity": 20
+      "Quantity": 24
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-17",
-      "Quantity": 18
+      "Quantity": 19
     },
     {
       "ProductId": 5,
       "DateKey": "2026-01-18",
-      "Quantity": 26
+      "Quantity": 33
     },
     {
       "ProductId": 6,
       "DateKey": "2026-01-12",
-      "Quantity": 18
+      "Quantity": 17
     },
     {
       "ProductId": 6,
       "DateKey": "2026-01-13",
-      "Quantity": 16
+      "Quantity": 15
     },
     {
       "ProductId": 6,
       "DateKey": "2026-01-14",
-      "Quantity": 13
+      "Quantity": 12
     },
     {
       "ProductId": 6,
@@ -9031,7 +9036,7 @@
     {
       "ProductId": 6,
       "DateKey": "2026-01-16",
-      "Quantity": 10
+      "Quantity": 9
     },
     {
       "ProductId": 6,
@@ -9041,22 +9046,22 @@
     {
       "ProductId": 6,
       "DateKey": "2026-01-18",
-      "Quantity": 14
+      "Quantity": 13
     },
     {
       "ProductId": 7,
       "DateKey": "2026-01-12",
-      "Quantity": 16
+      "Quantity": 17
     },
     {
       "ProductId": 7,
       "DateKey": "2026-01-13",
-      "Quantity": 15
+      "Quantity": 14
     },
     {
       "ProductId": 7,
       "DateKey": "2026-01-14",
-      "Quantity": 16
+      "Quantity": 14
     },
     {
       "ProductId": 7,
@@ -9066,7 +9071,7 @@
     {
       "ProductId": 7,
       "DateKey": "2026-01-16",
-      "Quantity": 7
+      "Quantity": 8
     },
     {
       "ProductId": 7,
@@ -9076,7 +9081,7 @@
     {
       "ProductId": 7,
       "DateKey": "2026-01-18",
-      "Quantity": 7
+      "Quantity": 9
     },
     {
       "ProductId": 8,
@@ -9086,137 +9091,137 @@
     {
       "ProductId": 8,
       "DateKey": "2026-01-13",
-      "Quantity": 42
-    },
-    {
-      "ProductId": 8,
-      "DateKey": "2026-01-14",
-      "Quantity": 42
-    },
-    {
-      "ProductId": 8,
-      "DateKey": "2026-01-15",
       "Quantity": 44
     },
     {
       "ProductId": 8,
+      "DateKey": "2026-01-14",
+      "Quantity": 41
+    },
+    {
+      "ProductId": 8,
+      "DateKey": "2026-01-15",
+      "Quantity": 43
+    },
+    {
+      "ProductId": 8,
       "DateKey": "2026-01-16",
-      "Quantity": 25
+      "Quantity": 26
     },
     {
       "ProductId": 8,
       "DateKey": "2026-01-17",
-      "Quantity": 18
+      "Quantity": 20
     },
     {
       "ProductId": 8,
       "DateKey": "2026-01-18",
-      "Quantity": 26
+      "Quantity": 30
     },
     {
       "ProductId": 9,
       "DateKey": "2026-01-12",
-      "Quantity": 24
+      "Quantity": 22
     },
     {
       "ProductId": 9,
       "DateKey": "2026-01-13",
-      "Quantity": 21
+      "Quantity": 20
     },
     {
       "ProductId": 9,
       "DateKey": "2026-01-14",
-      "Quantity": 19
+      "Quantity": 18
     },
     {
       "ProductId": 9,
       "DateKey": "2026-01-15",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-16",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 9,
-      "DateKey": "2026-01-17",
       "Quantity": 15
     },
     {
       "ProductId": 9,
+      "DateKey": "2026-01-16",
+      "Quantity": 14
+    },
+    {
+      "ProductId": 9,
+      "DateKey": "2026-01-17",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 9,
       "DateKey": "2026-01-18",
-      "Quantity": 25
+      "Quantity": 29
     },
     {
       "ProductId": 10,
       "DateKey": "2026-01-12",
-      "Quantity": 17
+      "Quantity": 19
     },
     {
       "ProductId": 10,
       "DateKey": "2026-01-13",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-14",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 10,
-      "DateKey": "2026-01-15",
       "Quantity": 20
     },
     {
       "ProductId": 10,
+      "DateKey": "2026-01-14",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 10,
+      "DateKey": "2026-01-15",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 10,
       "DateKey": "2026-01-16",
       "Quantity": 15
     },
     {
       "ProductId": 10,
       "DateKey": "2026-01-17",
-      "Quantity": 12
+      "Quantity": 13
     },
     {
       "ProductId": 10,
       "DateKey": "2026-01-18",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 11,
+      "DateKey": "2026-01-12",
       "Quantity": 23
     },
     {
       "ProductId": 11,
-      "DateKey": "2026-01-12",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 11,
       "DateKey": "2026-01-13",
-      "Quantity": 18
+      "Quantity": 15
     },
     {
       "ProductId": 11,
       "DateKey": "2026-01-14",
-      "Quantity": 16
+      "Quantity": 12
     },
     {
       "ProductId": 11,
       "DateKey": "2026-01-15",
-      "Quantity": 14
+      "Quantity": 11
     },
     {
       "ProductId": 11,
       "DateKey": "2026-01-16",
-      "Quantity": 14
+      "Quantity": 11
     },
     {
       "ProductId": 11,
       "DateKey": "2026-01-17",
-      "Quantity": 14
+      "Quantity": 12
     },
     {
       "ProductId": 11,
       "DateKey": "2026-01-18",
-      "Quantity": 14
+      "Quantity": 12
     },
     {
       "ProductId": 12,
@@ -9226,112 +9231,112 @@
     {
       "ProductId": 12,
       "DateKey": "2026-01-13",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-14",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-15",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-16",
+      "Quantity": 22
+    },
+    {
+      "ProductId": 12,
+      "DateKey": "2026-01-17",
       "Quantity": 27
     },
     {
       "ProductId": 12,
-      "DateKey": "2026-01-14",
-      "Quantity": 29
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-15",
-      "Quantity": 24
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-16",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 12,
-      "DateKey": "2026-01-17",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 12,
       "DateKey": "2026-01-18",
-      "Quantity": 31
+      "Quantity": 44
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-12",
-      "Quantity": 31
+      "Quantity": 30
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-13",
-      "Quantity": 41
+      "Quantity": 39
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-14",
-      "Quantity": 43
+      "Quantity": 38
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-15",
-      "Quantity": 40
+      "Quantity": 35
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-16",
-      "Quantity": 33
+      "Quantity": 27
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-17",
-      "Quantity": 31
+      "Quantity": 26
     },
     {
       "ProductId": 13,
       "DateKey": "2026-01-18",
-      "Quantity": 50
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-12",
-      "Quantity": 55
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-13",
-      "Quantity": 50
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-14",
-      "Quantity": 47
-    },
-    {
-      "ProductId": 14,
-      "DateKey": "2026-01-15",
       "Quantity": 44
     },
     {
       "ProductId": 14,
+      "DateKey": "2026-01-12",
+      "Quantity": 61
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-13",
+      "Quantity": 50
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-14",
+      "Quantity": 49
+    },
+    {
+      "ProductId": 14,
+      "DateKey": "2026-01-15",
+      "Quantity": 39
+    },
+    {
+      "ProductId": 14,
       "DateKey": "2026-01-16",
-      "Quantity": 31
+      "Quantity": 28
     },
     {
       "ProductId": 14,
       "DateKey": "2026-01-17",
-      "Quantity": 36
+      "Quantity": 31
     },
     {
       "ProductId": 14,
       "DateKey": "2026-01-18",
-      "Quantity": 63
+      "Quantity": 50
     },
     {
       "ProductId": 15,
       "DateKey": "2026-01-12",
-      "Quantity": 22
+      "Quantity": 21
     },
     {
       "ProductId": 15,
       "DateKey": "2026-01-13",
-      "Quantity": 21
+      "Quantity": 18
     },
     {
       "ProductId": 15,
@@ -9341,7 +9346,7 @@
     {
       "ProductId": 15,
       "DateKey": "2026-01-15",
-      "Quantity": 19
+      "Quantity": 20
     },
     {
       "ProductId": 15,
@@ -9350,193 +9355,193 @@
     },
     {
       "ProductId": 15,
+      "DateKey": "2026-01-17",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 15,
+      "DateKey": "2026-01-18",
+      "Quantity": 15
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-12",
+      "Quantity": 44
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-13",
+      "Quantity": 48
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-14",
+      "Quantity": 44
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-15",
+      "Quantity": 39
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-16",
+      "Quantity": 31
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-17",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 16,
+      "DateKey": "2026-01-18",
+      "Quantity": 47
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-12",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-13",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-14",
+      "Quantity": 23
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-15",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-16",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-17",
+      "Quantity": 12
+    },
+    {
+      "ProductId": 17,
+      "DateKey": "2026-01-18",
+      "Quantity": 18
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-12",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-13",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-14",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-15",
+      "Quantity": 24
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-16",
+      "Quantity": 18
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-17",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 18,
+      "DateKey": "2026-01-18",
+      "Quantity": 25
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-12",
+      "Quantity": 23
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-13",
+      "Quantity": 19
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-14",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-15",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-16",
+      "Quantity": 26
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-17",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 19,
+      "DateKey": "2026-01-18",
+      "Quantity": 29
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-12",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-13",
+      "Quantity": 21
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-14",
+      "Quantity": 20
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-15",
+      "Quantity": 15
+    },
+    {
+      "ProductId": 20,
+      "DateKey": "2026-01-16",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 20,
       "DateKey": "2026-01-17",
       "Quantity": 11
     },
     {
-      "ProductId": 15,
+      "ProductId": 20,
       "DateKey": "2026-01-18",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-12",
-      "Quantity": 40
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-13",
-      "Quantity": 47
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-14",
-      "Quantity": 45
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-15",
-      "Quantity": 43
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-16",
-      "Quantity": 34
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-17",
-      "Quantity": 25
-    },
-    {
-      "ProductId": 16,
-      "DateKey": "2026-01-18",
-      "Quantity": 44
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-12",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-13",
-      "Quantity": 23
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-14",
-      "Quantity": 24
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-15",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-16",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-17",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 17,
-      "DateKey": "2026-01-18",
-      "Quantity": 16
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-12",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-13",
-      "Quantity": 24
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-14",
-      "Quantity": 18
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-15",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-16",
-      "Quantity": 17
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-17",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 18,
-      "DateKey": "2026-01-18",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-12",
-      "Quantity": 23
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-13",
-      "Quantity": 22
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-14",
       "Quantity": 19
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-15",
-      "Quantity": 27
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-16",
-      "Quantity": 27
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-17",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 19,
-      "DateKey": "2026-01-18",
-      "Quantity": 34
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-12",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-13",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-14",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-15",
-      "Quantity": 14
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-16",
-      "Quantity": 9
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-17",
-      "Quantity": 10
-    },
-    {
-      "ProductId": 20,
-      "DateKey": "2026-01-18",
-      "Quantity": 17
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-12",
-      "Quantity": 10
+      "Quantity": 11
     },
     {
       "ProductId": 21,
@@ -9546,42 +9551,42 @@
     {
       "ProductId": 21,
       "DateKey": "2026-01-14",
-      "Quantity": 9
+      "Quantity": 10
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-15",
+      "Quantity": 8
+    },
+    {
+      "ProductId": 21,
+      "DateKey": "2026-01-16",
       "Quantity": 7
     },
     {
       "ProductId": 21,
-      "DateKey": "2026-01-16",
-      "Quantity": 6
-    },
-    {
-      "ProductId": 21,
       "DateKey": "2026-01-17",
-      "Quantity": 4
+      "Quantity": 5
     },
     {
       "ProductId": 21,
       "DateKey": "2026-01-18",
-      "Quantity": 8
-    },
-    {
-      "ProductId": 22,
-      "DateKey": "2026-01-12",
-      "Quantity": 10
-    },
-    {
-      "ProductId": 22,
-      "DateKey": "2026-01-13",
       "Quantity": 9
     },
     {
       "ProductId": 22,
+      "DateKey": "2026-01-12",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 22,
+      "DateKey": "2026-01-13",
+      "Quantity": 10
+    },
+    {
+      "ProductId": 22,
       "DateKey": "2026-01-14",
-      "Quantity": 8
+      "Quantity": 9
     },
     {
       "ProductId": 22,
@@ -9591,17 +9596,17 @@
     {
       "ProductId": 22,
       "DateKey": "2026-01-16",
-      "Quantity": 7
-    },
-    {
-      "ProductId": 22,
-      "DateKey": "2026-01-17",
       "Quantity": 8
     },
     {
       "ProductId": 22,
+      "DateKey": "2026-01-17",
+      "Quantity": 7
+    },
+    {
+      "ProductId": 22,
       "DateKey": "2026-01-18",
-      "Quantity": 10
+      "Quantity": 11
     },
     {
       "ProductId": 23,
@@ -9611,7 +9616,7 @@
     {
       "ProductId": 23,
       "DateKey": "2026-01-13",
-      "Quantity": 36
+      "Quantity": 35
     },
     {
       "ProductId": 23,
@@ -9631,32 +9636,32 @@
     {
       "ProductId": 23,
       "DateKey": "2026-01-17",
-      "Quantity": 20
+      "Quantity": 21
     },
     {
       "ProductId": 23,
       "DateKey": "2026-01-18",
-      "Quantity": 31
+      "Quantity": 32
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-12",
-      "Quantity": 57
+      "Quantity": 61
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-13",
-      "Quantity": 53
+      "Quantity": 56
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-14",
-      "Quantity": 45
+      "Quantity": 51
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-15",
-      "Quantity": 37
+      "Quantity": 44
     },
     {
       "ProductId": 24,
@@ -9666,47 +9671,47 @@
     {
       "ProductId": 24,
       "DateKey": "2026-01-17",
-      "Quantity": 44
+      "Quantity": 46
     },
     {
       "ProductId": 24,
       "DateKey": "2026-01-18",
-      "Quantity": 64
+      "Quantity": 66
     },
     {
       "ProductId": 25,
       "DateKey": "2026-01-12",
-      "Quantity": 57
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-13",
-      "Quantity": 77
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-14",
-      "Quantity": 69
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-15",
-      "Quantity": 71
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-16",
-      "Quantity": 53
-    },
-    {
-      "ProductId": 25,
-      "DateKey": "2026-01-17",
       "Quantity": 48
     },
     {
       "ProductId": 25,
+      "DateKey": "2026-01-13",
+      "Quantity": 54
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-14",
+      "Quantity": 55
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-15",
+      "Quantity": 54
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-16",
+      "Quantity": 42
+    },
+    {
+      "ProductId": 25,
+      "DateKey": "2026-01-17",
+      "Quantity": 46
+    },
+    {
+      "ProductId": 25,
       "DateKey": "2026-01-18",
-      "Quantity": 85
+      "Quantity": 68
     },
     {
       "ProductId": 26,
@@ -9716,7 +9721,7 @@
     {
       "ProductId": 26,
       "DateKey": "2026-01-13",
-      "Quantity": 18
+      "Quantity": 22
     },
     {
       "ProductId": 26,
@@ -9726,67 +9731,67 @@
     {
       "ProductId": 26,
       "DateKey": "2026-01-15",
-      "Quantity": 14
+      "Quantity": 17
     },
     {
       "ProductId": 26,
       "DateKey": "2026-01-16",
-      "Quantity": 21
-    },
-    {
-      "ProductId": 26,
-      "DateKey": "2026-01-17",
       "Quantity": 24
     },
     {
       "ProductId": 26,
-      "DateKey": "2026-01-18",
-      "Quantity": 34
-    },
-    {
-      "ProductId": 27,
-      "DateKey": "2026-01-12",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 27,
-      "DateKey": "2026-01-13",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 27,
-      "DateKey": "2026-01-14",
-      "Quantity": 15
-    },
-    {
-      "ProductId": 27,
-      "DateKey": "2026-01-15",
-      "Quantity": 13
-    },
-    {
-      "ProductId": 27,
-      "DateKey": "2026-01-16",
-      "Quantity": 11
-    },
-    {
-      "ProductId": 27,
       "DateKey": "2026-01-17",
-      "Quantity": 12
+      "Quantity": 25
+    },
+    {
+      "ProductId": 26,
+      "DateKey": "2026-01-18",
+      "Quantity": 33
     },
     {
       "ProductId": 27,
-      "DateKey": "2026-01-18",
-      "Quantity": 19
-    },
-    {
-      "ProductId": 28,
       "DateKey": "2026-01-12",
       "Quantity": 23
     },
     {
+      "ProductId": 27,
+      "DateKey": "2026-01-13",
+      "Quantity": 17
+    },
+    {
+      "ProductId": 27,
+      "DateKey": "2026-01-14",
+      "Quantity": 16
+    },
+    {
+      "ProductId": 27,
+      "DateKey": "2026-01-15",
+      "Quantity": 15
+    },
+    {
+      "ProductId": 27,
+      "DateKey": "2026-01-16",
+      "Quantity": 13
+    },
+    {
+      "ProductId": 27,
+      "DateKey": "2026-01-17",
+      "Quantity": 14
+    },
+    {
+      "ProductId": 27,
+      "DateKey": "2026-01-18",
+      "Quantity": 23
+    },
+    {
+      "ProductId": 28,
+      "DateKey": "2026-01-12",
+      "Quantity": 30
+    },
+    {
       "ProductId": 28,
       "DateKey": "2026-01-13",
-      "Quantity": 24
+      "Quantity": 28
     },
     {
       "ProductId": 28,
@@ -9796,92 +9801,92 @@
     {
       "ProductId": 28,
       "DateKey": "2026-01-15",
+      "Quantity": 23
+    },
+    {
+      "ProductId": 28,
+      "DateKey": "2026-01-16",
       "Quantity": 22
     },
     {
       "ProductId": 28,
-      "DateKey": "2026-01-16",
-      "Quantity": 20
-    },
-    {
-      "ProductId": 28,
       "DateKey": "2026-01-17",
-      "Quantity": 24
+      "Quantity": 22
     },
     {
       "ProductId": 28,
       "DateKey": "2026-01-18",
-      "Quantity": 26
+      "Quantity": 28
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-12",
-      "Quantity": 60
+      "Quantity": 65
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-13",
-      "Quantity": 57
+      "Quantity": 61
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-14",
-      "Quantity": 51
+      "Quantity": 56
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-15",
-      "Quantity": 45
+      "Quantity": 48
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-16",
-      "Quantity": 33
+      "Quantity": 35
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-17",
-      "Quantity": 39
+      "Quantity": 41
     },
     {
       "ProductId": 29,
       "DateKey": "2026-01-18",
-      "Quantity": 51
+      "Quantity": 58
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-12",
-      "Quantity": 51
+      "Quantity": 52
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-13",
-      "Quantity": 47
+      "Quantity": 50
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-14",
-      "Quantity": 40
+      "Quantity": 43
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-15",
-      "Quantity": 37
+      "Quantity": 38
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-16",
-      "Quantity": 31
+      "Quantity": 32
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-17",
-      "Quantity": 33
+      "Quantity": 34
     },
     {
       "ProductId": 30,
       "DateKey": "2026-01-18",
-      "Quantity": 49
+      "Quantity": 53
     }
   ],
   "history": {
@@ -15479,13 +15484,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          12.600028991699219,
-          9.60149097442627,
-          7.291459560394287,
-          5.284254550933838,
-          6.569349765777588,
-          5.756592273712158,
-          7.3040337562561035
+          12.267996788024902,
+          10.494014739990234,
+          7.846211910247803,
+          5.516106128692627,
+          6.607882022857666,
+          6.659523010253906,
+          8.435142517089844
         ]
       },
       "2": {
@@ -15499,13 +15504,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          13.158812522888184,
-          11.716968536376953,
-          9.482499122619629,
-          8.155783653259277,
-          8.63656997680664,
-          9.346993446350098,
-          10.490134239196777
+          12.811302185058594,
+          11.419978141784668,
+          8.587713241577148,
+          8.468707084655762,
+          9.189970970153809,
+          9.1135835647583,
+          10.26740550994873
         ]
       },
       "3": {
@@ -15519,13 +15524,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          19.828763961791992,
-          16.741989135742188,
-          16.324079513549805,
-          12.387134552001953,
-          10.817675590515137,
-          10.531174659729004,
-          13.162121772766113
+          17.573884963989258,
+          13.388603210449219,
+          13.444369316101074,
+          12.053751945495605,
+          11.224385261535645,
+          10.44454574584961,
+          13.310511589050293
         ]
       },
       "4": {
@@ -15539,13 +15544,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          4.809205055236816,
-          5.010392189025879,
-          5.221545696258545,
-          3.7920262813568115,
-          3.3053557872772217,
-          2.8124122619628906,
-          2.8448312282562256
+          4.301972389221191,
+          5.352413177490234,
+          5.374724864959717,
+          3.6257784366607666,
+          3.4715168476104736,
+          3.08847713470459,
+          3.660780668258667
         ]
       },
       "5": {
@@ -15559,13 +15564,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          23.67377471923828,
-          25.742935180664062,
-          24.630393981933594,
-          25.471464157104492,
-          20.373075485229492,
-          17.61667251586914,
-          25.681974411010742
+          25.6318416595459,
+          24.601837158203125,
+          23.64666748046875,
+          27.092994689941406,
+          23.70875358581543,
+          19.24544334411621,
+          33.01869201660156
         ]
       },
       "6": {
@@ -15579,13 +15584,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.51741600036621,
-          15.576461791992188,
-          12.512531280517578,
-          11.38469409942627,
-          9.633552551269531,
-          8.132472038269043,
-          14.166844367980957
+          17.311281204223633,
+          14.573332786560059,
+          12.021512031555176,
+          10.597640037536621,
+          8.995978355407715,
+          7.93543815612793,
+          13.39059066772461
         ]
       },
       "7": {
@@ -15599,13 +15604,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          15.542685508728027,
-          15.31891918182373,
-          16.143842697143555,
-          13.708438873291016,
-          7.066617488861084,
-          4.5868425369262695,
-          7.157965183258057
+          16.92225456237793,
+          14.108572959899902,
+          14.369956970214844,
+          14.06963062286377,
+          8.17166519165039,
+          4.624076843261719,
+          8.649020195007324
         ]
       },
       "8": {
@@ -15619,13 +15624,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          48.48762893676758,
-          42.370765686035156,
-          42.384456634521484,
-          43.74198913574219,
-          24.59816551208496,
-          18.02313804626465,
-          25.50536346435547
+          48.07462692260742,
+          44.47079086303711,
+          41.18960189819336,
+          43.082332611083984,
+          25.78713035583496,
+          20.279272079467773,
+          29.794233322143555
         ]
       },
       "9": {
@@ -15639,13 +15644,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          23.505529403686523,
-          20.6270809173584,
-          18.841632843017578,
-          15.545933723449707,
-          13.046181678771973,
-          14.740113258361816,
-          25.255373001098633
+          22.073453903198242,
+          19.589420318603516,
+          17.68115234375,
+          15.313175201416016,
+          14.029986381530762,
+          16.593393325805664,
+          28.615346908569336
         ]
       },
       "10": {
@@ -15659,13 +15664,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          17.097801208496094,
-          21.726341247558594,
-          21.328752517700195,
-          19.583200454711914,
-          14.697647094726562,
-          12.469828605651855,
-          23.430809020996094
+          18.702714920043945,
+          20.213666915893555,
+          19.411008834838867,
+          18.838897705078125,
+          14.838133811950684,
+          12.551764488220215,
+          23.717519760131836
         ]
       },
       "11": {
@@ -15679,13 +15684,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.00248146057129,
-          18.35772132873535,
-          16.076444625854492,
-          13.574069023132324,
-          13.54833984375,
-          13.784263610839844,
-          13.956409454345703
+          22.650239944458008,
+          14.86616039276123,
+          12.394322395324707,
+          10.75048828125,
+          10.882107734680176,
+          11.952523231506348,
+          11.822589874267578
         ]
       },
       "12": {
@@ -15699,13 +15704,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          42.894039154052734,
-          26.94390869140625,
-          28.559865951538086,
-          23.8674259185791,
-          17.60137367248535,
-          17.371435165405273,
-          31.11417579650879
+          42.637203216552734,
+          25.633102416992188,
+          24.833457946777344,
+          24.67405891418457,
+          22.00340461730957,
+          27.07343101501465,
+          43.77716064453125
         ]
       },
       "13": {
@@ -15719,13 +15724,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          30.90645408630371,
-          41.4849967956543,
-          42.67607498168945,
-          39.9681510925293,
-          33.14731216430664,
-          30.568758010864258,
-          50.20405197143555
+          29.951128005981445,
+          39.139923095703125,
+          38.45840835571289,
+          34.5362434387207,
+          27.356027603149414,
+          26.25642204284668,
+          44.393768310546875
         ]
       },
       "14": {
@@ -15739,13 +15744,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          55.00105285644531,
-          49.526092529296875,
-          47.09135055541992,
-          43.78330993652344,
-          31.289306640625,
-          35.53996658325195,
-          62.70330810546875
+          60.56636047363281,
+          49.73121643066406,
+          49.47099304199219,
+          38.813777923583984,
+          28.145967483520508,
+          31.495689392089844,
+          49.53245162963867
         ]
       },
       "15": {
@@ -15759,13 +15764,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.93035316467285,
-          20.611743927001953,
-          17.122905731201172,
-          19.11121940612793,
-          11.827893257141113,
-          11.15926456451416,
-          14.901447296142578
+          21.001874923706055,
+          17.653879165649414,
+          17.028181076049805,
+          20.050413131713867,
+          12.326950073242188,
+          12.106230735778809,
+          15.450818061828613
         ]
       },
       "16": {
@@ -15779,13 +15784,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          40.15693664550781,
-          46.58256149291992,
-          45.41225051879883,
-          42.98955154418945,
-          34.02154541015625,
-          25.38730812072754,
-          43.84858322143555
+          44.328369140625,
+          47.53826904296875,
+          43.86178970336914,
+          39.387237548828125,
+          31.479066848754883,
+          26.255136489868164,
+          46.73565673828125
         ]
       },
       "17": {
@@ -15799,13 +15804,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          20.211702346801758,
-          22.7597713470459,
-          23.693490982055664,
-          18.44700050354004,
-          13.160775184631348,
-          13.079215049743652,
-          15.994524955749512
+          23.687509536743164,
+          24.27384376525879,
+          22.899179458618164,
+          17.31246566772461,
+          12.904820442199707,
+          12.047715187072754,
+          18.23455238342285
         ]
       },
       "18": {
@@ -15819,13 +15824,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          21.22035026550293,
-          23.570785522460938,
-          18.1597843170166,
-          21.79176139831543,
-          16.879772186279297,
-          12.66546630859375,
-          22.21788215637207
+          24.061052322387695,
+          24.969942092895508,
+          19.196022033691406,
+          24.33081817626953,
+          17.87001609802246,
+          12.842324256896973,
+          24.661209106445312
         ]
       },
       "19": {
@@ -15839,13 +15844,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          22.694128036499023,
-          21.7125186920166,
-          19.128293991088867,
-          27.456100463867188,
-          27.417970657348633,
-          18.60297203063965,
-          33.66914367675781
+          22.90777587890625,
+          18.9730167388916,
+          17.047922134399414,
+          26.335233688354492,
+          25.537160873413086,
+          16.93808937072754,
+          29.38680076599121
         ]
       },
       "20": {
@@ -15859,13 +15864,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.91799545288086,
-          19.939470291137695,
-          19.45561408996582,
-          14.018383979797363,
-          9.204727172851562,
-          9.847968101501465,
-          16.91049575805664
+          19.957611083984375,
+          20.5565185546875,
+          19.96269416809082,
+          14.815722465515137,
+          10.314682006835938,
+          11.018433570861816,
+          18.601049423217773
         ]
       },
       "21": {
@@ -15879,13 +15884,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          10.133808135986328,
-          9.844094276428223,
-          9.344612121582031,
-          6.625157833099365,
-          5.698301315307617,
-          4.408339977264404,
-          7.593147277832031
+          10.739800453186035,
+          10.297563552856445,
+          9.816582679748535,
+          7.9351806640625,
+          6.8004937171936035,
+          5.392109394073486,
+          9.158955574035645
         ]
       },
       "22": {
@@ -15899,13 +15904,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          10.11136245727539,
-          8.850052833557129,
-          8.18326187133789,
-          6.992333889007568,
-          6.597980976104736,
-          7.847768306732178,
-          10.18210220336914
+          12.697173118591309,
+          9.831733703613281,
+          8.552101135253906,
+          7.434225559234619,
+          7.65922737121582,
+          7.284643650054932,
+          11.075480461120605
         ]
       },
       "23": {
@@ -15919,13 +15924,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          35.91664123535156,
-          35.85975646972656,
-          34.338199615478516,
-          31.908666610717773,
-          20.14164924621582,
-          20.08962059020996,
-          31.22624969482422
+          35.66532897949219,
+          34.57088088989258,
+          33.55146408081055,
+          31.71051025390625,
+          20.374757766723633,
+          20.719263076782227,
+          31.943811416625977
         ]
       },
       "24": {
@@ -15939,13 +15944,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          56.5372200012207,
-          53.0731201171875,
-          44.77003479003906,
-          37.38936996459961,
-          40.056880950927734,
-          44.1445426940918,
-          64.073486328125
+          61.344482421875,
+          56.13859176635742,
+          51.39915084838867,
+          44.223812103271484,
+          39.597896575927734,
+          45.883113861083984,
+          66.34564971923828
         ]
       },
       "25": {
@@ -15959,13 +15964,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          57.43741989135742,
-          77.46768951416016,
-          68.7160873413086,
-          70.97711944580078,
-          52.81126022338867,
-          48.2408561706543,
-          84.85657501220703
+          48.071407318115234,
+          54.34173583984375,
+          54.79888916015625,
+          54.406341552734375,
+          41.51276779174805,
+          45.603179931640625,
+          67.8189697265625
         ]
       },
       "26": {
@@ -15979,13 +15984,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          27.036012649536133,
-          17.541601181030273,
-          18.231517791748047,
-          14.155678749084473,
-          21.116647720336914,
-          23.745176315307617,
-          33.817626953125
+          26.5779972076416,
+          21.70072364807129,
+          18.254894256591797,
+          16.508638381958008,
+          24.235496520996094,
+          25.142606735229492,
+          33.072872161865234
         ]
       },
       "27": {
@@ -15999,13 +16004,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          18.618947982788086,
-          14.82248592376709,
-          14.74082088470459,
-          13.12691879272461,
-          11.291187286376953,
-          12.347419738769531,
-          18.961233139038086
+          23.440994262695312,
+          16.52446937561035,
+          15.660235404968262,
+          15.063433647155762,
+          13.24168872833252,
+          14.259156227111816,
+          22.651090621948242
         ]
       },
       "28": {
@@ -16019,13 +16024,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          23.063501358032227,
-          24.202714920043945,
-          26.270769119262695,
-          22.20379638671875,
-          20.442907333374023,
-          23.91092872619629,
-          25.991012573242188
+          29.86717414855957,
+          27.682723999023438,
+          25.715524673461914,
+          23.027442932128906,
+          21.7136173248291,
+          22.27707862854004,
+          28.35149383544922
         ]
       },
       "29": {
@@ -16039,13 +16044,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          59.52851867675781,
-          56.55702209472656,
-          50.5729866027832,
-          45.27925491333008,
-          33.155513763427734,
-          39.36600875854492,
-          51.054443359375
+          65.3513412475586,
+          60.518489837646484,
+          55.89962387084961,
+          47.516693115234375,
+          35.046512603759766,
+          41.081050872802734,
+          57.92061996459961
         ]
       },
       "30": {
@@ -16059,13 +16064,13 @@
           "2026-01-18"
         ],
         "quantity": [
-          50.7022705078125,
-          46.792449951171875,
-          40.30895233154297,
-          36.85072326660156,
-          31.096670150756836,
-          32.56892013549805,
-          49.30934524536133
+          51.66826248168945,
+          50.36669921875,
+          43.30592727661133,
+          38.035396575927734,
+          32.276123046875,
+          33.762210845947266,
+          53.4892463684082
         ]
       }
     },
@@ -19094,13 +19099,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            12.600028991699219,
-            9.60149097442627,
-            7.291459560394287,
-            5.284254550933838,
-            6.569349765777588,
-            5.756592273712158,
-            7.3040337562561035
+            12.267996788024902,
+            10.494014739990234,
+            7.846211910247803,
+            5.516106128692627,
+            6.607882022857666,
+            6.659523010253906,
+            8.435142517089844
           ]
         },
         "2": {
@@ -19114,13 +19119,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            13.158812522888184,
-            11.716968536376953,
-            9.482499122619629,
-            8.155783653259277,
-            8.63656997680664,
-            9.346993446350098,
-            10.490134239196777
+            12.811302185058594,
+            11.419978141784668,
+            8.587713241577148,
+            8.468707084655762,
+            9.189970970153809,
+            9.1135835647583,
+            10.26740550994873
           ]
         },
         "3": {
@@ -19134,13 +19139,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            19.828763961791992,
-            16.741989135742188,
-            16.324079513549805,
-            12.387134552001953,
-            10.817675590515137,
-            10.531174659729004,
-            13.162121772766113
+            17.573884963989258,
+            13.388603210449219,
+            13.444369316101074,
+            12.053751945495605,
+            11.224385261535645,
+            10.44454574584961,
+            13.310511589050293
           ]
         },
         "4": {
@@ -19154,13 +19159,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            4.809205055236816,
-            5.010392189025879,
-            5.221545696258545,
-            3.7920262813568115,
-            3.3053557872772217,
-            2.8124122619628906,
-            2.8448312282562256
+            4.301972389221191,
+            5.352413177490234,
+            5.374724864959717,
+            3.6257784366607666,
+            3.4715168476104736,
+            3.08847713470459,
+            3.660780668258667
           ]
         },
         "5": {
@@ -19174,13 +19179,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            23.67377471923828,
-            25.742935180664062,
-            24.630393981933594,
-            25.471464157104492,
-            20.373075485229492,
-            17.61667251586914,
-            25.681974411010742
+            25.6318416595459,
+            24.601837158203125,
+            23.64666748046875,
+            27.092994689941406,
+            23.70875358581543,
+            19.24544334411621,
+            33.01869201660156
           ]
         },
         "6": {
@@ -19194,13 +19199,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            17.51741600036621,
-            15.576461791992188,
-            12.512531280517578,
-            11.38469409942627,
-            9.633552551269531,
-            8.132472038269043,
-            14.166844367980957
+            17.311281204223633,
+            14.573332786560059,
+            12.021512031555176,
+            10.597640037536621,
+            8.995978355407715,
+            7.93543815612793,
+            13.39059066772461
           ]
         },
         "7": {
@@ -19214,13 +19219,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            15.542685508728027,
-            15.31891918182373,
-            16.143842697143555,
-            13.708438873291016,
-            7.066617488861084,
-            4.5868425369262695,
-            7.157965183258057
+            16.92225456237793,
+            14.108572959899902,
+            14.369956970214844,
+            14.06963062286377,
+            8.17166519165039,
+            4.624076843261719,
+            8.649020195007324
           ]
         },
         "8": {
@@ -19234,13 +19239,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            48.48762893676758,
-            42.370765686035156,
-            42.384456634521484,
-            43.74198913574219,
-            24.59816551208496,
-            18.02313804626465,
-            25.50536346435547
+            48.07462692260742,
+            44.47079086303711,
+            41.18960189819336,
+            43.082332611083984,
+            25.78713035583496,
+            20.279272079467773,
+            29.794233322143555
           ]
         },
         "9": {
@@ -19254,13 +19259,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            23.505529403686523,
-            20.6270809173584,
-            18.841632843017578,
-            15.545933723449707,
-            13.046181678771973,
-            14.740113258361816,
-            25.255373001098633
+            22.073453903198242,
+            19.589420318603516,
+            17.68115234375,
+            15.313175201416016,
+            14.029986381530762,
+            16.593393325805664,
+            28.615346908569336
           ]
         },
         "10": {
@@ -19274,13 +19279,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            17.097801208496094,
-            21.726341247558594,
-            21.328752517700195,
-            19.583200454711914,
-            14.697647094726562,
-            12.469828605651855,
-            23.430809020996094
+            18.702714920043945,
+            20.213666915893555,
+            19.411008834838867,
+            18.838897705078125,
+            14.838133811950684,
+            12.551764488220215,
+            23.717519760131836
           ]
         },
         "11": {
@@ -19294,13 +19299,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            22.00248146057129,
-            18.35772132873535,
-            16.076444625854492,
-            13.574069023132324,
-            13.54833984375,
-            13.784263610839844,
-            13.956409454345703
+            22.650239944458008,
+            14.86616039276123,
+            12.394322395324707,
+            10.75048828125,
+            10.882107734680176,
+            11.952523231506348,
+            11.822589874267578
           ]
         },
         "12": {
@@ -19314,13 +19319,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            42.894039154052734,
-            26.94390869140625,
-            28.559865951538086,
-            23.8674259185791,
-            17.60137367248535,
-            17.371435165405273,
-            31.11417579650879
+            42.637203216552734,
+            25.633102416992188,
+            24.833457946777344,
+            24.67405891418457,
+            22.00340461730957,
+            27.07343101501465,
+            43.77716064453125
           ]
         },
         "13": {
@@ -19334,13 +19339,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            30.90645408630371,
-            41.4849967956543,
-            42.67607498168945,
-            39.9681510925293,
-            33.14731216430664,
-            30.568758010864258,
-            50.20405197143555
+            29.951128005981445,
+            39.139923095703125,
+            38.45840835571289,
+            34.5362434387207,
+            27.356027603149414,
+            26.25642204284668,
+            44.393768310546875
           ]
         },
         "14": {
@@ -19354,13 +19359,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            55.00105285644531,
-            49.526092529296875,
-            47.09135055541992,
-            43.78330993652344,
-            31.289306640625,
-            35.53996658325195,
-            62.70330810546875
+            60.56636047363281,
+            49.73121643066406,
+            49.47099304199219,
+            38.813777923583984,
+            28.145967483520508,
+            31.495689392089844,
+            49.53245162963867
           ]
         },
         "15": {
@@ -19374,13 +19379,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            21.93035316467285,
-            20.611743927001953,
-            17.122905731201172,
-            19.11121940612793,
-            11.827893257141113,
-            11.15926456451416,
-            14.901447296142578
+            21.001874923706055,
+            17.653879165649414,
+            17.028181076049805,
+            20.050413131713867,
+            12.326950073242188,
+            12.106230735778809,
+            15.450818061828613
           ]
         },
         "16": {
@@ -19394,13 +19399,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            40.15693664550781,
-            46.58256149291992,
-            45.41225051879883,
-            42.98955154418945,
-            34.02154541015625,
-            25.38730812072754,
-            43.84858322143555
+            44.328369140625,
+            47.53826904296875,
+            43.86178970336914,
+            39.387237548828125,
+            31.479066848754883,
+            26.255136489868164,
+            46.73565673828125
           ]
         },
         "17": {
@@ -19414,13 +19419,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            20.211702346801758,
-            22.7597713470459,
-            23.693490982055664,
-            18.44700050354004,
-            13.160775184631348,
-            13.079215049743652,
-            15.994524955749512
+            23.687509536743164,
+            24.27384376525879,
+            22.899179458618164,
+            17.31246566772461,
+            12.904820442199707,
+            12.047715187072754,
+            18.23455238342285
           ]
         },
         "18": {
@@ -19434,13 +19439,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            21.22035026550293,
-            23.570785522460938,
-            18.1597843170166,
-            21.79176139831543,
-            16.879772186279297,
-            12.66546630859375,
-            22.21788215637207
+            24.061052322387695,
+            24.969942092895508,
+            19.196022033691406,
+            24.33081817626953,
+            17.87001609802246,
+            12.842324256896973,
+            24.661209106445312
           ]
         },
         "19": {
@@ -19454,13 +19459,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            22.694128036499023,
-            21.7125186920166,
-            19.128293991088867,
-            27.456100463867188,
-            27.417970657348633,
-            18.60297203063965,
-            33.66914367675781
+            22.90777587890625,
+            18.9730167388916,
+            17.047922134399414,
+            26.335233688354492,
+            25.537160873413086,
+            16.93808937072754,
+            29.38680076599121
           ]
         },
         "20": {
@@ -19474,13 +19479,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            18.91799545288086,
-            19.939470291137695,
-            19.45561408996582,
-            14.018383979797363,
-            9.204727172851562,
-            9.847968101501465,
-            16.91049575805664
+            19.957611083984375,
+            20.5565185546875,
+            19.96269416809082,
+            14.815722465515137,
+            10.314682006835938,
+            11.018433570861816,
+            18.601049423217773
           ]
         },
         "21": {
@@ -19494,13 +19499,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            10.133808135986328,
-            9.844094276428223,
-            9.344612121582031,
-            6.625157833099365,
-            5.698301315307617,
-            4.408339977264404,
-            7.593147277832031
+            10.739800453186035,
+            10.297563552856445,
+            9.816582679748535,
+            7.9351806640625,
+            6.8004937171936035,
+            5.392109394073486,
+            9.158955574035645
           ]
         },
         "22": {
@@ -19514,13 +19519,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            10.11136245727539,
-            8.850052833557129,
-            8.18326187133789,
-            6.992333889007568,
-            6.597980976104736,
-            7.847768306732178,
-            10.18210220336914
+            12.697173118591309,
+            9.831733703613281,
+            8.552101135253906,
+            7.434225559234619,
+            7.65922737121582,
+            7.284643650054932,
+            11.075480461120605
           ]
         },
         "23": {
@@ -19534,13 +19539,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            35.91664123535156,
-            35.85975646972656,
-            34.338199615478516,
-            31.908666610717773,
-            20.14164924621582,
-            20.08962059020996,
-            31.22624969482422
+            35.66532897949219,
+            34.57088088989258,
+            33.55146408081055,
+            31.71051025390625,
+            20.374757766723633,
+            20.719263076782227,
+            31.943811416625977
           ]
         },
         "24": {
@@ -19554,13 +19559,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            56.5372200012207,
-            53.0731201171875,
-            44.77003479003906,
-            37.38936996459961,
-            40.056880950927734,
-            44.1445426940918,
-            64.073486328125
+            61.344482421875,
+            56.13859176635742,
+            51.39915084838867,
+            44.223812103271484,
+            39.597896575927734,
+            45.883113861083984,
+            66.34564971923828
           ]
         },
         "25": {
@@ -19574,13 +19579,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            57.43741989135742,
-            77.46768951416016,
-            68.7160873413086,
-            70.97711944580078,
-            52.81126022338867,
-            48.2408561706543,
-            84.85657501220703
+            48.071407318115234,
+            54.34173583984375,
+            54.79888916015625,
+            54.406341552734375,
+            41.51276779174805,
+            45.603179931640625,
+            67.8189697265625
           ]
         },
         "26": {
@@ -19594,13 +19599,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            27.036012649536133,
-            17.541601181030273,
-            18.231517791748047,
-            14.155678749084473,
-            21.116647720336914,
-            23.745176315307617,
-            33.817626953125
+            26.5779972076416,
+            21.70072364807129,
+            18.254894256591797,
+            16.508638381958008,
+            24.235496520996094,
+            25.142606735229492,
+            33.072872161865234
           ]
         },
         "27": {
@@ -19614,13 +19619,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            18.618947982788086,
-            14.82248592376709,
-            14.74082088470459,
-            13.12691879272461,
-            11.291187286376953,
-            12.347419738769531,
-            18.961233139038086
+            23.440994262695312,
+            16.52446937561035,
+            15.660235404968262,
+            15.063433647155762,
+            13.24168872833252,
+            14.259156227111816,
+            22.651090621948242
           ]
         },
         "28": {
@@ -19634,13 +19639,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            23.063501358032227,
-            24.202714920043945,
-            26.270769119262695,
-            22.20379638671875,
-            20.442907333374023,
-            23.91092872619629,
-            25.991012573242188
+            29.86717414855957,
+            27.682723999023438,
+            25.715524673461914,
+            23.027442932128906,
+            21.7136173248291,
+            22.27707862854004,
+            28.35149383544922
           ]
         },
         "29": {
@@ -19654,13 +19659,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            59.52851867675781,
-            56.55702209472656,
-            50.5729866027832,
-            45.27925491333008,
-            33.155513763427734,
-            39.36600875854492,
-            51.054443359375
+            65.3513412475586,
+            60.518489837646484,
+            55.89962387084961,
+            47.516693115234375,
+            35.046512603759766,
+            41.081050872802734,
+            57.92061996459961
           ]
         },
         "30": {
@@ -19674,13 +19679,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            50.7022705078125,
-            46.792449951171875,
-            40.30895233154297,
-            36.85072326660156,
-            31.096670150756836,
-            32.56892013549805,
-            49.30934524536133
+            51.66826248168945,
+            50.36669921875,
+            43.30592727661133,
+            38.035396575927734,
+            32.276123046875,
+            33.762210845947266,
+            53.4892463684082
           ]
         }
       },
@@ -22708,13 +22713,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            11.024028778076172,
-            9.414816856384277,
-            8.57596492767334,
-            6.937646865844727,
-            7.373718738555908,
-            7.911304950714111,
-            9.558700561523438
+            11.12503433227539,
+            9.662796974182129,
+            8.446846961975098,
+            6.600012302398682,
+            6.993473052978516,
+            7.633171081542969,
+            9.015823364257812
           ]
         },
         "2": {
@@ -22728,13 +22733,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            12.427050590515137,
-            11.195199012756348,
-            10.507280349731445,
-            10.119479179382324,
-            10.334385871887207,
-            10.828373908996582,
-            13.342037200927734
+            12.178543090820312,
+            10.772900581359863,
+            10.273245811462402,
+            10.03069019317627,
+            10.830843925476074,
+            10.957364082336426,
+            13.019676208496094
           ]
         },
         "3": {
@@ -22748,13 +22753,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            18.042097091674805,
-            16.489845275878906,
-            16.217571258544922,
-            15.550498962402344,
-            14.4937105178833,
-            13.67802906036377,
-            19.067712783813477
+            18.174312591552734,
+            15.460190773010254,
+            15.014981269836426,
+            13.982131004333496,
+            13.338892936706543,
+            12.44774341583252,
+            17.47199821472168
           ]
         },
         "4": {
@@ -22768,13 +22773,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            3.4981610774993896,
-            4.882465362548828,
-            5.863423824310303,
-            4.991199016571045,
-            4.741489410400391,
-            4.777408599853516,
-            5.404923915863037
+            3.694495439529419,
+            5.130426406860352,
+            5.68026876449585,
+            4.477701663970947,
+            4.3503313064575195,
+            4.602228164672852,
+            5.000499248504639
           ]
         },
         "5": {
@@ -22788,13 +22793,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            22.581787109375,
-            23.241622924804688,
-            23.261337280273438,
-            21.365205764770508,
-            19.005348205566406,
-            16.321931838989258,
-            24.939119338989258
+            23.79169273376465,
+            24.602537155151367,
+            23.712106704711914,
+            21.552988052368164,
+            18.838972091674805,
+            16.168357849121094,
+            25.54010581970215
           ]
         },
         "6": {
@@ -22808,13 +22813,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            13.742026329040527,
-            11.636031150817871,
-            10.969459533691406,
-            10.02963638305664,
-            9.501583099365234,
-            9.169753074645996,
-            13.111038208007812
+            13.881912231445312,
+            11.741950988769531,
+            10.379637718200684,
+            9.796494483947754,
+            9.468737602233887,
+            8.981171607971191,
+            13.30344295501709
           ]
         },
         "7": {
@@ -22828,13 +22833,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            15.136101722717285,
-            14.692694664001465,
-            13.690539360046387,
-            12.922284126281738,
-            9.975041389465332,
-            5.847340106964111,
-            10.58337688446045
+            14.88451862335205,
+            14.135177612304688,
+            13.278624534606934,
+            12.382302284240723,
+            9.38846492767334,
+            5.635252475738525,
+            10.589550971984863
           ]
         },
         "8": {
@@ -22848,13 +22853,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            47.71223831176758,
-            44.82570266723633,
-            36.48836898803711,
-            34.26603698730469,
-            26.565505981445312,
-            22.392898559570312,
-            32.418212890625
+            47.191070556640625,
+            42.38541793823242,
+            34.71217346191406,
+            32.87410354614258,
+            25.780778884887695,
+            20.962478637695312,
+            31.170629501342773
           ]
         },
         "9": {
@@ -22868,13 +22873,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            22.925329208374023,
-            19.43340492248535,
-            17.537397384643555,
-            15.924583435058594,
-            15.910313606262207,
-            16.8891544342041,
-            26.132139205932617
+            21.996068954467773,
+            18.588239669799805,
+            16.52948570251465,
+            14.471073150634766,
+            14.914013862609863,
+            16.28127098083496,
+            25.204076766967773
           ]
         },
         "10": {
@@ -22888,13 +22893,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            16.801738739013672,
-            17.033035278320312,
-            16.64701271057129,
-            15.514164924621582,
-            13.778488159179688,
-            10.786652565002441,
-            18.868896484375
+            16.973909378051758,
+            16.91786766052246,
+            16.18153953552246,
+            14.89408016204834,
+            13.717597961425781,
+            10.650591850280762,
+            19.567718505859375
           ]
         },
         "11": {
@@ -22908,13 +22913,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            20.79474449157715,
-            18.094263076782227,
-            16.148237228393555,
-            14.416193962097168,
-            15.188652038574219,
-            16.163528442382812,
-            20.038225173950195
+            19.315065383911133,
+            16.48578643798828,
+            15.37259578704834,
+            13.925700187683105,
+            14.287010192871094,
+            15.258749961853027,
+            18.116525650024414
           ]
         },
         "12": {
@@ -22928,13 +22933,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            52.04684066772461,
-            70.4739761352539,
-            73.10266876220703,
-            60.06867599487305,
-            58.10009765625,
-            68.31654357910156,
-            92.1290512084961
+            51.95847702026367,
+            68.33686065673828,
+            66.42964935302734,
+            54.23530960083008,
+            52.85750961303711,
+            61.10575485229492,
+            82.57608795166016
           ]
         },
         "13": {
@@ -22948,13 +22953,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            32.1323356628418,
-            37.6810302734375,
-            36.37652587890625,
-            36.50987243652344,
-            30.715097427368164,
-            26.572525024414062,
-            43.12709426879883
+            34.649784088134766,
+            42.781707763671875,
+            40.6515998840332,
+            38.91282653808594,
+            31.570205688476562,
+            28.107728958129883,
+            47.44340133666992
           ]
         },
         "14": {
@@ -22968,13 +22973,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            55.36006546020508,
-            48.298030853271484,
-            39.45834732055664,
-            37.780487060546875,
-            30.756616592407227,
-            32.12743377685547,
-            49.58164978027344
+            59.31858444213867,
+            50.2404899597168,
+            41.72721481323242,
+            38.99512481689453,
+            32.069366455078125,
+            32.61490249633789,
+            50.21662902832031
           ]
         },
         "15": {
@@ -22988,13 +22993,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            17.927762985229492,
-            16.24485206604004,
-            14.945679664611816,
-            15.7839994430542,
-            12.398390769958496,
-            12.02153491973877,
-            16.047502517700195
+            18.072641372680664,
+            16.743085861206055,
+            14.68377685546875,
+            15.277657508850098,
+            12.097541809082031,
+            11.989081382751465,
+            16.52975845336914
           ]
         },
         "16": {
@@ -23008,13 +23013,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            40.24717712402344,
-            40.64638137817383,
-            37.94239807128906,
-            35.444576263427734,
-            29.351980209350586,
-            24.345428466796875,
-            39.27621078491211
+            40.90507888793945,
+            41.26449966430664,
+            39.327457427978516,
+            35.87555694580078,
+            29.441604614257812,
+            25.16562843322754,
+            39.06418991088867
           ]
         },
         "17": {
@@ -23028,13 +23033,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            14.115872383117676,
-            12.949828147888184,
-            13.158541679382324,
-            11.060011863708496,
-            9.448548316955566,
-            9.786243438720703,
-            12.479891777038574
+            14.478729248046875,
+            13.134265899658203,
+            13.616035461425781,
+            11.7969331741333,
+            10.282283782958984,
+            10.354002952575684,
+            12.890109062194824
           ]
         },
         "18": {
@@ -23048,13 +23053,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            22.89725685119629,
-            22.94890785217285,
-            17.566675186157227,
-            18.682531356811523,
-            15.870170593261719,
-            12.615467071533203,
-            21.844406127929688
+            23.627344131469727,
+            23.39641761779785,
+            18.013723373413086,
+            18.96723747253418,
+            16.21038818359375,
+            12.80670166015625,
+            21.937347412109375
           ]
         },
         "19": {
@@ -23068,13 +23073,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            21.814844131469727,
-            21.90648078918457,
-            20.070829391479492,
-            19.0159854888916,
-            16.415719985961914,
-            13.252823829650879,
-            23.179611206054688
+            20.697233200073242,
+            20.453035354614258,
+            19.433826446533203,
+            18.583410263061523,
+            16.272546768188477,
+            12.968910217285156,
+            22.717756271362305
           ]
         },
         "20": {
@@ -23088,13 +23093,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            20.525405883789062,
-            21.550933837890625,
-            20.72456169128418,
-            17.776086807250977,
-            14.005364418029785,
-            14.065628051757812,
-            20.03373908996582
+            21.365468978881836,
+            22.108945846557617,
+            21.5072021484375,
+            18.777151107788086,
+            15.032447814941406,
+            14.632682800292969,
+            20.961145401000977
           ]
         },
         "21": {
@@ -23108,13 +23113,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            7.232074737548828,
-            6.177219390869141,
-            6.2464165687561035,
-            5.569215297698975,
-            6.0795578956604,
-            5.25497579574585,
-            7.712490558624268
+            7.1671223640441895,
+            6.08447265625,
+            6.037839889526367,
+            5.335086345672607,
+            5.872154235839844,
+            4.938579082489014,
+            7.9969563484191895
           ]
         },
         "22": {
@@ -23128,13 +23133,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            10.622076988220215,
-            8.587562561035156,
-            8.307597160339355,
-            7.801968097686768,
-            7.937129974365234,
-            8.776664733886719,
-            11.25771713256836
+            11.772387504577637,
+            10.135685920715332,
+            9.44382381439209,
+            8.680203437805176,
+            8.739884376525879,
+            9.501774787902832,
+            12.706377983093262
           ]
         },
         "23": {
@@ -23148,13 +23153,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            28.592321395874023,
-            26.380887985229492,
-            25.61753273010254,
-            23.474184036254883,
-            19.384122848510742,
-            19.836475372314453,
-            29.467697143554688
+            28.90058708190918,
+            27.299718856811523,
+            26.05097007751465,
+            23.467370986938477,
+            19.80274200439453,
+            20.325651168823242,
+            29.856809616088867
           ]
         },
         "24": {
@@ -23168,13 +23173,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            57.3652458190918,
-            54.23786544799805,
-            48.31441879272461,
-            39.446773529052734,
-            38.36616897583008,
-            41.6745491027832,
-            61.72361755371094
+            55.70960998535156,
+            51.54972457885742,
+            47.201385498046875,
+            40.08847427368164,
+            37.966827392578125,
+            40.355186462402344,
+            59.99025344848633
           ]
         },
         "25": {
@@ -23188,13 +23193,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            53.67268753051758,
-            63.38594055175781,
-            61.45780944824219,
-            57.826019287109375,
-            52.35914993286133,
-            43.60715866088867,
-            71.39244842529297
+            57.2150764465332,
+            66.40970611572266,
+            62.8610725402832,
+            57.28606033325195,
+            51.6318473815918,
+            43.28328323364258,
+            76.34436798095703
           ]
         },
         "26": {
@@ -23208,13 +23213,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            25.540861129760742,
-            22.736000061035156,
-            21.8100643157959,
-            20.675336837768555,
-            23.65685272216797,
-            24.7288875579834,
-            33.07741165161133
+            24.873319625854492,
+            23.29703712463379,
+            21.848424911499023,
+            20.51158332824707,
+            23.982254028320312,
+            25.9620304107666,
+            34.913448333740234
           ]
         },
         "27": {
@@ -23228,13 +23233,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            19.053855895996094,
-            14.472329139709473,
-            13.531935691833496,
-            13.449427604675293,
-            12.32375431060791,
-            12.505871772766113,
-            18.11743927001953
+            19.16461181640625,
+            15.454268455505371,
+            14.151188850402832,
+            13.33791446685791,
+            12.390816688537598,
+            12.728642463684082,
+            19.1353759765625
           ]
         },
         "28": {
@@ -23248,13 +23253,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            28.062057495117188,
-            26.5897159576416,
-            25.398832321166992,
-            22.860380172729492,
-            20.009592056274414,
-            20.37946891784668,
-            27.136266708374023
+            26.486974716186523,
+            25.428237915039062,
+            24.26502799987793,
+            21.572072982788086,
+            19.31722068786621,
+            19.388851165771484,
+            25.533845901489258
           ]
         },
         "29": {
@@ -23268,13 +23273,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            61.850250244140625,
-            56.077880859375,
-            51.264312744140625,
-            47.2032356262207,
-            41.28699493408203,
-            48.50650405883789,
-            64.16899871826172
+            62.56959533691406,
+            57.174468994140625,
+            52.12225341796875,
+            46.59379959106445,
+            41.049068450927734,
+            47.6305046081543,
+            62.932064056396484
           ]
         },
         "30": {
@@ -23288,13 +23293,13 @@
             "2026-01-18"
           ],
           "quantity": [
-            50.733951568603516,
-            47.13053512573242,
-            41.37382125854492,
-            37.299503326416016,
-            31.417943954467773,
-            31.963119506835938,
-            51.52043151855469
+            49.5864143371582,
+            44.61895751953125,
+            39.91800308227539,
+            35.63306427001953,
+            31.144166946411133,
+            31.74286460876465,
+            50.32554244995117
           ]
         }
       },
@@ -26318,10 +26323,10 @@
       "recursive_n": 2429,
       "paired_n": 2166,
       "metric": "WAPE",
-      "direct_value": 0.375075,
-      "recursive_value": 1.576584,
-      "absolute_delta": 1.201508,
-      "relative_delta": 3.203378,
+      "direct_value": 0.377393,
+      "recursive_value": 0.42564,
+      "absolute_delta": 0.048248,
+      "relative_delta": 0.127845,
       "winner": "direct"
     },
     {
@@ -26331,10 +26336,10 @@
       "recursive_n": 2429,
       "paired_n": 2166,
       "metric": "MAE",
-      "direct_value": 15.786589,
-      "recursive_value": 66.357003,
-      "absolute_delta": 50.570414,
-      "relative_delta": 3.203378,
+      "direct_value": 15.884123,
+      "recursive_value": 17.914822,
+      "absolute_delta": 2.030698,
+      "relative_delta": 0.127845,
       "winner": "direct"
     },
     {
@@ -26344,10 +26349,10 @@
       "recursive_n": 2429,
       "paired_n": 2166,
       "metric": "RMSE",
-      "direct_value": 25.844499,
-      "recursive_value": 2240.381163,
-      "absolute_delta": 2214.536664,
-      "relative_delta": 85.686964,
+      "direct_value": 25.731035,
+      "recursive_value": 51.383258,
+      "absolute_delta": 25.652223,
+      "relative_delta": 0.996937,
       "winner": "direct"
     },
     {
@@ -26357,10 +26362,10 @@
       "recursive_n": 2429,
       "paired_n": 2166,
       "metric": "Bias",
-      "direct_value": 1.946788,
-      "recursive_value": 57.2472,
-      "absolute_delta": 55.300413,
-      "relative_delta": 28.405981,
+      "direct_value": 1.921895,
+      "recursive_value": 8.697109,
+      "absolute_delta": 6.775214,
+      "relative_delta": 3.525278,
       "winner": "direct"
     },
     {
@@ -26370,10 +26375,10 @@
       "recursive_n": 2429,
       "paired_n": 2166,
       "metric": "BiasRatio",
-      "direct_value": 0.046254,
-      "recursive_value": 1.360143,
-      "absolute_delta": 1.313889,
-      "relative_delta": 28.405981,
+      "direct_value": 0.045663,
+      "recursive_value": 0.206636,
+      "absolute_delta": 0.160973,
+      "relative_delta": 3.525278,
       "winner": "direct"
     },
     {
@@ -26714,14 +26719,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.898844,
-      "MAE": 10.925129,
-      "RMSE": 16.176801,
-      "MAPE": 34.685674,
-      "WAPE": 0.235821,
-      "sMAPE": 0.280849,
-      "RMSLE": 0.353058,
-      "Bias": 2.027552,
-      "BiasRatio": 0.043765,
+      "MAE": 11.225482,
+      "RMSE": 17.445274,
+      "MAPE": 34.944738,
+      "WAPE": 0.242305,
+      "sMAPE": 0.285424,
+      "RMSLE": 0.358407,
+      "Bias": 0.984721,
+      "BiasRatio": 0.021255,
       "n": 311.0,
       "strategy": "direct",
       "horizon": 1,
@@ -26738,14 +26743,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.898844,
-      "MAE": 10.829044,
-      "RMSE": 14.037653,
-      "MAPE": 34.577868,
-      "WAPE": 0.246023,
-      "sMAPE": 0.280344,
-      "RMSLE": 0.346754,
-      "Bias": 2.045031,
-      "BiasRatio": 0.075105,
+      "MAE": 11.13951,
+      "RMSE": 14.641276,
+      "MAPE": 34.884362,
+      "WAPE": 0.248653,
+      "sMAPE": 0.285095,
+      "RMSLE": 0.352603,
+      "Bias": 1.028197,
+      "BiasRatio": 0.057044,
       "n": 25.916667,
       "strategy": "direct",
       "horizon": 1,
@@ -27002,14 +27007,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.898844,
-      "MAE": 10.925129,
-      "RMSE": 16.176801,
-      "MAPE": 34.685674,
-      "WAPE": 0.235821,
-      "sMAPE": 0.280849,
-      "RMSLE": 0.353058,
-      "Bias": 2.027552,
-      "BiasRatio": 0.043765,
+      "MAE": 11.225482,
+      "RMSE": 17.445274,
+      "MAPE": 34.944738,
+      "WAPE": 0.242305,
+      "sMAPE": 0.285424,
+      "RMSLE": 0.358407,
+      "Bias": 0.984721,
+      "BiasRatio": 0.021255,
       "n": 311.0,
       "strategy": "direct",
       "horizon": 1,
@@ -27026,14 +27031,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.898844,
-      "MAE": 10.829044,
-      "RMSE": 14.037653,
-      "MAPE": 34.577868,
-      "WAPE": 0.246023,
-      "sMAPE": 0.280344,
-      "RMSLE": 0.346754,
-      "Bias": 2.045031,
-      "BiasRatio": 0.075105,
+      "MAE": 11.13951,
+      "RMSE": 14.641276,
+      "MAPE": 34.884362,
+      "WAPE": 0.248653,
+      "sMAPE": 0.285095,
+      "RMSLE": 0.352603,
+      "Bias": 1.028197,
+      "BiasRatio": 0.057044,
       "n": 25.916667,
       "strategy": "direct",
       "horizon": 1,
@@ -27290,14 +27295,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.912023,
-      "MAE": 10.925129,
-      "RMSE": 16.176801,
-      "MAPE": 34.685674,
-      "WAPE": 0.235821,
-      "sMAPE": 0.280849,
-      "RMSLE": 0.353058,
-      "Bias": 2.027552,
-      "BiasRatio": 0.043765,
+      "MAE": 11.225482,
+      "RMSE": 17.445274,
+      "MAPE": 34.944738,
+      "WAPE": 0.242305,
+      "sMAPE": 0.285424,
+      "RMSLE": 0.358407,
+      "Bias": 0.984721,
+      "BiasRatio": 0.021255,
       "n": 311.0,
       "strategy": "direct",
       "horizon": 1,
@@ -27314,14 +27319,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.912023,
-      "MAE": 10.829044,
-      "RMSE": 14.037653,
-      "MAPE": 34.577868,
-      "WAPE": 0.246023,
-      "sMAPE": 0.280344,
-      "RMSLE": 0.346754,
-      "Bias": 2.045031,
-      "BiasRatio": 0.075105,
+      "MAE": 11.13951,
+      "RMSE": 14.641276,
+      "MAPE": 34.884362,
+      "WAPE": 0.248653,
+      "sMAPE": 0.285095,
+      "RMSLE": 0.352603,
+      "Bias": 1.028197,
+      "BiasRatio": 0.057044,
       "n": 25.916667,
       "strategy": "direct",
       "horizon": 1,
@@ -27578,14 +27583,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.912023,
-      "MAE": 10.925129,
-      "RMSE": 16.176801,
-      "MAPE": 34.685674,
-      "WAPE": 0.235821,
-      "sMAPE": 0.280849,
-      "RMSLE": 0.353058,
-      "Bias": 2.027552,
-      "BiasRatio": 0.043765,
+      "MAE": 11.225482,
+      "RMSE": 17.445274,
+      "MAPE": 34.944738,
+      "WAPE": 0.242305,
+      "sMAPE": 0.285424,
+      "RMSLE": 0.358407,
+      "Bias": 0.984721,
+      "BiasRatio": 0.021255,
       "n": 311.0,
       "strategy": "direct",
       "horizon": 1,
@@ -27602,14 +27607,14 @@
       "n_predicted": 311,
       "n_scored": 311,
       "coverage": 0.912023,
-      "MAE": 10.829044,
-      "RMSE": 14.037653,
-      "MAPE": 34.577868,
-      "WAPE": 0.246023,
-      "sMAPE": 0.280344,
-      "RMSLE": 0.346754,
-      "Bias": 2.045031,
-      "BiasRatio": 0.075105,
+      "MAE": 11.13951,
+      "RMSE": 14.641276,
+      "MAPE": 34.884362,
+      "WAPE": 0.248653,
+      "sMAPE": 0.285095,
+      "RMSLE": 0.352603,
+      "Bias": 1.028197,
+      "BiasRatio": 0.057044,
       "n": 25.916667,
       "strategy": "direct",
       "horizon": 1,
@@ -27866,14 +27871,14 @@
       "n_predicted": 314,
       "n_scored": 314,
       "coverage": 0.904899,
-      "MAE": 18.959371,
-      "RMSE": 32.547125,
-      "MAPE": 52.208175,
-      "WAPE": 0.337313,
-      "sMAPE": 0.378173,
-      "RMSLE": 0.495983,
-      "Bias": -4.778873,
-      "BiasRatio": -0.085023,
+      "MAE": 19.615453,
+      "RMSE": 34.020993,
+      "MAPE": 53.312703,
+      "WAPE": 0.348986,
+      "sMAPE": 0.388211,
+      "RMSLE": 0.503631,
+      "Bias": -5.223903,
+      "BiasRatio": -0.09294,
       "n": 314.0,
       "strategy": "direct",
       "horizon": 2,
@@ -27890,14 +27895,14 @@
       "n_predicted": 314,
       "n_scored": 314,
       "coverage": 0.904899,
-      "MAE": 18.103019,
-      "RMSE": 23.881743,
-      "MAPE": 50.310199,
-      "WAPE": 0.364502,
-      "sMAPE": 0.368613,
-      "RMSLE": 0.44984,
-      "Bias": -4.210338,
-      "BiasRatio": 0.08886,
+      "MAE": 18.72166,
+      "RMSE": 24.557706,
+      "MAPE": 51.445182,
+      "WAPE": 0.371411,
+      "sMAPE": 0.379021,
+      "RMSLE": 0.456203,
+      "Bias": -4.568285,
+      "BiasRatio": 0.081166,
       "n": 26.166667,
       "strategy": "direct",
       "horizon": 2,
@@ -28154,14 +28159,14 @@
       "n_predicted": 314,
       "n_scored": 314,
       "coverage": 0.904899,
-      "MAE": 18.959371,
-      "RMSE": 32.547125,
-      "MAPE": 52.208175,
-      "WAPE": 0.337313,
-      "sMAPE": 0.378173,
-      "RMSLE": 0.495983,
-      "Bias": -4.778873,
-      "BiasRatio": -0.085023,
+      "MAE": 19.615453,
+      "RMSE": 34.020993,
+      "MAPE": 53.312703,
+      "WAPE": 0.348986,
+      "sMAPE": 0.388211,
+      "RMSLE": 0.503631,
+      "Bias": -5.223903,
+      "BiasRatio": -0.09294,
       "n": 314.0,
       "strategy": "direct",
       "horizon": 2,
@@ -28178,14 +28183,14 @@
       "n_predicted": 314,
       "n_scored": 314,
       "coverage": 0.904899,
-      "MAE": 18.103019,
-      "RMSE": 23.881743,
-      "MAPE": 50.310199,
-      "WAPE": 0.364502,
-      "sMAPE": 0.368613,
-      "RMSLE": 0.44984,
-      "Bias": -4.210338,
-      "BiasRatio": 0.08886,
+      "MAE": 18.72166,
+      "RMSE": 24.557706,
+      "MAPE": 51.445182,
+      "WAPE": 0.371411,
+      "sMAPE": 0.379021,
+      "RMSLE": 0.456203,
+      "Bias": -4.568285,
+      "BiasRatio": 0.081166,
       "n": 26.166667,
       "strategy": "direct",
       "horizon": 2,
@@ -28442,14 +28447,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.917889,
-      "MAE": 18.994914,
-      "RMSE": 32.596068,
-      "MAPE": 51.123478,
-      "WAPE": 0.336908,
-      "sMAPE": 0.375151,
-      "RMSLE": 0.491444,
-      "Bias": -4.819171,
-      "BiasRatio": -0.085476,
+      "MAE": 19.645393,
+      "RMSE": 34.070376,
+      "MAPE": 51.846555,
+      "WAPE": 0.348445,
+      "sMAPE": 0.384856,
+      "RMSLE": 0.497402,
+      "Bias": -5.273322,
+      "BiasRatio": -0.093531,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 2,
@@ -28466,14 +28471,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.917889,
-      "MAE": 18.127731,
-      "RMSE": 23.908405,
-      "MAPE": 49.344007,
-      "WAPE": 0.364093,
-      "sMAPE": 0.365976,
-      "RMSLE": 0.446222,
-      "Bias": -4.266446,
-      "BiasRatio": 0.08839,
+      "MAE": 18.741247,
+      "RMSE": 24.582996,
+      "MAPE": 50.156846,
+      "WAPE": 0.370866,
+      "sMAPE": 0.37608,
+      "RMSLE": 0.451654,
+      "Bias": -4.634136,
+      "BiasRatio": 0.080557,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 2,
@@ -28730,14 +28735,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.917889,
-      "MAE": 18.994914,
-      "RMSE": 32.596068,
-      "MAPE": 51.123478,
-      "WAPE": 0.336908,
-      "sMAPE": 0.375151,
-      "RMSLE": 0.491444,
-      "Bias": -4.819171,
-      "BiasRatio": -0.085476,
+      "MAE": 19.645393,
+      "RMSE": 34.070376,
+      "MAPE": 51.846555,
+      "WAPE": 0.348445,
+      "sMAPE": 0.384856,
+      "RMSLE": 0.497402,
+      "Bias": -5.273322,
+      "BiasRatio": -0.093531,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 2,
@@ -28754,14 +28759,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.917889,
-      "MAE": 18.127731,
-      "RMSE": 23.908405,
-      "MAPE": 49.344007,
-      "WAPE": 0.364093,
-      "sMAPE": 0.365976,
-      "RMSLE": 0.446222,
-      "Bias": -4.266446,
-      "BiasRatio": 0.08839,
+      "MAE": 18.741247,
+      "RMSE": 24.582996,
+      "MAPE": 50.156846,
+      "WAPE": 0.370866,
+      "sMAPE": 0.37608,
+      "RMSLE": 0.451654,
+      "Bias": -4.634136,
+      "BiasRatio": 0.080557,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 2,
@@ -29018,14 +29023,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.832853,
-      "MAE": 13.959767,
-      "RMSE": 23.11676,
-      "MAPE": 80.291309,
-      "WAPE": 0.390511,
-      "sMAPE": 0.391387,
-      "RMSLE": 0.601861,
-      "Bias": 2.795869,
-      "BiasRatio": 0.078212,
+      "MAE": 13.492531,
+      "RMSE": 21.984429,
+      "MAPE": 79.05154,
+      "WAPE": 0.377441,
+      "sMAPE": 0.387562,
+      "RMSLE": 0.595584,
+      "Bias": 2.615342,
+      "BiasRatio": 0.073162,
       "n": 289.0,
       "strategy": "direct",
       "horizon": 3,
@@ -29042,14 +29047,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.832853,
-      "MAE": 13.460827,
-      "RMSE": 18.534868,
-      "MAPE": 76.386554,
-      "WAPE": 0.462025,
-      "sMAPE": 0.385817,
-      "RMSLE": 0.508215,
-      "Bias": 2.469223,
-      "BiasRatio": 0.23815,
+      "MAE": 13.054838,
+      "RMSE": 17.815015,
+      "MAPE": 75.555439,
+      "WAPE": 0.443604,
+      "sMAPE": 0.383118,
+      "RMSLE": 0.507199,
+      "Bias": 2.339052,
+      "BiasRatio": 0.226804,
       "n": 26.272727,
       "strategy": "direct",
       "horizon": 3,
@@ -29306,14 +29311,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.832853,
-      "MAE": 13.959767,
-      "RMSE": 23.11676,
-      "MAPE": 80.291309,
-      "WAPE": 0.390511,
-      "sMAPE": 0.391387,
-      "RMSLE": 0.601861,
-      "Bias": 2.795869,
-      "BiasRatio": 0.078212,
+      "MAE": 13.492531,
+      "RMSE": 21.984429,
+      "MAPE": 79.05154,
+      "WAPE": 0.377441,
+      "sMAPE": 0.387562,
+      "RMSLE": 0.595584,
+      "Bias": 2.615342,
+      "BiasRatio": 0.073162,
       "n": 289.0,
       "strategy": "direct",
       "horizon": 3,
@@ -29330,14 +29335,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.832853,
-      "MAE": 13.460827,
-      "RMSE": 18.534868,
-      "MAPE": 76.386554,
-      "WAPE": 0.462025,
-      "sMAPE": 0.385817,
-      "RMSLE": 0.508215,
-      "Bias": 2.469223,
-      "BiasRatio": 0.23815,
+      "MAE": 13.054838,
+      "RMSE": 17.815015,
+      "MAPE": 75.555439,
+      "WAPE": 0.443604,
+      "sMAPE": 0.383118,
+      "RMSLE": 0.507199,
+      "Bias": 2.339052,
+      "BiasRatio": 0.226804,
       "n": 26.272727,
       "strategy": "direct",
       "horizon": 3,
@@ -29594,14 +29599,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.845029,
-      "MAE": 13.959767,
-      "RMSE": 23.11676,
-      "MAPE": 80.291309,
-      "WAPE": 0.390511,
-      "sMAPE": 0.391387,
-      "RMSLE": 0.601861,
-      "Bias": 2.795869,
-      "BiasRatio": 0.078212,
+      "MAE": 13.492531,
+      "RMSE": 21.984429,
+      "MAPE": 79.05154,
+      "WAPE": 0.377441,
+      "sMAPE": 0.387562,
+      "RMSLE": 0.595584,
+      "Bias": 2.615342,
+      "BiasRatio": 0.073162,
       "n": 289.0,
       "strategy": "direct",
       "horizon": 3,
@@ -29618,14 +29623,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.845029,
-      "MAE": 13.460827,
-      "RMSE": 18.534868,
-      "MAPE": 76.386554,
-      "WAPE": 0.462025,
-      "sMAPE": 0.385817,
-      "RMSLE": 0.508215,
-      "Bias": 2.469223,
-      "BiasRatio": 0.23815,
+      "MAE": 13.054838,
+      "RMSE": 17.815015,
+      "MAPE": 75.555439,
+      "WAPE": 0.443604,
+      "sMAPE": 0.383118,
+      "RMSLE": 0.507199,
+      "Bias": 2.339052,
+      "BiasRatio": 0.226804,
       "n": 26.272727,
       "strategy": "direct",
       "horizon": 3,
@@ -29882,14 +29887,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.845029,
-      "MAE": 13.959767,
-      "RMSE": 23.11676,
-      "MAPE": 80.291309,
-      "WAPE": 0.390511,
-      "sMAPE": 0.391387,
-      "RMSLE": 0.601861,
-      "Bias": 2.795869,
-      "BiasRatio": 0.078212,
+      "MAE": 13.492531,
+      "RMSE": 21.984429,
+      "MAPE": 79.05154,
+      "WAPE": 0.377441,
+      "sMAPE": 0.387562,
+      "RMSLE": 0.595584,
+      "Bias": 2.615342,
+      "BiasRatio": 0.073162,
       "n": 289.0,
       "strategy": "direct",
       "horizon": 3,
@@ -29906,14 +29911,14 @@
       "n_predicted": 289,
       "n_scored": 289,
       "coverage": 0.845029,
-      "MAE": 13.460827,
-      "RMSE": 18.534868,
-      "MAPE": 76.386554,
-      "WAPE": 0.462025,
-      "sMAPE": 0.385817,
-      "RMSLE": 0.508215,
-      "Bias": 2.469223,
-      "BiasRatio": 0.23815,
+      "MAE": 13.054838,
+      "RMSE": 17.815015,
+      "MAPE": 75.555439,
+      "WAPE": 0.443604,
+      "sMAPE": 0.383118,
+      "RMSLE": 0.507199,
+      "Bias": 2.339052,
+      "BiasRatio": 0.226804,
       "n": 26.272727,
       "strategy": "direct",
       "horizon": 3,
@@ -30170,14 +30175,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.902017,
-      "MAE": 16.252726,
-      "RMSE": 24.101712,
-      "MAPE": 116.206801,
-      "WAPE": 0.47256,
-      "sMAPE": 0.499218,
-      "RMSLE": 0.741813,
-      "Bias": 6.364359,
-      "BiasRatio": 0.185048,
+      "MAE": 15.834637,
+      "RMSE": 22.983214,
+      "MAPE": 118.187809,
+      "WAPE": 0.460403,
+      "sMAPE": 0.492759,
+      "RMSLE": 0.74492,
+      "Bias": 6.885579,
+      "BiasRatio": 0.200203,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 4,
@@ -30194,14 +30199,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.902017,
-      "MAE": 15.843566,
-      "RMSE": 21.009476,
-      "MAPE": 113.61304,
-      "WAPE": 0.760715,
-      "sMAPE": 0.497626,
-      "RMSLE": 0.632883,
-      "Bias": 6.042436,
-      "BiasRatio": 0.55122,
+      "MAE": 15.444531,
+      "RMSE": 20.078478,
+      "MAPE": 115.759457,
+      "WAPE": 0.745237,
+      "sMAPE": 0.491152,
+      "RMSLE": 0.630103,
+      "Bias": 6.52376,
+      "BiasRatio": 0.552996,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 4,
@@ -30458,14 +30463,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.902017,
-      "MAE": 16.252726,
-      "RMSE": 24.101712,
-      "MAPE": 116.206801,
-      "WAPE": 0.47256,
-      "sMAPE": 0.499218,
-      "RMSLE": 0.741813,
-      "Bias": 6.364359,
-      "BiasRatio": 0.185048,
+      "MAE": 15.834637,
+      "RMSE": 22.983214,
+      "MAPE": 118.187809,
+      "WAPE": 0.460403,
+      "sMAPE": 0.492759,
+      "RMSLE": 0.74492,
+      "Bias": 6.885579,
+      "BiasRatio": 0.200203,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 4,
@@ -30482,14 +30487,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.902017,
-      "MAE": 15.843566,
-      "RMSE": 21.009476,
-      "MAPE": 113.61304,
-      "WAPE": 0.760715,
-      "sMAPE": 0.497626,
-      "RMSLE": 0.632883,
-      "Bias": 6.042436,
-      "BiasRatio": 0.55122,
+      "MAE": 15.444531,
+      "RMSE": 20.078478,
+      "MAPE": 115.759457,
+      "WAPE": 0.745237,
+      "sMAPE": 0.491152,
+      "RMSLE": 0.630103,
+      "Bias": 6.52376,
+      "BiasRatio": 0.552996,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 4,
@@ -30746,14 +30751,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 16.252726,
-      "RMSE": 24.101712,
-      "MAPE": 116.206801,
-      "WAPE": 0.47256,
-      "sMAPE": 0.499218,
-      "RMSLE": 0.741813,
-      "Bias": 6.364359,
-      "BiasRatio": 0.185048,
+      "MAE": 15.834637,
+      "RMSE": 22.983214,
+      "MAPE": 118.187809,
+      "WAPE": 0.460403,
+      "sMAPE": 0.492759,
+      "RMSLE": 0.74492,
+      "Bias": 6.885579,
+      "BiasRatio": 0.200203,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 4,
@@ -30770,14 +30775,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 15.843566,
-      "RMSE": 21.009476,
-      "MAPE": 113.61304,
-      "WAPE": 0.760715,
-      "sMAPE": 0.497626,
-      "RMSLE": 0.632883,
-      "Bias": 6.042436,
-      "BiasRatio": 0.55122,
+      "MAE": 15.444531,
+      "RMSE": 20.078478,
+      "MAPE": 115.759457,
+      "WAPE": 0.745237,
+      "sMAPE": 0.491152,
+      "RMSLE": 0.630103,
+      "Bias": 6.52376,
+      "BiasRatio": 0.552996,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 4,
@@ -31034,14 +31039,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 16.252726,
-      "RMSE": 24.101712,
-      "MAPE": 116.206801,
-      "WAPE": 0.47256,
-      "sMAPE": 0.499218,
-      "RMSLE": 0.741813,
-      "Bias": 6.364359,
-      "BiasRatio": 0.185048,
+      "MAE": 15.834637,
+      "RMSE": 22.983214,
+      "MAPE": 118.187809,
+      "WAPE": 0.460403,
+      "sMAPE": 0.492759,
+      "RMSLE": 0.74492,
+      "Bias": 6.885579,
+      "BiasRatio": 0.200203,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 4,
@@ -31058,14 +31063,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 15.843566,
-      "RMSE": 21.009476,
-      "MAPE": 113.61304,
-      "WAPE": 0.760715,
-      "sMAPE": 0.497626,
-      "RMSLE": 0.632883,
-      "Bias": 6.042436,
-      "BiasRatio": 0.55122,
+      "MAE": 15.444531,
+      "RMSE": 20.078478,
+      "MAPE": 115.759457,
+      "WAPE": 0.745237,
+      "sMAPE": 0.491152,
+      "RMSLE": 0.630103,
+      "Bias": 6.52376,
+      "BiasRatio": 0.552996,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 4,
@@ -31322,14 +31327,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.899135,
-      "MAE": 17.653402,
-      "RMSE": 28.262985,
-      "MAPE": 98.345771,
-      "WAPE": 0.451279,
-      "sMAPE": 0.49742,
-      "RMSLE": 0.696608,
-      "Bias": 2.55004,
-      "BiasRatio": 0.065187,
+      "MAE": 17.82453,
+      "RMSE": 27.422136,
+      "MAPE": 101.487145,
+      "WAPE": 0.455654,
+      "sMAPE": 0.503697,
+      "RMSLE": 0.707692,
+      "Bias": 3.085601,
+      "BiasRatio": 0.078878,
       "n": 312.0,
       "strategy": "direct",
       "horizon": 5,
@@ -31346,14 +31351,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.899135,
-      "MAE": 17.460796,
-      "RMSE": 23.048149,
-      "MAPE": 96.741683,
-      "WAPE": 0.612785,
-      "sMAPE": 0.497467,
-      "RMSLE": 0.634732,
-      "Bias": 1.933817,
-      "BiasRatio": 0.353402,
+      "MAE": 17.60954,
+      "RMSE": 22.793349,
+      "MAPE": 99.745092,
+      "WAPE": 0.627151,
+      "sMAPE": 0.50397,
+      "RMSLE": 0.642642,
+      "Bias": 2.377398,
+      "BiasRatio": 0.369915,
       "n": 26.0,
       "strategy": "direct",
       "horizon": 5,
@@ -31610,14 +31615,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.899135,
-      "MAE": 17.653402,
-      "RMSE": 28.262985,
-      "MAPE": 98.345771,
-      "WAPE": 0.451279,
-      "sMAPE": 0.49742,
-      "RMSLE": 0.696608,
-      "Bias": 2.55004,
-      "BiasRatio": 0.065187,
+      "MAE": 17.82453,
+      "RMSE": 27.422136,
+      "MAPE": 101.487145,
+      "WAPE": 0.455654,
+      "sMAPE": 0.503697,
+      "RMSLE": 0.707692,
+      "Bias": 3.085601,
+      "BiasRatio": 0.078878,
       "n": 312.0,
       "strategy": "direct",
       "horizon": 5,
@@ -31634,14 +31639,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.899135,
-      "MAE": 17.460796,
-      "RMSE": 23.048149,
-      "MAPE": 96.741683,
-      "WAPE": 0.612785,
-      "sMAPE": 0.497467,
-      "RMSLE": 0.634732,
-      "Bias": 1.933817,
-      "BiasRatio": 0.353402,
+      "MAE": 17.60954,
+      "RMSE": 22.793349,
+      "MAPE": 99.745092,
+      "WAPE": 0.627151,
+      "sMAPE": 0.50397,
+      "RMSLE": 0.642642,
+      "Bias": 2.377398,
+      "BiasRatio": 0.369915,
       "n": 26.0,
       "strategy": "direct",
       "horizon": 5,
@@ -31898,14 +31903,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.912281,
-      "MAE": 17.653402,
-      "RMSE": 28.262985,
-      "MAPE": 98.345771,
-      "WAPE": 0.451279,
-      "sMAPE": 0.49742,
-      "RMSLE": 0.696608,
-      "Bias": 2.55004,
-      "BiasRatio": 0.065187,
+      "MAE": 17.82453,
+      "RMSE": 27.422136,
+      "MAPE": 101.487145,
+      "WAPE": 0.455654,
+      "sMAPE": 0.503697,
+      "RMSLE": 0.707692,
+      "Bias": 3.085601,
+      "BiasRatio": 0.078878,
       "n": 312.0,
       "strategy": "direct",
       "horizon": 5,
@@ -31922,14 +31927,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.912281,
-      "MAE": 17.460796,
-      "RMSE": 23.048149,
-      "MAPE": 96.741683,
-      "WAPE": 0.612785,
-      "sMAPE": 0.497467,
-      "RMSLE": 0.634732,
-      "Bias": 1.933817,
-      "BiasRatio": 0.353402,
+      "MAE": 17.60954,
+      "RMSE": 22.793349,
+      "MAPE": 99.745092,
+      "WAPE": 0.627151,
+      "sMAPE": 0.50397,
+      "RMSLE": 0.642642,
+      "Bias": 2.377398,
+      "BiasRatio": 0.369915,
       "n": 26.0,
       "strategy": "direct",
       "horizon": 5,
@@ -32186,14 +32191,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.912281,
-      "MAE": 17.653402,
-      "RMSE": 28.262985,
-      "MAPE": 98.345771,
-      "WAPE": 0.451279,
-      "sMAPE": 0.49742,
-      "RMSLE": 0.696608,
-      "Bias": 2.55004,
-      "BiasRatio": 0.065187,
+      "MAE": 17.82453,
+      "RMSE": 27.422136,
+      "MAPE": 101.487145,
+      "WAPE": 0.455654,
+      "sMAPE": 0.503697,
+      "RMSLE": 0.707692,
+      "Bias": 3.085601,
+      "BiasRatio": 0.078878,
       "n": 312.0,
       "strategy": "direct",
       "horizon": 5,
@@ -32210,14 +32215,14 @@
       "n_predicted": 312,
       "n_scored": 312,
       "coverage": 0.912281,
-      "MAE": 17.460796,
-      "RMSE": 23.048149,
-      "MAPE": 96.741683,
-      "WAPE": 0.612785,
-      "sMAPE": 0.497467,
-      "RMSLE": 0.634732,
-      "Bias": 1.933817,
-      "BiasRatio": 0.353402,
+      "MAE": 17.60954,
+      "RMSE": 22.793349,
+      "MAPE": 99.745092,
+      "WAPE": 0.627151,
+      "sMAPE": 0.50397,
+      "RMSLE": 0.642642,
+      "Bias": 2.377398,
+      "BiasRatio": 0.369915,
       "n": 26.0,
       "strategy": "direct",
       "horizon": 5,
@@ -32474,14 +32479,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.904624,
-      "MAE": 14.677762,
-      "RMSE": 21.34412,
-      "MAPE": 110.575256,
-      "WAPE": 0.393637,
-      "sMAPE": 0.439978,
-      "RMSLE": 0.708532,
-      "Bias": 3.526985,
-      "BiasRatio": 0.094589,
+      "MAE": 15.119273,
+      "RMSE": 21.382455,
+      "MAPE": 118.829055,
+      "WAPE": 0.405478,
+      "sMAPE": 0.456119,
+      "RMSLE": 0.732672,
+      "Bias": 3.878189,
+      "BiasRatio": 0.104008,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 6,
@@ -32498,14 +32503,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.904624,
-      "MAE": 14.584798,
-      "RMSE": 19.424137,
-      "MAPE": 111.44078,
-      "WAPE": 0.671114,
-      "sMAPE": 0.44183,
-      "RMSLE": 0.601724,
-      "Bias": 3.090045,
-      "BiasRatio": 0.418559,
+      "MAE": 15.027086,
+      "RMSE": 19.480683,
+      "MAPE": 119.951528,
+      "WAPE": 0.711221,
+      "sMAPE": 0.457872,
+      "RMSLE": 0.617152,
+      "Bias": 3.382543,
+      "BiasRatio": 0.45055,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 6,
@@ -32762,14 +32767,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.904624,
-      "MAE": 14.677762,
-      "RMSE": 21.34412,
-      "MAPE": 110.575256,
-      "WAPE": 0.393637,
-      "sMAPE": 0.439978,
-      "RMSLE": 0.708532,
-      "Bias": 3.526985,
-      "BiasRatio": 0.094589,
+      "MAE": 15.119273,
+      "RMSE": 21.382455,
+      "MAPE": 118.829055,
+      "WAPE": 0.405478,
+      "sMAPE": 0.456119,
+      "RMSLE": 0.732672,
+      "Bias": 3.878189,
+      "BiasRatio": 0.104008,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 6,
@@ -32786,14 +32791,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.904624,
-      "MAE": 14.584798,
-      "RMSE": 19.424137,
-      "MAPE": 111.44078,
-      "WAPE": 0.671114,
-      "sMAPE": 0.44183,
-      "RMSLE": 0.601724,
-      "Bias": 3.090045,
-      "BiasRatio": 0.418559,
+      "MAE": 15.027086,
+      "RMSE": 19.480683,
+      "MAPE": 119.951528,
+      "WAPE": 0.711221,
+      "sMAPE": 0.457872,
+      "RMSLE": 0.617152,
+      "Bias": 3.382543,
+      "BiasRatio": 0.45055,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 6,
@@ -33050,14 +33055,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 14.677762,
-      "RMSE": 21.34412,
-      "MAPE": 110.575256,
-      "WAPE": 0.393637,
-      "sMAPE": 0.439978,
-      "RMSLE": 0.708532,
-      "Bias": 3.526985,
-      "BiasRatio": 0.094589,
+      "MAE": 15.119273,
+      "RMSE": 21.382455,
+      "MAPE": 118.829055,
+      "WAPE": 0.405478,
+      "sMAPE": 0.456119,
+      "RMSLE": 0.732672,
+      "Bias": 3.878189,
+      "BiasRatio": 0.104008,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 6,
@@ -33074,14 +33079,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 14.584798,
-      "RMSE": 19.424137,
-      "MAPE": 111.44078,
-      "WAPE": 0.671114,
-      "sMAPE": 0.44183,
-      "RMSLE": 0.601724,
-      "Bias": 3.090045,
-      "BiasRatio": 0.418559,
+      "MAE": 15.027086,
+      "RMSE": 19.480683,
+      "MAPE": 119.951528,
+      "WAPE": 0.711221,
+      "sMAPE": 0.457872,
+      "RMSLE": 0.617152,
+      "Bias": 3.382543,
+      "BiasRatio": 0.45055,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 6,
@@ -33338,14 +33343,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 14.677762,
-      "RMSE": 21.34412,
-      "MAPE": 110.575256,
-      "WAPE": 0.393637,
-      "sMAPE": 0.439978,
-      "RMSLE": 0.708532,
-      "Bias": 3.526985,
-      "BiasRatio": 0.094589,
+      "MAE": 15.119273,
+      "RMSE": 21.382455,
+      "MAPE": 118.829055,
+      "WAPE": 0.405478,
+      "sMAPE": 0.456119,
+      "RMSLE": 0.732672,
+      "Bias": 3.878189,
+      "BiasRatio": 0.104008,
       "n": 313.0,
       "strategy": "direct",
       "horizon": 6,
@@ -33362,14 +33367,14 @@
       "n_predicted": 313,
       "n_scored": 313,
       "coverage": 0.915205,
-      "MAE": 14.584798,
-      "RMSE": 19.424137,
-      "MAPE": 111.44078,
-      "WAPE": 0.671114,
-      "sMAPE": 0.44183,
-      "RMSLE": 0.601724,
-      "Bias": 3.090045,
-      "BiasRatio": 0.418559,
+      "MAE": 15.027086,
+      "RMSE": 19.480683,
+      "MAPE": 119.951528,
+      "WAPE": 0.711221,
+      "sMAPE": 0.457872,
+      "RMSLE": 0.617152,
+      "Bias": 3.382543,
+      "BiasRatio": 0.45055,
       "n": 26.083333,
       "strategy": "direct",
       "horizon": 6,
@@ -33626,14 +33631,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.907781,
-      "MAE": 17.863973,
-      "RMSE": 31.103018,
-      "MAPE": 112.339409,
-      "WAPE": 0.398016,
-      "sMAPE": 0.443171,
-      "RMSLE": 0.700961,
-      "Bias": 1.253856,
-      "BiasRatio": 0.027936,
+      "MAE": 17.82765,
+      "RMSE": 30.517567,
+      "MAPE": 117.862202,
+      "WAPE": 0.397207,
+      "sMAPE": 0.446071,
+      "RMSLE": 0.714495,
+      "Bias": 1.331827,
+      "BiasRatio": 0.029674,
       "n": 315.0,
       "strategy": "direct",
       "horizon": 7,
@@ -33650,14 +33655,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.907781,
-      "MAE": 18.114651,
-      "RMSE": 23.737162,
-      "MAPE": 112.807146,
-      "WAPE": 0.552859,
-      "sMAPE": 0.449322,
-      "RMSLE": 0.617136,
-      "Bias": 0.763511,
-      "BiasRatio": 0.305514,
+      "MAE": 18.022528,
+      "RMSE": 23.395219,
+      "MAPE": 118.241196,
+      "WAPE": 0.565288,
+      "sMAPE": 0.451063,
+      "RMSLE": 0.622571,
+      "Bias": 0.816621,
+      "BiasRatio": 0.312843,
       "n": 26.25,
       "strategy": "direct",
       "horizon": 7,
@@ -33914,14 +33919,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.907781,
-      "MAE": 17.863973,
-      "RMSE": 31.103018,
-      "MAPE": 112.339409,
-      "WAPE": 0.398016,
-      "sMAPE": 0.443171,
-      "RMSLE": 0.700961,
-      "Bias": 1.253856,
-      "BiasRatio": 0.027936,
+      "MAE": 17.82765,
+      "RMSE": 30.517567,
+      "MAPE": 117.862202,
+      "WAPE": 0.397207,
+      "sMAPE": 0.446071,
+      "RMSLE": 0.714495,
+      "Bias": 1.331827,
+      "BiasRatio": 0.029674,
       "n": 315.0,
       "strategy": "direct",
       "horizon": 7,
@@ -33938,14 +33943,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.907781,
-      "MAE": 18.114651,
-      "RMSE": 23.737162,
-      "MAPE": 112.807146,
-      "WAPE": 0.552859,
-      "sMAPE": 0.449322,
-      "RMSLE": 0.617136,
-      "Bias": 0.763511,
-      "BiasRatio": 0.305514,
+      "MAE": 18.022528,
+      "RMSE": 23.395219,
+      "MAPE": 118.241196,
+      "WAPE": 0.565288,
+      "sMAPE": 0.451063,
+      "RMSLE": 0.622571,
+      "Bias": 0.816621,
+      "BiasRatio": 0.312843,
       "n": 26.25,
       "strategy": "direct",
       "horizon": 7,
@@ -34202,14 +34207,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.918367,
-      "MAE": 17.863973,
-      "RMSE": 31.103018,
-      "MAPE": 112.339409,
-      "WAPE": 0.398016,
-      "sMAPE": 0.443171,
-      "RMSLE": 0.700961,
-      "Bias": 1.253856,
-      "BiasRatio": 0.027936,
+      "MAE": 17.82765,
+      "RMSE": 30.517567,
+      "MAPE": 117.862202,
+      "WAPE": 0.397207,
+      "sMAPE": 0.446071,
+      "RMSLE": 0.714495,
+      "Bias": 1.331827,
+      "BiasRatio": 0.029674,
       "n": 315.0,
       "strategy": "direct",
       "horizon": 7,
@@ -34226,14 +34231,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.918367,
-      "MAE": 18.114651,
-      "RMSE": 23.737162,
-      "MAPE": 112.807146,
-      "WAPE": 0.552859,
-      "sMAPE": 0.449322,
-      "RMSLE": 0.617136,
-      "Bias": 0.763511,
-      "BiasRatio": 0.305514,
+      "MAE": 18.022528,
+      "RMSE": 23.395219,
+      "MAPE": 118.241196,
+      "WAPE": 0.565288,
+      "sMAPE": 0.451063,
+      "RMSLE": 0.622571,
+      "Bias": 0.816621,
+      "BiasRatio": 0.312843,
       "n": 26.25,
       "strategy": "direct",
       "horizon": 7,
@@ -34490,14 +34495,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.918367,
-      "MAE": 17.863973,
-      "RMSE": 31.103018,
-      "MAPE": 112.339409,
-      "WAPE": 0.398016,
-      "sMAPE": 0.443171,
-      "RMSLE": 0.700961,
-      "Bias": 1.253856,
-      "BiasRatio": 0.027936,
+      "MAE": 17.82765,
+      "RMSE": 30.517567,
+      "MAPE": 117.862202,
+      "WAPE": 0.397207,
+      "sMAPE": 0.446071,
+      "RMSLE": 0.714495,
+      "Bias": 1.331827,
+      "BiasRatio": 0.029674,
       "n": 315.0,
       "strategy": "direct",
       "horizon": 7,
@@ -34514,14 +34519,14 @@
       "n_predicted": 315,
       "n_scored": 315,
       "coverage": 0.918367,
-      "MAE": 18.114651,
-      "RMSE": 23.737162,
-      "MAPE": 112.807146,
-      "WAPE": 0.552859,
-      "sMAPE": 0.449322,
-      "RMSLE": 0.617136,
-      "Bias": 0.763511,
-      "BiasRatio": 0.305514,
+      "MAE": 18.022528,
+      "RMSE": 23.395219,
+      "MAPE": 118.241196,
+      "WAPE": 0.565288,
+      "sMAPE": 0.451063,
+      "RMSLE": 0.622571,
+      "Bias": 0.816621,
+      "BiasRatio": 0.312843,
       "n": 26.25,
       "strategy": "direct",
       "horizon": 7,
@@ -34778,14 +34783,14 @@
       "n_predicted": 346,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 11.639051,
-      "RMSE": 18.995751,
-      "MAPE": 64.269985,
-      "WAPE": 0.2592,
-      "sMAPE": 0.295007,
-      "RMSLE": 0.436671,
-      "Bias": 4.204481,
-      "BiasRatio": 0.093633,
+      "MAE": 11.784281,
+      "RMSE": 18.057679,
+      "MAPE": 64.308796,
+      "WAPE": 0.262434,
+      "sMAPE": 0.30113,
+      "RMSLE": 0.438126,
+      "Bias": 3.868324,
+      "BiasRatio": 0.086147,
       "n": 343.0,
       "strategy": "recursive",
       "horizon": 1,
@@ -34802,14 +34807,14 @@
       "n_predicted": 346,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 11.57737,
-      "RMSE": 16.170339,
-      "MAPE": 63.315386,
-      "WAPE": 0.268876,
-      "sMAPE": 0.295275,
-      "RMSLE": 0.415433,
-      "Bias": 4.134669,
-      "BiasRatio": 0.096961,
+      "MAE": 11.729042,
+      "RMSE": 15.919044,
+      "MAPE": 63.479596,
+      "WAPE": 0.276779,
+      "sMAPE": 0.302049,
+      "RMSLE": 0.418044,
+      "Bias": 3.791065,
+      "BiasRatio": 0.099176,
       "n": 28.583333,
       "strategy": "recursive",
       "horizon": 1,
@@ -35066,14 +35071,14 @@
       "n_predicted": 346,
       "n_scored": 346,
       "coverage": 1.0,
-      "MAE": 11.538135,
-      "RMSE": 18.913221,
-      "MAPE": 63.712731,
-      "WAPE": 0.2592,
-      "sMAPE": 0.29245,
-      "RMSLE": 0.434774,
-      "Bias": 4.168026,
-      "BiasRatio": 0.093633,
+      "MAE": 11.682106,
+      "RMSE": 17.979224,
+      "MAPE": 63.751205,
+      "WAPE": 0.262434,
+      "sMAPE": 0.298519,
+      "RMSLE": 0.436223,
+      "Bias": 3.834783,
+      "BiasRatio": 0.086147,
       "n": 346.0,
       "strategy": "recursive",
       "horizon": 1,
@@ -35090,14 +35095,14 @@
       "n_predicted": 346,
       "n_scored": 346,
       "coverage": 1.0,
-      "MAE": 11.454216,
-      "RMSE": 16.075941,
-      "MAPE": 62.877508,
-      "WAPE": 0.268876,
-      "sMAPE": 0.292316,
-      "RMSLE": 0.413315,
-      "Bias": 4.115267,
-      "BiasRatio": 0.096961,
+      "MAE": 11.610956,
+      "RMSE": 15.835075,
+      "MAPE": 63.040861,
+      "WAPE": 0.276779,
+      "sMAPE": 0.299059,
+      "RMSLE": 0.415919,
+      "Bias": 3.796231,
+      "BiasRatio": 0.099176,
       "n": 28.833333,
       "strategy": "recursive",
       "horizon": 1,
@@ -35354,14 +35359,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 11.673103,
-      "RMSE": 19.046133,
-      "MAPE": 61.225625,
-      "WAPE": 0.258459,
-      "sMAPE": 0.286474,
-      "RMSLE": 0.419058,
-      "Bias": 4.194927,
-      "BiasRatio": 0.092882,
+      "MAE": 11.819184,
+      "RMSE": 18.105042,
+      "MAPE": 61.264664,
+      "WAPE": 0.261694,
+      "sMAPE": 0.292633,
+      "RMSLE": 0.420583,
+      "Bias": 3.856799,
+      "BiasRatio": 0.085395,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 1,
@@ -35378,14 +35383,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 11.585181,
-      "RMSE": 16.18975,
-      "MAPE": 59.801712,
-      "WAPE": 0.267388,
-      "sMAPE": 0.286018,
-      "RMSLE": 0.398318,
-      "Bias": 4.098483,
-      "BiasRatio": 0.095445,
+      "MAE": 11.737997,
+      "RMSE": 15.941091,
+      "MAPE": 59.969003,
+      "WAPE": 0.275291,
+      "sMAPE": 0.292819,
+      "RMSLE": 0.401147,
+      "Bias": 3.753027,
+      "BiasRatio": 0.097658,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 1,
@@ -35642,14 +35647,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 11.673103,
-      "RMSE": 19.046133,
-      "MAPE": 61.225625,
-      "WAPE": 0.258459,
-      "sMAPE": 0.286474,
-      "RMSLE": 0.419058,
-      "Bias": 4.194927,
-      "BiasRatio": 0.092882,
+      "MAE": 11.819184,
+      "RMSE": 18.105042,
+      "MAPE": 61.264664,
+      "WAPE": 0.261694,
+      "sMAPE": 0.292633,
+      "RMSLE": 0.420583,
+      "Bias": 3.856799,
+      "BiasRatio": 0.085395,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 1,
@@ -35666,14 +35671,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 11.585181,
-      "RMSE": 16.18975,
-      "MAPE": 59.801712,
-      "WAPE": 0.267388,
-      "sMAPE": 0.286018,
-      "RMSLE": 0.398318,
-      "Bias": 4.098483,
-      "BiasRatio": 0.095445,
+      "MAE": 11.737997,
+      "RMSE": 15.941091,
+      "MAPE": 59.969003,
+      "WAPE": 0.275291,
+      "sMAPE": 0.292819,
+      "RMSLE": 0.401147,
+      "Bias": 3.753027,
+      "BiasRatio": 0.097658,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 1,
@@ -35930,14 +35935,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 16.455978,
-      "RMSE": 25.673446,
-      "MAPE": 67.063194,
-      "WAPE": 0.301591,
-      "sMAPE": 0.389353,
-      "RMSLE": 0.582933,
-      "Bias": 3.463055,
-      "BiasRatio": 0.063468,
+      "MAE": 16.561533,
+      "RMSE": 25.501394,
+      "MAPE": 66.670244,
+      "WAPE": 0.303525,
+      "sMAPE": 0.393795,
+      "RMSLE": 0.583503,
+      "Bias": 2.703645,
+      "BiasRatio": 0.04955,
       "n": 344.0,
       "strategy": "recursive",
       "horizon": 2,
@@ -35954,14 +35959,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 16.14676,
-      "RMSE": 21.464445,
-      "MAPE": 66.329563,
-      "WAPE": 0.399538,
-      "sMAPE": 0.389792,
-      "RMSLE": 0.545264,
-      "Bias": 3.373312,
-      "BiasRatio": 0.195344,
+      "MAE": 16.27945,
+      "RMSE": 21.558447,
+      "MAPE": 66.111291,
+      "WAPE": 0.405772,
+      "sMAPE": 0.394994,
+      "RMSLE": 0.549527,
+      "Bias": 2.640011,
+      "BiasRatio": 0.195377,
       "n": 28.666667,
       "strategy": "recursive",
       "horizon": 2,
@@ -36218,14 +36223,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 16.313708,
-      "RMSE": 25.562225,
-      "MAPE": 66.483397,
-      "WAPE": 0.301591,
-      "sMAPE": 0.385987,
-      "RMSLE": 0.580407,
-      "Bias": 3.433115,
-      "BiasRatio": 0.063468,
+      "MAE": 16.41835,
+      "RMSE": 25.390918,
+      "MAPE": 66.093844,
+      "WAPE": 0.303525,
+      "sMAPE": 0.39039,
+      "RMSLE": 0.580975,
+      "Bias": 2.680271,
+      "BiasRatio": 0.04955,
       "n": 347.0,
       "strategy": "recursive",
       "horizon": 2,
@@ -36242,14 +36247,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 16.041066,
-      "RMSE": 21.393486,
-      "MAPE": 65.888964,
-      "WAPE": 0.399538,
-      "sMAPE": 0.386277,
-      "RMSLE": 0.542512,
-      "Bias": 3.372156,
-      "BiasRatio": 0.195344,
+      "MAE": 16.173106,
+      "RMSE": 21.489038,
+      "MAPE": 65.674269,
+      "WAPE": 0.405772,
+      "sMAPE": 0.391471,
+      "RMSLE": 0.546764,
+      "Bias": 2.660822,
+      "BiasRatio": 0.195377,
       "n": 28.916667,
       "strategy": "recursive",
       "horizon": 2,
@@ -36506,14 +36511,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 16.582211,
-      "RMSE": 25.785302,
-      "MAPE": 66.01395,
-      "WAPE": 0.301318,
-      "sMAPE": 0.384863,
-      "RMSLE": 0.581901,
-      "Bias": 3.474981,
-      "BiasRatio": 0.063144,
+      "MAE": 16.6902,
+      "RMSE": 25.61256,
+      "MAPE": 65.692782,
+      "WAPE": 0.30328,
+      "sMAPE": 0.389788,
+      "RMSLE": 0.582684,
+      "Bias": 2.710395,
+      "BiasRatio": 0.049251,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 2,
@@ -36530,14 +36535,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 16.214679,
-      "RMSE": 21.519812,
-      "MAPE": 65.023101,
-      "WAPE": 0.398745,
-      "sMAPE": 0.384865,
-      "RMSLE": 0.54265,
-      "Bias": 3.32294,
-      "BiasRatio": 0.194426,
+      "MAE": 16.35063,
+      "RMSE": 21.61403,
+      "MAPE": 64.852178,
+      "WAPE": 0.405001,
+      "sMAPE": 0.390515,
+      "RMSLE": 0.547175,
+      "Bias": 2.587245,
+      "BiasRatio": 0.194476,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 2,
@@ -36794,14 +36799,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 16.582211,
-      "RMSE": 25.785302,
-      "MAPE": 66.01395,
-      "WAPE": 0.301318,
-      "sMAPE": 0.384863,
-      "RMSLE": 0.581901,
-      "Bias": 3.474981,
-      "BiasRatio": 0.063144,
+      "MAE": 16.6902,
+      "RMSE": 25.61256,
+      "MAPE": 65.692782,
+      "WAPE": 0.30328,
+      "sMAPE": 0.389788,
+      "RMSLE": 0.582684,
+      "Bias": 2.710395,
+      "BiasRatio": 0.049251,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 2,
@@ -36818,14 +36823,14 @@
       "n_predicted": 341,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 16.214679,
-      "RMSE": 21.519812,
-      "MAPE": 65.023101,
-      "WAPE": 0.398745,
-      "sMAPE": 0.384865,
-      "RMSLE": 0.54265,
-      "Bias": 3.32294,
-      "BiasRatio": 0.194426,
+      "MAE": 16.35063,
+      "RMSE": 21.61403,
+      "MAPE": 64.852178,
+      "WAPE": 0.405001,
+      "sMAPE": 0.390515,
+      "RMSLE": 0.547175,
+      "Bias": 2.587245,
+      "BiasRatio": 0.194476,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 2,
@@ -37082,14 +37087,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 17.077299,
-      "RMSE": 29.435499,
-      "MAPE": 108.228933,
-      "WAPE": 0.501587,
-      "sMAPE": 0.466328,
-      "RMSLE": 0.726826,
-      "Bias": 12.178637,
-      "BiasRatio": 0.357706,
+      "MAE": 16.963176,
+      "RMSE": 26.707912,
+      "MAPE": 109.600233,
+      "WAPE": 0.498235,
+      "sMAPE": 0.474729,
+      "RMSLE": 0.731733,
+      "Bias": 11.870724,
+      "BiasRatio": 0.348662,
       "n": 344.0,
       "strategy": "recursive",
       "horizon": 3,
@@ -37106,14 +37111,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 16.807537,
-      "RMSE": 23.623649,
-      "MAPE": 106.284841,
-      "WAPE": 0.570572,
-      "sMAPE": 0.464621,
-      "RMSLE": 0.668327,
-      "Bias": 11.854854,
-      "BiasRatio": 0.431766,
+      "MAE": 16.663486,
+      "RMSE": 22.32059,
+      "MAPE": 107.751584,
+      "WAPE": 0.584312,
+      "sMAPE": 0.473422,
+      "RMSLE": 0.675439,
+      "Bias": 11.51888,
+      "BiasRatio": 0.44616,
       "n": 28.666667,
       "strategy": "recursive",
       "horizon": 3,
@@ -37370,14 +37375,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 16.929656,
-      "RMSE": 29.30798,
-      "MAPE": 107.293236,
-      "WAPE": 0.501587,
-      "sMAPE": 0.462296,
-      "RMSLE": 0.723677,
-      "Bias": 12.073346,
-      "BiasRatio": 0.357706,
+      "MAE": 16.81652,
+      "RMSE": 26.59221,
+      "MAPE": 108.652681,
+      "WAPE": 0.498235,
+      "sMAPE": 0.470624,
+      "RMSLE": 0.728563,
+      "Bias": 11.768095,
+      "BiasRatio": 0.348662,
       "n": 347.0,
       "strategy": "recursive",
       "horizon": 3,
@@ -37394,14 +37399,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 16.671536,
-      "RMSE": 23.50276,
-      "MAPE": 105.66075,
-      "WAPE": 0.570572,
-      "sMAPE": 0.460755,
-      "RMSLE": 0.66515,
-      "Bias": 11.798461,
-      "BiasRatio": 0.431766,
+      "MAE": 16.551385,
+      "RMSE": 22.236891,
+      "MAPE": 107.138503,
+      "WAPE": 0.584312,
+      "sMAPE": 0.469597,
+      "RMSLE": 0.672287,
+      "Bias": 11.496785,
+      "BiasRatio": 0.44616,
       "n": 28.916667,
       "strategy": "recursive",
       "horizon": 3,
@@ -37658,14 +37663,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 17.130382,
-      "RMSE": 29.512626,
-      "MAPE": 104.183488,
-      "WAPE": 0.500221,
-      "sMAPE": 0.457359,
-      "RMSLE": 0.710902,
-      "Bias": 12.203073,
-      "BiasRatio": 0.35634,
+      "MAE": 17.015592,
+      "RMSE": 26.776175,
+      "MAPE": 105.562807,
+      "WAPE": 0.496869,
+      "sMAPE": 0.465809,
+      "RMSLE": 0.715948,
+      "Bias": 11.89336,
+      "BiasRatio": 0.347296,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 3,
@@ -37682,14 +37687,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 16.796642,
-      "RMSE": 23.61957,
-      "MAPE": 101.656318,
-      "WAPE": 0.568056,
-      "sMAPE": 0.454433,
-      "RMSLE": 0.647359,
-      "Bias": 11.81566,
-      "BiasRatio": 0.42925,
+      "MAE": 16.653193,
+      "RMSE": 22.316751,
+      "MAPE": 103.124627,
+      "WAPE": 0.581796,
+      "sMAPE": 0.463268,
+      "RMSLE": 0.654519,
+      "Bias": 11.47741,
+      "BiasRatio": 0.443643,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 3,
@@ -37946,14 +37951,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 17.130382,
-      "RMSE": 29.512626,
-      "MAPE": 104.183488,
-      "WAPE": 0.500221,
-      "sMAPE": 0.457359,
-      "RMSLE": 0.710902,
-      "Bias": 12.203073,
-      "BiasRatio": 0.35634,
+      "MAE": 17.015592,
+      "RMSE": 26.776175,
+      "MAPE": 105.562807,
+      "WAPE": 0.496869,
+      "sMAPE": 0.465809,
+      "RMSLE": 0.715948,
+      "Bias": 11.89336,
+      "BiasRatio": 0.347296,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 3,
@@ -37970,14 +37975,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 16.796642,
-      "RMSE": 23.61957,
-      "MAPE": 101.656318,
-      "WAPE": 0.568056,
-      "sMAPE": 0.454433,
-      "RMSLE": 0.647359,
-      "Bias": 11.81566,
-      "BiasRatio": 0.42925,
+      "MAE": 16.653193,
+      "RMSE": 22.316751,
+      "MAPE": 103.124627,
+      "WAPE": 0.581796,
+      "sMAPE": 0.463268,
+      "RMSLE": 0.654519,
+      "Bias": 11.47741,
+      "BiasRatio": 0.443643,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 3,
@@ -38234,14 +38239,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 21.812531,
-      "RMSE": 40.272374,
-      "MAPE": 156.334814,
-      "WAPE": 0.657338,
-      "sMAPE": 0.57798,
-      "RMSLE": 0.893449,
-      "Bias": 16.0991,
-      "BiasRatio": 0.485159,
+      "MAE": 20.971314,
+      "RMSE": 32.664105,
+      "MAPE": 157.272272,
+      "WAPE": 0.631987,
+      "sMAPE": 0.585371,
+      "RMSLE": 0.899229,
+      "Bias": 15.0306,
+      "BiasRatio": 0.452959,
       "n": 344.0,
       "strategy": "recursive",
       "horizon": 4,
@@ -38258,14 +38263,14 @@
       "n_predicted": 347,
       "n_scored": 344,
       "coverage": 1.0,
-      "MAE": 21.479044,
-      "RMSE": 30.418095,
-      "MAPE": 152.046587,
-      "WAPE": 1.000418,
-      "sMAPE": 0.572793,
-      "RMSLE": 0.767637,
-      "Bias": 15.700269,
-      "BiasRatio": 0.845813,
+      "MAE": 20.566299,
+      "RMSE": 26.550567,
+      "MAPE": 153.083863,
+      "WAPE": 1.014376,
+      "sMAPE": 0.580613,
+      "RMSLE": 0.776166,
+      "Bias": 14.555872,
+      "BiasRatio": 0.857262,
       "n": 28.666667,
       "strategy": "recursive",
       "horizon": 4,
@@ -38522,14 +38527,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 21.62395,
-      "RMSE": 40.097908,
-      "MAPE": 154.983216,
-      "WAPE": 0.657338,
-      "sMAPE": 0.572983,
-      "RMSLE": 0.889578,
-      "Bias": 15.959915,
-      "BiasRatio": 0.485159,
+      "MAE": 20.790006,
+      "RMSE": 32.522599,
+      "MAPE": 155.912569,
+      "WAPE": 0.631987,
+      "sMAPE": 0.58031,
+      "RMSLE": 0.895333,
+      "Bias": 14.900653,
+      "BiasRatio": 0.452959,
       "n": 347.0,
       "strategy": "recursive",
       "horizon": 4,
@@ -38546,14 +38551,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 21.2957,
-      "RMSE": 30.241501,
-      "MAPE": 151.464904,
-      "WAPE": 1.000418,
-      "sMAPE": 0.568399,
-      "RMSLE": 0.76443,
-      "Bias": 15.612875,
-      "BiasRatio": 0.845813,
+      "MAE": 20.431636,
+      "RMSE": 26.456195,
+      "MAPE": 152.522618,
+      "WAPE": 1.014376,
+      "sMAPE": 0.57625,
+      "RMSLE": 0.772979,
+      "Bias": 14.527301,
+      "BiasRatio": 0.857262,
       "n": 28.916667,
       "strategy": "recursive",
       "horizon": 4,
@@ -38810,14 +38815,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 21.910432,
-      "RMSE": 40.386979,
-      "MAPE": 154.283305,
-      "WAPE": 0.656449,
-      "sMAPE": 0.569664,
-      "RMSLE": 0.886407,
-      "Bias": 16.16359,
-      "BiasRatio": 0.48427,
+      "MAE": 21.064296,
+      "RMSE": 32.755801,
+      "MAPE": 155.226245,
+      "WAPE": 0.631098,
+      "sMAPE": 0.577098,
+      "RMSLE": 0.892267,
+      "Bias": 15.088841,
+      "BiasRatio": 0.45207,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 4,
@@ -38834,14 +38839,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 21.494611,
-      "RMSE": 30.439069,
-      "MAPE": 149.242717,
-      "WAPE": 0.998908,
-      "sMAPE": 0.562642,
-      "RMSLE": 0.754109,
-      "Bias": 15.679601,
-      "BiasRatio": 0.844303,
+      "MAE": 20.582428,
+      "RMSE": 26.5724,
+      "MAPE": 150.281224,
+      "WAPE": 1.012866,
+      "sMAPE": 0.570535,
+      "RMSLE": 0.763074,
+      "Bias": 14.531307,
+      "BiasRatio": 0.855751,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 4,
@@ -39098,14 +39103,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 21.910432,
-      "RMSE": 40.386979,
-      "MAPE": 154.283305,
-      "WAPE": 0.656449,
-      "sMAPE": 0.569664,
-      "RMSLE": 0.886407,
-      "Bias": 16.16359,
-      "BiasRatio": 0.48427,
+      "MAE": 21.064296,
+      "RMSE": 32.755801,
+      "MAPE": 155.226245,
+      "WAPE": 0.631098,
+      "sMAPE": 0.577098,
+      "RMSLE": 0.892267,
+      "Bias": 15.088841,
+      "BiasRatio": 0.45207,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 4,
@@ -39122,14 +39127,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 21.494611,
-      "RMSE": 30.439069,
-      "MAPE": 149.242717,
-      "WAPE": 0.998908,
-      "sMAPE": 0.562642,
-      "RMSLE": 0.754109,
-      "Bias": 15.679601,
-      "BiasRatio": 0.844303,
+      "MAE": 20.582428,
+      "RMSE": 26.5724,
+      "MAPE": 150.281224,
+      "WAPE": 1.012866,
+      "sMAPE": 0.570535,
+      "RMSLE": 0.763074,
+      "Bias": 14.531307,
+      "BiasRatio": 0.855751,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 4,
@@ -39386,14 +39391,14 @@
       "n_predicted": 347,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 23.22203,
-      "RMSE": 80.662979,
-      "MAPE": 142.186729,
-      "WAPE": 0.614216,
-      "sMAPE": 0.539687,
-      "RMSLE": 0.821358,
-      "Bias": 14.792529,
-      "BiasRatio": 0.391258,
+      "MAE": 19.092768,
+      "RMSE": 29.450456,
+      "MAPE": 140.535145,
+      "WAPE": 0.504998,
+      "sMAPE": 0.542514,
+      "RMSLE": 0.815428,
+      "Bias": 10.402866,
+      "BiasRatio": 0.275153,
       "n": 343.0,
       "strategy": "recursive",
       "horizon": 5,
@@ -39410,14 +39415,14 @@
       "n_predicted": 347,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 23.592825,
-      "RMSE": 42.622844,
-      "MAPE": 138.999577,
-      "WAPE": 0.775984,
-      "sMAPE": 0.535693,
-      "RMSLE": 0.730153,
-      "Bias": 14.715149,
-      "BiasRatio": 0.583444,
+      "MAE": 19.027337,
+      "RMSE": 25.052958,
+      "MAPE": 137.315496,
+      "WAPE": 0.734185,
+      "sMAPE": 0.538286,
+      "RMSLE": 0.725837,
+      "Bias": 9.866001,
+      "BiasRatio": 0.546686,
       "n": 28.583333,
       "strategy": "recursive",
       "horizon": 5,
@@ -39674,14 +39679,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 23.17048,
-      "RMSE": 80.297718,
-      "MAPE": 140.835873,
-      "WAPE": 0.616435,
-      "sMAPE": 0.539229,
-      "RMSLE": 0.84906,
-      "Bias": 14.405871,
-      "BiasRatio": 0.383258,
+      "MAE": 19.088817,
+      "RMSE": 29.555739,
+      "MAPE": 139.203328,
+      "WAPE": 0.507845,
+      "sMAPE": 0.542024,
+      "RMSLE": 0.843391,
+      "Bias": 10.06681,
+      "BiasRatio": 0.267821,
       "n": 347.0,
       "strategy": "recursive",
       "horizon": 5,
@@ -39698,14 +39703,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 23.14,
-      "RMSE": 41.759599,
-      "MAPE": 138.262437,
-      "WAPE": 0.776289,
-      "sMAPE": 0.535692,
-      "RMSLE": 0.761333,
-      "Bias": 14.161403,
-      "BiasRatio": 0.580592,
+      "MAE": 18.916763,
+      "RMSE": 24.937319,
+      "MAPE": 136.673322,
+      "WAPE": 0.735393,
+      "sMAPE": 0.53848,
+      "RMSLE": 0.760703,
+      "Bias": 9.695552,
+      "BiasRatio": 0.544831,
       "n": 28.916667,
       "strategy": "recursive",
       "horizon": 5,
@@ -39962,14 +39967,14 @@
       "n_predicted": 342,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 23.35432,
-      "RMSE": 80.899149,
-      "MAPE": 142.629662,
-      "WAPE": 0.614113,
-      "sMAPE": 0.536987,
-      "RMSLE": 0.822485,
-      "Bias": 14.875378,
-      "BiasRatio": 0.391155,
+      "MAE": 19.200839,
+      "RMSE": 29.536606,
+      "MAPE": 140.968391,
+      "WAPE": 0.504896,
+      "sMAPE": 0.539831,
+      "RMSLE": 0.816528,
+      "Bias": 10.45997,
+      "BiasRatio": 0.27505,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 5,
@@ -39986,14 +39991,14 @@
       "n_predicted": 342,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 23.655057,
-      "RMSE": 42.66713,
-      "MAPE": 139.279322,
-      "WAPE": 0.775815,
-      "sMAPE": 0.53196,
-      "RMSLE": 0.72924,
-      "Bias": 14.680611,
-      "BiasRatio": 0.583275,
+      "MAE": 19.091835,
+      "RMSE": 25.098892,
+      "MAPE": 137.595336,
+      "WAPE": 0.734016,
+      "sMAPE": 0.534619,
+      "RMSLE": 0.72491,
+      "Bias": 9.828675,
+      "BiasRatio": 0.546517,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 5,
@@ -40250,14 +40255,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 23.505331,
-      "RMSE": 80.882527,
-      "MAPE": 142.505014,
-      "WAPE": 0.616332,
-      "sMAPE": 0.541265,
-      "RMSLE": 0.854016,
-      "Bias": 14.612585,
-      "BiasRatio": 0.383156,
+      "MAE": 19.363995,
+      "RMSE": 29.770918,
+      "MAPE": 140.848601,
+      "WAPE": 0.507743,
+      "sMAPE": 0.5441,
+      "RMSLE": 0.848297,
+      "Bias": 10.210087,
+      "BiasRatio": 0.267718,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 5,
@@ -40274,14 +40279,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 23.568129,
-      "RMSE": 42.260777,
-      "MAPE": 139.408607,
-      "WAPE": 0.77612,
-      "sMAPE": 0.536588,
-      "RMSLE": 0.764043,
-      "Bias": 14.263338,
-      "BiasRatio": 0.580422,
+      "MAE": 19.18346,
+      "RMSE": 25.127164,
+      "MAPE": 137.773912,
+      "WAPE": 0.735223,
+      "sMAPE": 0.539381,
+      "RMSLE": 0.763344,
+      "Bias": 9.608811,
+      "BiasRatio": 0.544662,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 5,
@@ -40538,14 +40543,14 @@
       "n_predicted": 346,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 323.144763,
-      "RMSE": 5636.865625,
-      "MAPE": 294.800606,
-      "WAPE": 8.808824,
-      "sMAPE": 0.505327,
-      "RMSLE": 0.882161,
-      "Bias": 314.113192,
-      "BiasRatio": 8.562626,
+      "MAE": 18.993259,
+      "RMSE": 41.574883,
+      "MAPE": 143.988619,
+      "WAPE": 0.51775,
+      "sMAPE": 0.494384,
+      "RMSLE": 0.79272,
+      "Bias": 10.22431,
+      "BiasRatio": 0.278711,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 6,
@@ -40562,14 +40567,14 @@
       "n_predicted": 346,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 352.435748,
-      "RMSE": 1722.101316,
-      "MAPE": 303.565629,
-      "WAPE": 4.48017,
-      "sMAPE": 0.501083,
-      "RMSLE": 0.737577,
-      "Bias": 343.00878,
-      "BiasRatio": 4.254954,
+      "MAE": 19.075529,
+      "RMSE": 28.416006,
+      "MAPE": 139.676384,
+      "WAPE": 0.739112,
+      "sMAPE": 0.489451,
+      "RMSLE": 0.662826,
+      "Bias": 9.930527,
+      "BiasRatio": 0.527819,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 6,
@@ -40826,14 +40831,14 @@
       "n_predicted": 346,
       "n_scored": 346,
       "coverage": 1.0,
-      "MAE": 319.579505,
-      "RMSE": 5604.188766,
-      "MAPE": 291.681524,
-      "WAPE": 8.772274,
-      "sMAPE": 0.505266,
-      "RMSLE": 0.904246,
-      "Bias": 310.311305,
-      "BiasRatio": 8.517867,
+      "MAE": 18.944204,
+      "RMSE": 41.455389,
+      "MAPE": 142.613028,
+      "WAPE": 0.520007,
+      "sMAPE": 0.494449,
+      "RMSLE": 0.818284,
+      "Bias": 9.935589,
+      "BiasRatio": 0.272726,
       "n": 346.0,
       "strategy": "recursive",
       "horizon": 6,
@@ -40850,14 +40855,14 @@
       "n_predicted": 346,
       "n_scored": 346,
       "coverage": 1.0,
-      "MAE": 328.405583,
-      "RMSE": 1660.085704,
-      "MAPE": 291.972305,
-      "WAPE": 4.390318,
-      "sMAPE": 0.501138,
-      "RMSLE": 0.749595,
-      "Bias": 318.921074,
-      "BiasRatio": 4.161878,
+      "MAE": 18.82027,
+      "RMSE": 28.029861,
+      "MAPE": 139.096821,
+      "WAPE": 0.739752,
+      "sMAPE": 0.489769,
+      "RMSLE": 0.69209,
+      "Bias": 9.643288,
+      "BiasRatio": 0.525325,
       "n": 28.833333,
       "strategy": "recursive",
       "horizon": 6,
@@ -41114,14 +41119,14 @@
       "n_predicted": 342,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 324.086536,
-      "RMSE": 5645.124773,
-      "MAPE": 295.078613,
-      "WAPE": 8.808665,
-      "sMAPE": 0.500944,
-      "RMSLE": 0.881448,
-      "Bias": 315.02848,
-      "BiasRatio": 8.562467,
+      "MAE": 19.043092,
+      "RMSE": 41.635658,
+      "MAPE": 143.824362,
+      "WAPE": 0.517591,
+      "sMAPE": 0.489969,
+      "RMSLE": 0.791649,
+      "Bias": 10.248428,
+      "BiasRatio": 0.278552,
       "n": 341.0,
       "strategy": "recursive",
       "horizon": 6,
@@ -41138,14 +41143,14 @@
       "n_predicted": 342,
       "n_scored": 341,
       "coverage": 1.0,
-      "MAE": 352.450446,
-      "RMSE": 1722.116746,
-      "MAPE": 303.013119,
-      "WAPE": 4.47989,
-      "sMAPE": 0.495355,
-      "RMSLE": 0.732852,
-      "Bias": 343.014311,
-      "BiasRatio": 4.254674,
+      "MAE": 19.088301,
+      "RMSE": 28.428592,
+      "MAPE": 139.117772,
+      "WAPE": 0.738831,
+      "sMAPE": 0.483692,
+      "RMSLE": 0.657876,
+      "Bias": 9.932751,
+      "BiasRatio": 0.527539,
       "n": 28.416667,
       "strategy": "recursive",
       "horizon": 6,
@@ -41402,14 +41407,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 323.311429,
-      "RMSE": 5636.866527,
-      "MAPE": 294.508208,
-      "WAPE": 8.772115,
-      "sMAPE": 0.505327,
-      "RMSLE": 0.907576,
-      "Bias": 313.93483,
-      "BiasRatio": 8.517708,
+      "MAE": 19.159925,
+      "RMSE": 41.696973,
+      "MAPE": 143.696221,
+      "WAPE": 0.519849,
+      "sMAPE": 0.494384,
+      "RMSLE": 0.820909,
+      "Bias": 10.045947,
+      "BiasRatio": 0.272568,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 6,
@@ -41426,14 +41431,14 @@
       "n_predicted": 342,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 340.114085,
-      "RMSE": 1690.270369,
-      "MAPE": 297.462494,
-      "WAPE": 4.390038,
-      "sMAPE": 0.499938,
-      "RMSLE": 0.74913,
-      "Bias": 330.4314,
-      "BiasRatio": 4.161597,
+      "MAE": 19.079122,
+      "RMSE": 28.272964,
+      "MAPE": 139.276043,
+      "WAPE": 0.739472,
+      "sMAPE": 0.488411,
+      "RMSLE": 0.690561,
+      "Bias": 9.689341,
+      "BiasRatio": 0.525045,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 6,
@@ -41690,14 +41695,14 @@
       "n_predicted": 347,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 22.802062,
-      "RMSE": 76.615346,
-      "MAPE": 124.224561,
-      "WAPE": 0.514005,
-      "sMAPE": 0.450046,
-      "RMSLE": 0.745173,
-      "Bias": 6.762595,
-      "BiasRatio": 0.152443,
+      "MAE": 24.995607,
+      "RMSE": 112.071135,
+      "MAPE": 119.006075,
+      "WAPE": 0.563452,
+      "sMAPE": 0.446103,
+      "RMSLE": 0.73174,
+      "Bias": 10.04442,
+      "BiasRatio": 0.226422,
       "n": 343.0,
       "strategy": "recursive",
       "horizon": 7,
@@ -41714,14 +41719,14 @@
       "n_predicted": 347,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 23.486184,
-      "RMSE": 39.475871,
-      "MAPE": 121.280801,
-      "WAPE": 0.569553,
-      "sMAPE": 0.450128,
-      "RMSLE": 0.654729,
-      "Bias": 6.564204,
-      "BiasRatio": 0.297932,
+      "MAE": 25.942361,
+      "RMSE": 50.556943,
+      "MAPE": 116.511779,
+      "WAPE": 0.571883,
+      "sMAPE": 0.446978,
+      "RMSLE": 0.65105,
+      "Bias": 10.19657,
+      "BiasRatio": 0.316724,
       "n": 28.583333,
       "strategy": "recursive",
       "horizon": 7,
@@ -41978,14 +41983,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 22.542096,
-      "RMSE": 76.172498,
-      "MAPE": 123.080762,
-      "WAPE": 0.514037,
-      "sMAPE": 0.450622,
-      "RMSLE": 0.7418,
-      "Bias": 6.681759,
-      "BiasRatio": 0.152367,
+      "MAE": 24.710355,
+      "RMSE": 111.423333,
+      "MAPE": 117.922431,
+      "WAPE": 0.563481,
+      "sMAPE": 0.446725,
+      "RMSLE": 0.728461,
+      "Bias": 9.925753,
+      "BiasRatio": 0.226341,
       "n": 347.0,
       "strategy": "recursive",
       "horizon": 7,
@@ -42002,14 +42007,14 @@
       "n_predicted": 347,
       "n_scored": 347,
       "coverage": 1.0,
-      "MAE": 22.655723,
-      "RMSE": 38.620149,
-      "MAPE": 120.744926,
-      "WAPE": 0.569558,
-      "sMAPE": 0.449976,
-      "RMSLE": 0.651521,
-      "Bias": 6.516678,
-      "BiasRatio": 0.297912,
+      "MAE": 24.93029,
+      "RMSE": 49.301312,
+      "MAPE": 115.952241,
+      "WAPE": 0.571884,
+      "sMAPE": 0.446811,
+      "RMSLE": 0.647895,
+      "Bias": 9.905925,
+      "BiasRatio": 0.3167,
       "n": 28.916667,
       "strategy": "recursive",
       "horizon": 7,
@@ -42266,14 +42271,14 @@
       "n_predicted": 343,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 22.867565,
-      "RMSE": 76.727272,
-      "MAPE": 124.470831,
-      "WAPE": 0.514013,
-      "sMAPE": 0.450387,
-      "RMSLE": 0.746197,
-      "Bias": 6.781199,
-      "BiasRatio": 0.152427,
+      "MAE": 25.067524,
+      "RMSE": 112.23486,
+      "MAPE": 119.237086,
+      "WAPE": 0.563463,
+      "sMAPE": 0.446433,
+      "RMSLE": 0.732742,
+      "Bias": 10.07262,
+      "BiasRatio": 0.226411,
       "n": 342.0,
       "strategy": "recursive",
       "horizon": 7,
@@ -42290,14 +42295,14 @@
       "n_predicted": 343,
       "n_scored": 342,
       "coverage": 1.0,
-      "MAE": 23.510167,
-      "RMSE": 39.492051,
-      "MAPE": 121.291713,
-      "WAPE": 0.569541,
-      "sMAPE": 0.450235,
-      "RMSLE": 0.655363,
-      "Bias": 6.570318,
-      "BiasRatio": 0.297887,
+      "MAE": 25.963627,
+      "RMSE": 50.570972,
+      "MAPE": 116.513097,
+      "WAPE": 0.571866,
+      "sMAPE": 0.447035,
+      "RMSLE": 0.651657,
+      "Bias": 10.199436,
+      "BiasRatio": 0.316673,
       "n": 28.5,
       "strategy": "recursive",
       "horizon": 7,
@@ -42554,14 +42559,14 @@
       "n_predicted": 343,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 22.803811,
-      "RMSE": 76.615362,
-      "MAPE": 124.399488,
-      "WAPE": 0.514045,
-      "sMAPE": 0.454905,
-      "RMSLE": 0.746048,
-      "Bias": 6.758514,
-      "BiasRatio": 0.152351,
+      "MAE": 24.997356,
+      "RMSE": 112.071146,
+      "MAPE": 119.181002,
+      "WAPE": 0.563492,
+      "sMAPE": 0.450963,
+      "RMSLE": 0.73263,
+      "Bias": 10.040339,
+      "BiasRatio": 0.22633,
       "n": 343.0,
       "strategy": "recursive",
       "horizon": 7,
@@ -42578,14 +42583,14 @@
       "n_predicted": 343,
       "n_scored": 343,
       "coverage": 1.0,
-      "MAE": 23.114345,
-      "RMSE": 39.075445,
-      "MAPE": 121.421924,
-      "WAPE": 0.569546,
-      "sMAPE": 0.454621,
-      "RMSLE": 0.655211,
-      "Bias": 6.539399,
-      "BiasRatio": 0.297867,
+      "MAE": 25.472617,
+      "RMSE": 49.948144,
+      "MAPE": 116.628423,
+      "WAPE": 0.571867,
+      "sMAPE": 0.451396,
+      "RMSLE": 0.651537,
+      "Bias": 10.040751,
+      "BiasRatio": 0.316649,
       "n": 28.583333,
       "strategy": "recursive",
       "horizon": 7,

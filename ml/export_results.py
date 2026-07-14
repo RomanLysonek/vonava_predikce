@@ -51,6 +51,17 @@ def main() -> None:
         with open(existing_path) as f:
             existing = json.load(f)
     config = existing.get("config", {})
+    # Preserve the exact NN runtime metadata from the completed training run.
+    # This exporter is artifact-only and must not silently rewrite it to the
+    # Config defaults.
+    CFG.batch_size = int(config.get("nn_batch_size", CFG.batch_size))
+    CFG.reference_batch_size = int(
+        config.get("nn_reference_batch_size", CFG.reference_batch_size)
+    )
+    CFG.nn_lr_scaling = config.get("nn_lr_scaling", CFG.nn_lr_scaling)
+    CFG.nn_training_backend = config.get(
+        "nn_training_backend", CFG.nn_training_backend
+    )
     canonical_strategy = config.get("primary_strategy", "direct")
     submission_model = config.get("submission_model", "NeuralNet")
     forecast_strategy = config.get("forecast_strategy", "direct")
@@ -61,6 +72,9 @@ def main() -> None:
         primary_strategy=PrimaryStrategy(canonical_strategy if canonical_strategy in {"direct", "recursive"} else "auto"),
         submission_model=SubmissionModel(submission_model),
         selection_metric=config.get("selection_metric", "WAPE"),
+        nn_batch_size=str(CFG.batch_size),
+        nn_lr_scaling=CFG.nn_lr_scaling,
+        nn_training_backend=CFG.nn_training_backend,
     )
 
     forecasts_by_strategy = {}

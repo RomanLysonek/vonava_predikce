@@ -79,7 +79,10 @@ from framework import (
     prepare_features,
 )
 from models.naive_baselines import moving_average_predict, seasonal_naive_predict
-from models.neural_net import DEVICE, make_tensors, predict_direct, residual_log1p_target, train_model
+from models.neural_net import (
+    DEVICE, effective_learning_rate, make_tensors, nn_performance_signature,
+    predict_direct, residual_log1p_target, resolve_training_backend, train_model,
+)
 
 np.random.seed(CFG.seed)
 
@@ -114,6 +117,10 @@ class RuntimeOptions:
     resume: bool = False
     reset_checkpoints: bool = False
     checkpoint_dir: str = "outputs/checkpoints"
+    nn_batch_size: str = "auto"
+    nn_lr_scaling: str = "auto"
+    nn_training_backend: str = "auto"
+    nn_benchmark_file: str = "outputs/nn_batch_benchmark.json"
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -140,7 +147,35 @@ def parse_args(argv=None) -> RuntimeOptions:
         "--checkpoint-dir", default="outputs/checkpoints",
         help="Directory used for atomic per-fold CV checkpoints",
     )
+    parser.add_argument(
+        "--nn-batch-size", default="auto",
+        help=("Positive integer, or 'auto'. Auto reads the quality-aware "
+              "batch benchmark when present; otherwise it preserves 512."),
+    )
+    parser.add_argument(
+        "--nn-lr-scaling", choices=["auto", "fixed", "sqrt", "linear"],
+        default="auto",
+        help="Learning-rate scaling relative to reference batch size 512",
+    )
+    parser.add_argument(
+        "--nn-training-backend",
+        choices=["auto", "device_resident", "dataloader"],
+        default="auto",
+        help="Auto keeps complete fold tensors on MPS/CUDA and uses DataLoader on CPU",
+    )
+    parser.add_argument(
+        "--nn-benchmark-file", default="outputs/nn_batch_benchmark.json",
+        help="Quality-aware batch benchmark used by --nn-batch-size auto",
+    )
     args = parser.parse_args(argv)
+    if args.nn_batch_size != "auto":
+        try:
+            parsed_batch_size = int(args.nn_batch_size)
+        except ValueError as exc:
+            parser.error("--nn-batch-size must be 'auto' or a positive integer")
+        if parsed_batch_size < 2:
+            parser.error("--nn-batch-size must be at least 2")
+        args.nn_batch_size = str(parsed_batch_size)
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
@@ -149,7 +184,79 @@ def parse_args(argv=None) -> RuntimeOptions:
         resume=args.resume,
         reset_checkpoints=args.reset_checkpoints,
         checkpoint_dir=args.checkpoint_dir,
+        nn_batch_size=args.nn_batch_size,
+        nn_lr_scaling=args.nn_lr_scaling,
+        nn_training_backend=args.nn_training_backend,
+        nn_benchmark_file=args.nn_benchmark_file,
     )
+
+
+def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
+    """Resolve batch/LR/backend without guessing away model quality.
+
+    Auto mode consumes the recommendation produced by
+    ``ml/benchmark_nn_batch_size.py`` only when it was measured on the same
+    accelerator type.  Without that artifact the historical 512/fixed policy
+    is preserved.
+    """
+    recommendation = None
+    if os.path.exists(options.nn_benchmark_file):
+        try:
+            with open(options.nn_benchmark_file, encoding="utf-8") as f:
+                payload = json.load(f)
+            candidate = payload.get("recommendation") or {}
+            measured_device = payload.get("environment", {}).get("device")
+            measured_signature = payload.get("model_signature")
+            current_signature = nn_performance_signature(cfg)
+            # JSON converts tuples to lists, so compare through a JSON-normalised
+            # representation rather than Python container types.
+            signature_matches = (
+                json.dumps(measured_signature, sort_keys=True)
+                == json.dumps(current_signature, sort_keys=True)
+            )
+            if (
+                payload.get("schema_version") == "nn-batch-v1"
+                and measured_device == DEVICE.type
+                and signature_matches
+                and candidate.get("batch_size")
+            ):
+                recommendation = candidate
+        except (OSError, ValueError, TypeError) as exc:
+            print(f"Ignoring unreadable NN benchmark {options.nn_benchmark_file}: {exc}")
+
+    if options.nn_batch_size == "auto":
+        if recommendation is not None:
+            batch_size = int(recommendation["batch_size"])
+            batch_source = options.nn_benchmark_file
+        else:
+            batch_size = int(cfg.reference_batch_size)
+            batch_source = "historical safe fallback"
+    else:
+        batch_size = int(options.nn_batch_size)
+        batch_source = "CLI override"
+
+    if options.nn_lr_scaling == "auto":
+        if recommendation is not None and options.nn_batch_size == "auto":
+            lr_scaling = str(recommendation.get("lr_scaling", "sqrt"))
+        elif batch_size == cfg.reference_batch_size:
+            lr_scaling = "fixed"
+        else:
+            lr_scaling = "sqrt"
+    else:
+        lr_scaling = options.nn_lr_scaling
+
+    cfg.batch_size = batch_size
+    cfg.nn_lr_scaling = lr_scaling
+    cfg.nn_training_backend = options.nn_training_backend
+    return {
+        "batch_size": batch_size,
+        "batch_source": batch_source,
+        "lr_scaling": lr_scaling,
+        "effective_learning_rate": effective_learning_rate(cfg),
+        "training_backend": resolve_training_backend(cfg),
+        "benchmark_file": options.nn_benchmark_file,
+    }
+
 
 TREE_WORKER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tree_worker.py")
 
@@ -171,13 +278,46 @@ def _fold_checkpoint_path(
 def _fold_checkpoint_signature(
     cfg: Config, strategy: str, origin_type: str, origin: pd.Timestamp
 ) -> dict:
+    cfg_signature = asdict(cfg)
+    # The execution backend changes throughput, not the estimator definition.
+    cfg_signature.pop("nn_training_backend", None)
     return {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "strategy": strategy,
         "origin_type": origin_type,
         "origin": pd.Timestamp(origin).isoformat(),
-        "cfg": asdict(cfg),
+        "cfg": cfg_signature,
     }
+
+
+def _checkpoint_signature_compatible(actual: dict, expected: dict) -> bool:
+    if actual == expected:
+        return True
+    for key in ("schema_version", "strategy", "origin_type", "origin"):
+        if actual.get(key) != expected.get(key):
+            return False
+    actual_cfg = dict(actual.get("cfg") or {})
+    expected_cfg = dict(expected.get("cfg") or {})
+    # Backward compatibility with stability-v3 checkpoints created before the
+    # performance-only fields existed.  Reuse is valid only when every old
+    # semantic field still matches and the effective batch/LR policy is the
+    # same as the historical fixed-LR setup.
+    for key, value in actual_cfg.items():
+        if expected_cfg.get(key) != value:
+            return False
+    if "reference_batch_size" not in actual_cfg:
+        old_batch = int(actual_cfg.get("batch_size", 512))
+        if int(expected_cfg.get("batch_size", 512)) != old_batch:
+            return False
+        base_lr = float(actual_cfg.get("lr", 1e-3))
+        current_batch = int(expected_cfg.get("batch_size", old_batch))
+        reference = int(expected_cfg.get("reference_batch_size", old_batch))
+        scaling = expected_cfg.get("nn_lr_scaling", "fixed")
+        ratio = current_batch / reference
+        factor = {"fixed": 1.0, "sqrt": ratio ** 0.5, "linear": ratio}.get(scaling)
+        if factor is None or not np.isclose(base_lr * factor, base_lr):
+            return False
+    return True
 
 
 def _load_fold_checkpoint(
@@ -197,7 +337,7 @@ def _load_fold_checkpoint(
         print(f"    [checkpoint] ignoring unreadable {path}: {exc}")
         return None
     expected = _fold_checkpoint_signature(cfg, strategy, origin_type, origin)
-    if payload.get("signature") != expected:
+    if not _checkpoint_signature_compatible(payload.get("signature") or {}, expected):
         print(f"    [checkpoint] ignoring stale checkpoint {path}")
         return None
     frame = payload.get("oof")
@@ -1148,6 +1288,11 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "final_epochs": cfg.final_epochs,
             "seeds": list(cfg.seeds),
             "num_products": cfg.num_products,
+            "nn_batch_size": cfg.batch_size,
+            "nn_reference_batch_size": cfg.reference_batch_size,
+            "nn_lr_scaling": cfg.nn_lr_scaling,
+            "nn_effective_learning_rate": effective_learning_rate(cfg),
+            "nn_training_backend": resolve_training_backend(cfg),
         },
         "models": models_meta,
         # Canonical compatibility fields used by the original dashboard.
@@ -1261,15 +1406,24 @@ def _forecast_dict_to_json(test_raw: pd.DataFrame, forecasts: dict) -> dict:
 def main(argv=None) -> None:
     options = parse_args(argv)
     cfg = CFG
+    nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
+    print(
+        "NN runtime: "
+        f"batch={nn_runtime['batch_size']} "
+        f"({nn_runtime['batch_source']}), "
+        f"lr={nn_runtime['effective_learning_rate']:.6g} "
+        f"[{nn_runtime['lr_scaling']}], "
+        f"backend={nn_runtime['training_backend']}"
+    )
     if options.reset_checkpoints and os.path.exists(options.checkpoint_dir):
         shutil.rmtree(options.checkpoint_dir)
         print(f"Removed checkpoints: {options.checkpoint_dir}")
     if options.resume:
         print(f"CV resume enabled: {options.checkpoint_dir}")
     run_start = time.perf_counter()
-    timings: dict = {"cv_folds": []}
+    timings: dict = {"cv_folds": [], "nn_runtime": nn_runtime}
 
     train_raw, test_raw = load_raw(cfg)
     cfg.num_products = int(max(train_raw["ProductId"].max(), test_raw["ProductId"].max()))
