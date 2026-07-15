@@ -573,22 +573,79 @@ select:disabled {
   accent-color: var(--ink);
 }
 
-.secondary-action {
-  min-height: 38px;
-  padding: 9px 12px;
+.product-model-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 28px;
+  margin: -4px 0 8px;
+  flex-wrap: wrap;
+}
+
+.product-model-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px 12px;
+  flex-wrap: wrap;
+}
+
+.product-model-legend-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.product-model-legend-button:hover,
+.product-model-legend-button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-model-legend-button.is-hidden {
+  opacity: 0.38;
+}
+
+.product-model-legend-swatch {
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed var(--model-color);
+}
+
+.product-model-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--hairline);
+}
+
+.legend-action {
+  min-height: 24px;
+  padding: 4px 7px;
   border: 1px solid var(--ink);
   border-radius: 0;
   background: #fff;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 8.5px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.045em;
+  line-height: 1;
   text-transform: uppercase;
   cursor: pointer;
 }
 
-.secondary-action:hover,
-.secondary-action:focus-visible {
+.legend-action:hover,
+.legend-action:focus-visible {
   background: var(--ink);
   color: #fff;
 }
@@ -596,7 +653,13 @@ select:disabled {
 @media (max-width: 700px) {
   .definition-item { grid-template-columns: 1fr; }
   .product-explorer-controls { width: 100%; }
-  .secondary-action { width: 100%; }
+  .product-model-legend-row { justify-content: flex-start; }
+  .product-model-legend { justify-content: flex-start; }
+  .product-model-actions {
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 
 /* Keep all seven model cards on one desktop row without widening every panel. */
@@ -653,5 +716,682 @@ select:disabled {
 @media (max-width: 600px) {
   .model-comparison-panel .columns-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Narrow promo ribbon: closer to Notino's centered desktop utility strip. */
+.promo-bar {
+  width: 60%;
+  margin: 0 auto;
+  padding: 8px clamp(16px, 2vw, 32px);
+  gap: clamp(10px, 1.4vw, 24px);
+  flex-wrap: nowrap;
+  font-size: clamp(8.5px, 0.72vw, 10.5px);
+  letter-spacing: 0.04em;
+}
+
+.promo-bar > span {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .promo-bar {
+    width: 100%;
+    margin: 0;
+    padding: 8px 20px;
+    gap: 8px 18px;
+    flex-wrap: wrap;
+    font-size: 9px;
+  }
+}
+
+/* Model implementation explanations and canonical-grid alignment (tour v6) */
+.model-method-panel {
+  border-top: 5px solid var(--mc, var(--ink));
+}
+
+.model-method-list {
+  margin-bottom: 0;
+}
+
+.model-method-item {
+  grid-template-columns: minmax(190px, 0.28fr) 1fr;
+  padding: 13px 14px;
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.model-method-item strong {
+  color: var(--mc, var(--ink));
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+#submission-table-wrap .submission-table {
+  min-width: 980px;
+  table-layout: fixed;
+}
+
+#submission-table-wrap .submission-product-column {
+  width: 92px;
+}
+
+#submission-table-wrap .submission-table th,
+#submission-table-wrap .submission-table td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#submission-table-wrap .submission-table th:first-child,
+#submission-table-wrap .submission-table td:first-child {
+  text-align: left;
+}
+
+@media (max-width: 700px) {
+  .model-method-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Evaluation methodology page and shared methodology navigation (tour v7) */
+.promo-bar > a {
+  white-space: nowrap;
+}
+
+.promo-evaluation-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.promo-evaluation-link:hover,
+.promo-evaluation-link:focus-visible {
+  border-bottom-color: currentColor;
+}
+
+.evaluation-hero {
+  --mc: #4b5563;
+}
+
+.evaluation-distinction-panel {
+  border-top: 5px solid #4b5563;
+}
+
+.evaluation-concept-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.evaluation-concept-card {
+  padding: 24px;
+  min-width: 0;
+}
+
+.evaluation-concept-card + .evaluation-concept-card {
+  border-left: 1px solid var(--ink);
+}
+
+.evaluation-concept-kicker,
+.evaluation-stage-badge {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.evaluation-concept-card h3,
+.evaluation-stage-card h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evaluation-concept-card p,
+.evaluation-stage-card p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.evaluation-current-note {
+  margin-top: 16px;
+}
+
+.evaluation-method-panel {
+  border-top: 5px solid #4b5563;
+}
+
+.evaluation-step-list,
+.evaluation-method-panel .definition-list {
+  margin-bottom: 0;
+}
+
+.evaluation-step-item {
+  grid-template-columns: minmax(210px, 0.3fr) 1fr;
+  padding: 13px 14px;
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.evaluation-step-item strong {
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.evaluation-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.evaluation-stage-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px;
+  border-right: 1px solid var(--ink);
+}
+
+.evaluation-stage-card:last-child {
+  border-right: 0;
+}
+
+.evaluation-stage-card > strong {
+  margin-bottom: 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.evaluation-stage-detail {
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.evaluation-two-column-grid {
+  align-items: stretch;
+}
+
+.evaluation-two-column-grid > .panel {
+  height: 100%;
+}
+
+.metric-glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.metric-glossary-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.metric-glossary-grid article:nth-child(3n) {
+  border-right: 0;
+}
+
+.metric-glossary-grid article:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.metric-glossary-grid strong {
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.metric-glossary-grid span {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.model-evaluation-link {
+  display: inline-flex;
+  margin-top: 14px;
+  color: var(--mc, var(--ink));
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.model-evaluation-link:hover,
+.model-evaluation-link:focus-visible {
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .evaluation-stage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evaluation-stage-card:nth-child(2) {
+    border-right: 0;
+  }
+
+  .evaluation-stage-card:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--ink);
+  }
+}
+
+@media (max-width: 760px) {
+  .evaluation-concept-grid,
+  .evaluation-stage-grid,
+  .metric-glossary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-concept-card + .evaluation-concept-card {
+    border-left: 0;
+    border-top: 1px solid var(--ink);
+  }
+
+  .evaluation-stage-card,
+  .evaluation-stage-card:nth-child(2),
+  .metric-glossary-grid article,
+  .metric-glossary-grid article:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .evaluation-stage-card:not(:last-child),
+  .metric-glossary-grid article:not(:last-child) {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .evaluation-step-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dataset story and decision rationale (tour v8) */
+.promo-dataset-link,
+.promo-evaluation-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.promo-dataset-link:hover,
+.promo-dataset-link:focus-visible,
+.promo-evaluation-link:hover,
+.promo-evaluation-link:focus-visible {
+  border-bottom-color: currentColor;
+}
+
+.dataset-hero {
+  --mc: #7c3aed;
+}
+
+.dataset-story-panel,
+.dataset-facts-panel,
+.dataset-trail-panel,
+.dataset-method-panel {
+  border-top: 5px solid #7c3aed;
+}
+
+.dataset-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.dataset-stat-grid article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 20px;
+  border-right: 1px solid var(--ink);
+}
+
+.dataset-stat-grid article:last-child {
+  border-right: 0;
+}
+
+.dataset-stat-grid strong {
+  color: #6d28d9;
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.dataset-stat-grid span {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.dataset-current-note {
+  margin-top: 16px;
+}
+
+.dataset-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.dataset-fact-card {
+  min-width: 0;
+  padding: 22px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.dataset-fact-card:nth-child(3n) {
+  border-right: 0;
+}
+
+.dataset-fact-card:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.dataset-fact-number,
+.dataset-decision-badge {
+  display: block;
+  margin-bottom: 9px;
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.dataset-fact-card h3,
+.dataset-decision-card h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.dataset-fact-card p,
+.dataset-decision-card p,
+.dataset-closing-copy {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.dataset-decision-trail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.dataset-decision-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 22px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.dataset-decision-card:nth-child(3n) {
+  border-right: 0;
+}
+
+.dataset-decision-card:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.dataset-decision-card > strong {
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--ink);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.dataset-response-list {
+  margin-bottom: 0;
+}
+
+.dataset-response-item {
+  grid-template-columns: minmax(220px, 0.32fr) 1fr;
+  padding: 13px 14px;
+  border-left-color: #7c3aed;
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.dataset-response-item strong {
+  color: #6d28d9;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.dataset-two-column-grid {
+  align-items: stretch;
+}
+
+.dataset-two-column-grid > .panel {
+  height: 100%;
+}
+
+.dataset-closing-panel {
+  text-align: left;
+}
+
+.dataset-closing-copy {
+  max-width: 1050px;
+  font-size: 14px;
+}
+
+.dataset-page-links,
+.model-method-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.dataset-page-links a,
+.model-method-links .model-evaluation-link {
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.dataset-page-links a:hover,
+.dataset-page-links a:focus-visible,
+.model-method-links .model-evaluation-link:hover,
+.model-method-links .model-evaluation-link:focus-visible {
+  text-decoration: underline;
+}
+
+.evaluation-current-note a {
+  color: #374151;
+  font-weight: 800;
+}
+
+@media (max-width: 1000px) {
+  .dataset-stat-grid,
+  .dataset-fact-grid,
+  .dataset-decision-trail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dataset-stat-grid article:nth-child(2),
+  .dataset-fact-card:nth-child(2n),
+  .dataset-decision-card:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .dataset-stat-grid article:nth-child(-n + 2),
+  .dataset-fact-card:nth-child(-n + 4),
+  .dataset-decision-card:nth-child(-n + 4) {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .dataset-stat-grid article:nth-child(3),
+  .dataset-fact-card:nth-child(3),
+  .dataset-decision-card:nth-child(3) {
+    border-right: 1px solid var(--ink);
+  }
+}
+
+@media (max-width: 700px) {
+  .dataset-stat-grid,
+  .dataset-fact-grid,
+  .dataset-decision-trail {
+    grid-template-columns: 1fr;
+  }
+
+  .dataset-stat-grid article,
+  .dataset-stat-grid article:nth-child(2),
+  .dataset-stat-grid article:nth-child(3),
+  .dataset-fact-card,
+  .dataset-fact-card:nth-child(2n),
+  .dataset-fact-card:nth-child(3),
+  .dataset-decision-card,
+  .dataset-decision-card:nth-child(2n),
+  .dataset-decision-card:nth-child(3) {
+    border-right: 0;
+  }
+
+  .dataset-stat-grid article:not(:last-child),
+  .dataset-fact-card:not(:last-child),
+  .dataset-decision-card:not(:last-child) {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .dataset-response-item {
+    grid-template-columns: 1fr;
+  }
+
+  .dataset-page-links,
+  .model-method-links {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+
+/* NeuralNet selection narrative (tour v11) */
+.nn-selection-panel {
+  border-top: 4px solid var(--mc, var(--ink));
+}
+
+.nn-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.nn-decision-card {
+  min-width: 0;
+  padding: 20px;
+  background: var(--paper);
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.nn-decision-card:nth-child(3n) {
+  border-right: none;
+}
+
+.nn-decision-card:nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+.nn-decision-card h3 {
+  margin: 10px 0 8px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.nn-decision-card p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.nn-decision-status {
+  display: inline-flex;
+  padding: 4px 7px;
+  border: 1px solid currentColor;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nn-decision-status.retained {
+  color: var(--good);
+}
+
+.nn-decision-status.rejected {
+  color: var(--bad);
+}
+
+.nn-decision-status.canonical {
+  color: var(--mc, var(--ink));
+}
+
+@media (max-width: 980px) {
+  .nn-selection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nn-decision-card:nth-child(3n) {
+    border-right: 1px solid var(--ink);
+  }
+
+  .nn-decision-card:nth-child(2n) {
+    border-right: none;
+  }
+
+  .nn-decision-card:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .nn-decision-card:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .nn-selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nn-decision-card,
+  .nn-decision-card:nth-child(2n),
+  .nn-decision-card:nth-child(3n) {
+    border-right: none;
+  }
+
+  .nn-decision-card:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .nn-decision-card:last-child {
+    border-bottom: none;
   }
 }

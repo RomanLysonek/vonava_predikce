@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dataset Story — Notino Quantity Forecast</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/styles.css?v=18" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="promo-bar">
+    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
+    <span id="promo-strategy">7-Day Forecast</span>
+    <span id="promo-model-count">Models Compared</span>
+    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="brand-logo">NOTINO</span>
+        <span class="brand-tagline">Interview Assignment</span>
+      </div>
+      <div class="hero-title-block">
+        <h1>Quantity Forecast Dashboard</h1>
+      </div>
+    </div>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+
+  <header class="model-hero dataset-hero" style="--mc:#7c3aed">
+    <span class="model-badge">Data & decisions</span>
+    <h1>Dataset story</h1>
+    <p class="blurb">The short statistical story behind the pipeline: what was unusual in the data, which risks mattered, what we implemented, and which plausible ideas lost in validation.</p>
+  </header>
+
+  <main id="app">
+    <section class="panel dataset-story-panel">
+      <div class="panel-header">
+        <h2>What we were actually forecasting</h2>
+        <p>Not a generic 51,534-row table, but a small related panel of daily product series observed through changing prices, promotions, availability states and two migrating sales channels.</p>
+      </div>
+      <div class="dataset-stat-grid">
+        <article><strong>51,534</strong><span>training product-days</span></article>
+        <article><strong>30 × 7</strong><span>products × forecast days</span></article>
+        <article><strong>2021–2026</strong><span>five annual retail cycles</span></article>
+        <article><strong>App + Web</strong><span>canonical total-demand target</span></article>
+      </div>
+      <div class="diagnostic-note dataset-current-note" id="dataset-current-note"></div>
+    </section>
+
+    <section class="panel dataset-facts-panel">
+      <div class="panel-header">
+        <h2>Six facts that changed the modeling design</h2>
+        <p>These are the findings with the largest consequences for feature engineering, validation and model choice.</p>
+      </div>
+      <div class="dataset-fact-grid">
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">3,576</span>
+          <h3>Missing product-dates are structural</h3>
+          <p>Most absent rows are staggered product launches, but 29 are isolated gaps inside active histories. Missing row, pre-launch state, observed stockout and true zero demand therefore cannot be collapsed into one value.</p>
+        </article>
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">5.1% → 45.1%</span>
+          <h3>The app channel migrated rapidly</h3>
+          <p>App share rose from 5.1% in 2021 to 45.1% in 2025. There are 1,501 app-only campaign rows and no web-only campaign rows, indicating deliberate app incentives and channel substitution.</p>
+        </article>
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">45.50 → 21.81</span>
+          <h3>Recent January demand fell sharply</h3>
+          <p>Mean total demand over January 1–11 fell from 45.50 units in 2024 to 36.56 in 2025 and 21.81 in 2026. Older years could not simply receive equal trust without testing recency controls.</p>
+        </article>
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">Sun +19.7%</span>
+          <h3>Calendar and retail events dominate</h3>
+          <p>Sunday is strongest, Saturday is 27.6% below average, and November/December reach roughly 1.95×/1.53× normal demand. The seven-day test block conveniently contains one complete Monday-to-Sunday cycle.</p>
+        </article>
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">25.3%</span>
+          <h3>“Unavailable” does not mean zero</h3>
+          <p>One quarter of unavailable rows still contain positive sales. Availability is absent from test, so it is useful for identifying censored training observations—not as a future predictor or a mechanical zeroing rule.</p>
+        </article>
+        <article class="dataset-fact-card">
+          <span class="dataset-fact-number">98.6%</span>
+          <h3>Test covariates were familiar</h3>
+          <p>Nearly all test prices appeared exactly in train, all products and campaign types were known, and no unseen campaign–discount combinations appeared. The primary risk was target nonstationarity, not unseen categories.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel dataset-trail-panel">
+      <div class="panel-header">
+        <h2>Decision trail</h2>
+        <p>The implemented experiment sequence, rendered from the currently published configuration rather than from a retrospective story.</p>
+      </div>
+      <div class="dataset-decision-trail" id="dataset-decision-trail"></div>
+    </section>
+
+    <section class="panel dataset-method-panel">
+      <div class="panel-header">
+        <h2>Finding → modeling response</h2>
+        <p>How the profile was propagated into the final feature, target, model and evaluation contracts.</p>
+      </div>
+      <div class="definition-list dataset-response-list" id="dataset-response-list"></div>
+    </section>
+
+    <section class="panel-grid dataset-two-column-grid">
+      <section class="panel dataset-method-panel">
+        <div class="panel-header">
+          <h2>What we deliberately did not do</h2>
+          <p>Important non-decisions that prevented convenient but misleading shortcuts.</p>
+        </div>
+        <div class="definition-list">
+          <div class="definition-item dataset-response-item"><strong>No random row split</strong><span>Rows close in time share the same retail regime. Every comparison uses chronological rolling origins and a seven-day future block.</span></div>
+          <div class="definition-item dataset-response-item"><strong>No blind zero filling</strong><span>Calendar gaps, pre-launch periods and unavailable observations remain distinct from genuine observed zero demand.</span></div>
+          <div class="definition-item dataset-response-item"><strong>No ordinal campaign codes</strong><span>Subtype 18 is not “more campaign” than subtype 2. Campaign identifiers use embeddings, native categorical handling or one-hot encoding.</span></div>
+          <div class="definition-item dataset-response-item"><strong>No automatic peak clipping</strong><span>Black Friday and Christmas extremes are plausible business events. We retain them, add event context and inspect high-volume/error diagnostics instead.</span></div>
+        </div>
+      </section>
+
+      <section class="panel dataset-method-panel">
+        <div class="panel-header">
+          <h2>Known limitations</h2>
+          <p>What the supplied data cannot resolve, even with careful modeling.</p>
+        </div>
+        <div class="definition-list">
+          <div class="definition-item dataset-response-item"><strong>Availability is only a proxy</strong><span>Conditional scoring avoids treating stockouts as demand, but without inventory quantities or lost-sales labels we cannot reconstruct fully unconstrained latent demand.</span></div>
+          <div class="definition-item dataset-response-item"><strong>Rare subtype 5</strong><span>Only a handful of rows exist. Global pooled models reduce variance, but no trustworthy subtype-specific effect can be claimed. It does not occur in the supplied test week.</span></div>
+          <div class="definition-item dataset-response-item"><strong>Limited product metadata</strong><span>There are only 30 products and no category, brand, traffic, inventory amount or external demand drivers, limiting transfer to unseen products and causal interpretation.</span></div>
+          <div class="definition-item dataset-response-item"><strong>Price anomalies remain observations</strong><span>Large one-day price moves were not “corrected” without business confirmation. Relative/effective-price features and availability context reduce dependence on any single raw level.</span></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel dataset-method-panel dataset-closing-panel">
+      <div class="panel-header">
+        <h2>The resulting forecasting picture</h2>
+      </div>
+      <p class="dataset-closing-copy">The task became a leakage-safe, global seven-day panel forecast of total demand under strong weekly and annual seasonality, synchronized market shocks, changing channel composition, product lifecycle states and partially censored sales. The final NeuralNet is not presented as universally superior: tree models remain strong comparators, the convex ensemble is a useful secondary forecast, and every retained decision had to survive the same rolling-origin objective.</p>
+      <div class="dataset-page-links">
+        <a href="/evaluation" data-evaluation-link>See the evaluation process →</a>
+        <a href="/" data-overview-link>Return to the model comparison →</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="footer-method-text">Loading canonical forecasting method…</p>
+  </footer>
+
+  <script src="/static/common.js?v=13"></script>
+  <script src="/static/dataset.js?v=1"></script>
+</body>
+</html>

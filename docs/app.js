@@ -236,6 +236,39 @@ function setAllProductModels(data, visible) {
   (data.models || []).forEach((model) => productModelVisibility.set(model.key, visible));
 }
 
+function setProductHistoryVisible(visible) {
+  productHistoryVisible = Boolean(visible);
+}
+
+function renderProductModelLegend(data, strategy, refreshProductExplorer) {
+  const container = document.getElementById("product-model-legend");
+  if (!container) return;
+  const strategyForecasts = forecastsFor(data, strategy);
+  const models = (data.models || []).filter((model) => strategyForecasts[model.key]);
+  container.innerHTML = models.map((model) => {
+    const visible = productModelVisibility.get(model.key) !== false;
+    return `
+      <button
+        class="product-model-legend-button${visible ? "" : " is-hidden"}"
+        type="button"
+        data-model-key="${model.key}"
+        aria-pressed="${visible}"
+        title="${visible ? "Hide" : "Show"} ${model.label}"
+      >
+        <span class="product-model-legend-swatch" style="--model-color:${model.color}"></span>
+        <span>${model.label}</span>
+      </button>`;
+  }).join("");
+
+  container.querySelectorAll("[data-model-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.modelKey;
+      productModelVisibility.set(key, productModelVisibility.get(key) === false);
+      refreshProductExplorer();
+    });
+  });
+}
+
 function renderProductChart(data, productId, strategy) {
   const hist = data.history?.[productId];
   if (!hist) return;
@@ -259,7 +292,6 @@ function renderProductChart(data, productId, strategy) {
       tension: 0.25,
       pointRadius: 0,
       borderWidth: 2,
-      isHistory: true,
     });
   }
 
@@ -291,29 +323,7 @@ function renderProductChart(data, productId, strategy) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: {
-          position: "top",
-          labels: { boxWidth: 12 },
-          onClick(event, legendItem, legend) {
-            const chart = legend.chart;
-            const dataset = chart.data.datasets[legendItem.datasetIndex];
-            if (dataset?.isHistory) {
-              productHistoryVisible = false;
-              const toggle = document.getElementById("product-history-toggle");
-              if (toggle) toggle.checked = false;
-              renderProductChart(data, productId, strategy);
-              return;
-            }
-            if (dataset?.modelKey) {
-              const nextVisible = !chart.isDatasetVisible(legendItem.datasetIndex);
-              productModelVisibility.set(dataset.modelKey, nextVisible);
-              chart.setDatasetVisibility(legendItem.datasetIndex, nextVisible);
-              chart.update();
-            }
-          },
-        },
-      },
+      plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false }, ticks: { maxTicksLimit: productHistoryVisible ? 10 : 7 } },
         y: { grid: { color: CHART_GRID }, beginAtZero: true },
@@ -334,7 +344,9 @@ function renderSubmissionTable(data) {
   const productIds = [...new Set((data.submission || []).map((row) => row.ProductId))].sort((a, b) => a - b);
   const lookup = new Map((data.submission || []).map((row) => [`${row.ProductId}_${row.DateKey}`, row.Quantity]));
 
-  let html = '<table class="data-table"><thead><tr><th>Product</th>';
+  let html = '<table class="data-table submission-table"><colgroup><col class="submission-product-column">';
+  dates.forEach(() => { html += '<col class="submission-date-column">'; });
+  html += '</colgroup><thead><tr><th>Product</th>';
   dates.forEach((date) => { html += `<th>${date}</th>`; });
   html += "</tr></thead><tbody>";
   productIds.forEach((productId) => {
@@ -686,36 +698,6 @@ function renderTopErrors(data, strategy) {
   renderTopErrorInsight(data, strategy);
 }
 
-function renderChannelShare(data, strategy) {
-  const target = document.getElementById("channel-share-content");
-  const rows = (data.channel_share_summary || []).filter((row) => (
-    row.strategy === strategy && Number(row.n_scored ?? row.app_share_n ?? 0) > 0
-  ));
-  if (!rows.length) {
-    const candidates = (data.ablation_showcase || []).filter((row) => (
-      row.tier === "C3/C4" && row.stage === "channel_aux"
-    ));
-    const control = candidates.find((row) => row.candidate === "channel_control");
-    const channelCandidates = candidates.filter((row) => row.candidate !== "channel_control");
-    const bestChannel = channelCandidates
-      .filter((row) => Number.isFinite(Number(row.test_aligned_WAPE)))
-      .sort((a, b) => Number(a.test_aligned_WAPE) - Number(b.test_aligned_WAPE))[0];
-    const deterioration = control && bestChannel && Number(control.test_aligned_WAPE) !== 0
-      ? Number(bestChannel.test_aligned_WAPE) / Number(control.test_aligned_WAPE) - 1
-      : null;
-    const evidence = control && bestChannel
-      ? `The best channel-aware candidate (${bestChannel.candidate.replaceAll("_", " ")}) reached ${ratePct(bestChannel.test_aligned_WAPE, 2)} aligned WAPE versus ${ratePct(control.test_aligned_WAPE, 2)} for the control${Number.isFinite(deterioration) ? `, a ${ratePct(deterioration, 2)} deterioration` : ""}.`
-      : "The channel-aware candidates did not improve the primary total-demand objective.";
-    target.className = "empty-state explanatory-state";
-    target.innerHTML = `<p><strong>What was tested:</strong> the submitted target is total quantity, <code>QuantityApp + QuantityWeb</code>. An optional second NeuralNet output also tried to predict app share, <code>QuantityApp / total quantity</code>, using the same hidden representation.</p><p><strong>Why no diagnostics are shown:</strong> ${evidence} Because model selection is based on total-demand WAPE, the auxiliary head and channel-history features were deliberately rejected.</p><p><strong>Practical meaning:</strong> nothing is missing from the final model. It predicts the required total demand only; it does not separately forecast how that total splits between app and web.</p>`;
-    return;
-  }
-  target.className = "table-wrap";
-  target.innerHTML = `<div class="table-intro"><strong>Selected auxiliary task:</strong> total quantity remains the submission target; these metrics measure only the predicted app share.</div><table class="data-table"><thead><tr><th>Split</th><th>Share MAE</th><th>Weighted MAE</th><th>n</th></tr></thead><tbody>${rows.map((row) => `
-    <tr><td>${row.origin_type || "development"}</td><td>${fmt(row.app_share_MAE, 3)}</td><td>${fmt(row.app_share_weighted_MAE, 3)}</td><td>${row.n_scored ?? row.app_share_n ?? row.n ?? "—"}</td></tr>`).join("")}</tbody></table>`;
-}
-
-
 function renderFinalAudit(data, strategy) {
   const panel = document.getElementById("final-audit-panel");
   const tbody = document.querySelector("#final-audit-table tbody");
@@ -751,27 +733,6 @@ function renderFinalAudit(data, strategy) {
     </tr>`).join("");
 }
 
-function renderAblations(data) {
-  const tbody = document.querySelector("#ablation-table tbody");
-  const all = data.ablation_showcase || [];
-  const selected = all.filter((row) => row.selected);
-  const remaining = all.filter((row) => !row.selected)
-    .sort((a, b) => Number(a.test_aligned_WAPE ?? Infinity) - Number(b.test_aligned_WAPE ?? Infinity));
-  const rows = [...selected, ...remaining].slice(0, 36);
-  if (!rows.length) {
-    emptyTable(tbody, "No persisted ablation artifacts.", 5);
-    return;
-  }
-  tbody.innerHTML = rows.map((row) => `
-    <tr class="${row.selected ? "selected-row" : ""}" title="${row.description || ""}">
-      <td>${row.tier}</td>
-      <td>${row.stage}</td>
-      <td>${row.selected ? "★ " : ""}${row.candidate}</td>
-      <td>${row.model}</td>
-      <td>${ratePct(row.test_aligned_WAPE ?? row.WAPE, 2)}</td>
-    </tr>`).join("");
-}
-
 async function main() {
   try {
     const data = await loadResults();
@@ -804,6 +765,7 @@ async function main() {
     function refreshProductExplorer() {
       const strategy = strategySelect.value || canonicalStrategy(data);
       renderProductChart(data, productSelect.value || firstProduct, strategy);
+      renderProductModelLegend(data, strategy, refreshProductExplorer);
     }
 
     function refresh() {
@@ -823,9 +785,7 @@ async function main() {
       renderRegimeDiagnostics(data, strategy, regime);
       renderTopDecile(data, strategy);
       renderTopErrors(data, strategy);
-      renderChannelShare(data, strategy);
       renderFinalAudit(data, strategy);
-      renderAblations(data);
       document.getElementById("product-strategy-note").textContent = strategyLabel(strategy);
     }
 
@@ -834,7 +794,7 @@ async function main() {
       .forEach((select) => select.addEventListener("change", refresh));
 
     productHistoryToggle.addEventListener("change", () => {
-      productHistoryVisible = productHistoryToggle.checked;
+      setProductHistoryVisible(productHistoryToggle.checked);
       refreshProductExplorer();
     });
     productModelsSelectAll.addEventListener("click", () => {

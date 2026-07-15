@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="page-title">Model — Notino Quantity Forecast</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/styles.css?v=11" />
+  <link rel="stylesheet" href="/static/styles.css?v=18" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="bg-glow"></div>
 
   <div class="promo-bar">
-    <span>30 Product Time Series</span>
+    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
     <span id="promo-strategy">7-Day Forecast</span>
     <span id="promo-model-count">Models Compared</span>
-    <span>Walk-Forward Validated</span>
+    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
   </div>
 
   <header class="hero">
@@ -39,24 +39,20 @@
   </header>
 
   <main id="app">
-    <section class="selection-strip">
-      <div>
-        <span class="selection-label">View</span>
-        <strong id="canonical-selection-text">Canonical submission</strong>
+    <section class="panel model-method-panel" id="model-method-panel">
+      <div class="panel-header">
+        <h2>How this model works in this project</h2>
+        <p id="model-method-intro">Loading the fitted implementation and its role in the forecasting pipeline…</p>
       </div>
-      <div class="controls">
-        <div class="control-group">
-          <label for="strategy-select">Forecast strategy</label>
-          <select id="strategy-select"></select>
-        </div>
-        <div class="control-group">
-          <label for="regime-select">Evaluation regime</label>
-          <select id="regime-select">
-            <option value="conditional">Conditional Demand</option>
-            <option value="realized">Realized Sales</option>
-          </select>
-        </div>
+      <div class="definition-list model-method-list" id="model-method-list"></div>
+    </section>
+
+    <section class="panel nn-selection-panel" id="nn-selection-panel" hidden>
+      <div class="panel-header">
+        <h2>How we arrived at the submitted NeuralNet</h2>
+        <p>The retained choices and rejected alternatives, translated from the screening runs into the decisions that define the final forecast.</p>
       </div>
+      <div class="nn-selection-grid" id="nn-selection-grid"></div>
     </section>
 
     <section class="kpi-grid" id="kpi-grid">
@@ -99,7 +95,13 @@
           <h2>Product explorer</h2>
           <p>History vs. this model's selected-strategy seven-day forecast</p>
         </div>
-        <select id="product-select"></select>
+        <div class="controls product-explorer-controls">
+          <label class="checkbox-control" for="model-product-history-toggle">
+            <input id="model-product-history-toggle" type="checkbox" checked />
+            Show history
+          </label>
+          <select id="product-select"></select>
+        </div>
       </div>
       <div class="chart-wrap tall">
         <canvas id="chart-product"></canvas>
@@ -111,7 +113,7 @@
     <p id="footer-note"></p>
   </footer>
 
-  <script src="/static/common.js?v=11"></script>
-  <script src="/static/model.js?v=11"></script>
+  <script src="/static/common.js?v=13"></script>
+  <script src="/static/model.js?v=16"></script>
 </body>
 </html>

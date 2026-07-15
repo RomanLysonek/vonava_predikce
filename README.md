@@ -269,10 +269,16 @@ the browser to iterate on the presentation.
 
 **Pages:**
 - `/` — overview with direct/recursive and conditional/realized selectors,
+- `/dataset` — concise dataset profile, finding-to-decision mapping, retained/rejected experiments and known limitations,
   all seven models, paired strategy comparison, development horizon curves,
   benchmark fold metrics, product explorer and canonical submission.
+- `/evaluation` — the complete rolling-origin evaluation contract: the
+  distinction between walk-forward validation and direct/recursive inference,
+  development/recent-benchmark/final-audit roles, common-population scoring,
+  test-aligned WAPE, leakage controls and metric definitions.
 - `/model/<slug>` — one page per model (`neuralnet`, `xgboost`, `lightgbm`,
   `dynamicridge`, `seasonalnaive`, `movingavg28`) with strategy-aware metrics,
+  plus links to the dataset rationale and complete evaluation contract,
   folds and product forecasts. `model.html` is shared and `model.js` reads the
   slug from the URL.
 

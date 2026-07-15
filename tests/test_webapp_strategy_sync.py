@@ -191,15 +191,22 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
     json.loads((tmp_path / "results.json").read_text())
 
 
-def test_strategy_controls_exist_on_overview_and_model_pages():
-    for name in ("index.html", "model.html"):
-        text = (STATIC / name).read_text()
+def test_strategy_controls_stay_on_overview_but_model_tabs_use_canonical_view():
+    overview = (STATIC / "index.html").read_text()
+    model_page = (STATIC / "model.html").read_text()
+
+    for text in (overview, model_page):
         assert 'rel="icon" href="/static/favicon.svg"' in text
-        assert 'id="strategy-select"' in text
-        assert 'id="regime-select"' in text
         assert 'id="promo-strategy"' in text
 
-    overview = (STATIC / "index.html").read_text()
+    assert 'id="strategy-select"' in overview
+    assert 'id="regime-select"' in overview
+    assert 'class="selection-strip"' in overview
+    assert 'id="strategy-select"' not in model_page
+    assert 'id="regime-select"' not in model_page
+    assert 'class="selection-strip"' not in model_page
+    assert 'id="model-product-history-toggle"' in model_page
+
     assert 'id="strategy-comparison-table"' in overview
     assert 'id="chart-horizon"' in overview
     assert "Aligned WAPE" in overview
@@ -210,8 +217,12 @@ def test_strategy_controls_exist_on_overview_and_model_pages():
     assert 'id="top-decile-explanation"' in overview
     assert 'id="top-error-insight"' in overview
     assert 'id="product-history-toggle"' in overview
+    assert 'id="product-model-legend"' in overview
+    assert 'class="product-model-legend-row"' in overview
     assert 'id="product-models-select-all"' in overview
     assert 'id="product-models-deselect-all"' in overview
+    assert '>Select all</button>' in overview
+    assert '>Deselect all</button>' in overview
     assert 'class="panel model-comparison-panel"' in overview
 
     app_js = (STATIC / "app.js").read_text()
@@ -221,9 +232,91 @@ def test_strategy_controls_exist_on_overview_and_model_pages():
     assert "function renderRegimeDefinitions" in app_js
     assert "function renderTopErrorInsight" in app_js
     assert "function setAllProductModels" in app_js
+    assert "function setProductHistoryVisible" in app_js
+    assert "function renderProductModelLegend" in app_js
+    assert 'plugins: { legend: { display: false } }' in app_js
+    assert "dataset?.isHistory" not in app_js
     assert "const labels = productHistoryVisible" in app_js
-    assert 'row.stage === "channel_aux"' in app_js
+    assert "function renderChannelShare" not in app_js
+    assert "function renderAblations" not in app_js
+    assert 'id="channel-panel"' not in overview
+    assert 'id="ablation-table"' not in overview
+    assert "Tier-C ablation showcase" not in overview
 
+
+
+def test_evaluation_page_separates_walk_forward_from_recursive_inference():
+    evaluation = (STATIC / "evaluation.html").read_text()
+    assert "Two separate ideas" in evaluation
+    assert "Walk-forward / rolling-origin validation" in evaluation
+    assert "Direct vs. recursive forecasting" in evaluation
+    assert 'id="evaluation-stage-grid"' in evaluation
+    assert 'id="strategy-method-list"' in evaluation
+    assert 'id="selection-objective-list"' in evaluation
+    assert 'evaluation.js?v=2' in evaluation
+
+    common_js = (STATIC / "common.js").read_text()
+    assert "function evaluationHref" in common_js
+    assert 'label: "Evaluation"' in common_js
+    assert "wireSharedLinks();" in common_js
+
+    evaluation_js = (STATIC / "evaluation.js").read_text()
+    assert "function renderEvaluationStages" in evaluation_js
+    assert "function renderStrategyMethods" in evaluation_js
+    assert "function renderSelectionObjective" in evaluation_js
+    assert "walk-forward validation is the outer evaluation loop" in evaluation_js
+
+    for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
+        html = (STATIC / name).read_text()
+        assert 'data-evaluation-link' in html
+        assert 'data-dataset-link' in html
+        assert "Walk-Forward Validated" in html
+        assert "30 Product Time Series" in html
+
+
+def test_evaluation_route_serves_methodology_page():
+    from webapp import server
+
+    response = server.evaluation_page()
+    assert Path(response.path) == STATIC / "evaluation.html"
+
+
+
+def test_dataset_story_connects_profile_findings_to_modeling_decisions():
+    dataset = (STATIC / "dataset.html").read_text()
+    assert "Six facts that changed the modeling design" in dataset
+    assert "5.1% → 45.1%" in dataset
+    assert "45.50 → 21.81" in dataset
+    assert "Finding → modeling response" in dataset
+    assert "What we deliberately did not do" in dataset
+    assert "Known limitations" in dataset
+    assert 'id="dataset-decision-trail"' in dataset
+    assert 'id="dataset-response-list"' in dataset
+    assert 'dataset.js?v=1' in dataset
+
+    common_js = (STATIC / "common.js").read_text()
+    assert "function datasetHref" in common_js
+    assert 'label: "Data story"' in common_js
+    assert 'slug: "dataset"' in common_js
+
+    dataset_js = (STATIC / "dataset.js").read_text()
+    assert "function renderDatasetDecisionTrail" in dataset_js
+    assert "function renderDatasetResponses" in dataset_js
+    assert "recency decay were screened rather than assumed" in dataset_js
+    assert "Channel-history and app-share auxiliary candidates were tested and rejected" in dataset_js
+    assert "No automatic peak clipping" in dataset
+
+    styles = (STATIC / "styles.css").read_text()
+    assert ".dataset-fact-grid" in styles
+    assert ".dataset-decision-trail" in styles
+    assert ".dataset-response-item" in styles
+
+
+def test_dataset_route_serves_story_page():
+    from webapp import server
+
+    response = server.dataset_page()
+    assert Path(response.path) == STATIC / "dataset.html"
 
 
 def test_api_results_serves_strategy_payload(tmp_path, monkeypatch):
@@ -262,3 +355,77 @@ def test_model_comparison_uses_wide_seven_column_desktop_layout():
     assert "grid-template-columns: repeat(7, minmax(0, 1fr));" in styles
     assert ".model-comparison-panel .model-column-header h3" in styles
     assert "white-space: nowrap;" in styles
+
+
+def test_promo_bar_uses_narrow_notino_style_desktop_ribbon():
+    styles = (STATIC / "styles.css").read_text()
+    assert "width: 60%;" in styles
+    assert "margin: 0 auto;" in styles
+    assert "font-size: clamp(8.5px, 0.72vw, 10.5px);" in styles
+    assert ".promo-bar > span" in styles
+    assert "white-space: nowrap;" in styles
+    assert "@media (max-width: 760px)" in styles
+
+    for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
+        html = (STATIC / name).read_text()
+        expected = 'styles.css?v=18'
+        assert expected in html
+
+
+def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform():
+    model_html = (STATIC / "model.html").read_text()
+    assert 'id="model-method-panel"' in model_html
+    assert 'id="model-method-intro"' in model_html
+    assert 'id="model-method-list"' in model_html
+    assert 'model.js?v=16' in model_html
+    assert 'id="nn-selection-panel"' in model_html
+    assert 'id="nn-selection-grid"' in model_html
+    assert "How we arrived at the submitted NeuralNet" in model_html
+
+    model_js = (STATIC / "model.js").read_text()
+    assert "function renderModelMethod" in model_js
+    assert "function renderNeuralNetSelection" in model_js
+    assert "App-vs-web split experiment" in model_js
+    assert "channel-aware candidate scored" in model_js
+    for model in (
+        "NeuralNet", "Ensemble", "XGBoost", "LightGBM",
+        "DynamicRidge", "SeasonalNaive", "MovingAvg28",
+    ):
+        assert f"    {model}: {{" in model_js
+    assert "4:3:2:1 weighted 7/14/21/28-day same-weekday baseline" in model_js
+    assert "the arithmetic mean of the remaining observed quantities" in model_js
+    assert '"Evaluation contract"' in model_js
+    assert "walk-forward validation is the outer evaluation loop" in model_js
+    assert "See the complete evaluation process" in model_js
+    assert "See the dataset story & decision rationale" in model_js
+    assert "function setModelProductHistoryVisible" in model_js
+    assert "const labels = modelProductHistoryVisible" in model_js
+    assert 'plugins: { legend: { display: false } }' in model_js
+    assert "onClick() {}" not in model_js
+    assert 'document.getElementById("strategy-select")' not in model_js
+    assert 'document.getElementById("regime-select")' not in model_js
+
+    overview = (STATIC / "index.html").read_text()
+    assert 'app.js?v=14' in overview
+    assert 'styles.css?v=18' in overview
+
+    app_js = (STATIC / "app.js").read_text()
+    assert 'class="data-table submission-table"' in app_js
+    assert 'class="submission-product-column"' in app_js
+    assert 'class="submission-date-column"' in app_js
+
+    styles = (STATIC / "styles.css").read_text()
+    assert "#submission-table-wrap .submission-table" in styles
+    assert "table-layout: fixed;" in styles
+    assert "#submission-table-wrap .submission-product-column" in styles
+    assert "width: 92px;" in styles
+    assert "#submission-table-wrap .submission-table th," in styles
+    assert "text-align: right;" in styles
+    assert "font-variant-numeric: tabular-nums;" in styles
+    assert ".product-model-legend-row" in styles
+    assert ".product-model-legend-button" in styles
+    assert ".legend-action" in styles
+    assert "font-size: 8.5px;" in styles
+    assert ".nn-selection-grid" in styles
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in styles
+    assert ".nn-decision-status.rejected" in styles

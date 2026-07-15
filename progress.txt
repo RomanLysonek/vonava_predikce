@@ -276,6 +276,14 @@ STATUS
     - stale final-audit artifacts are suppressed when ensemble weights change
 
 
+[x] Dashboard v8 dataset-story and modeling-rationale tab
+    - concise raw-data profile: panel gaps, lifecycle, seasonality, channel migration,
+      demand decline, availability censoring and test compatibility
+    - C0-C5 decision trail rendered from the published configuration
+    - finding-to-implementation matrix, deliberately rejected shortcuts and
+      honest residual limitations
+    - shared navigation and model/evaluation cross-links; runtime and static routes
+
 Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;
 post strategy work both direct and recursive engines are supported):
   ml/framework.py          - reindex, availability-aware features, baselines, metrics,

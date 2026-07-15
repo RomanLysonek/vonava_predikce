@@ -49,6 +49,16 @@ def favicon() -> FileResponse:
     return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
 
 
+@app.get("/dataset")
+def dataset_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "dataset.html")
+
+
+@app.get("/evaluation")
+def evaluation_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "evaluation.html")
+
+
 @app.get("/model/{slug}")
 def model_page(slug: str) -> FileResponse:
     # One shared template; model.js reads `slug` from the URL itself and

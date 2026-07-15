@@ -26,6 +26,24 @@ function modelHref(slug) {
     : `/model/${slug}`;
 }
 
+function datasetHref() {
+  return window.STATIC_DASHBOARD ? "dataset.html" : "/dataset";
+}
+
+function evaluationHref() {
+  return window.STATIC_DASHBOARD ? "evaluation.html" : "/evaluation";
+}
+
+function wireSharedLinks() {
+  if (typeof document === "undefined" || !document.querySelectorAll) return;
+  document.querySelectorAll("[data-dataset-link]").forEach((link) => {
+    link.href = datasetHref();
+  });
+  document.querySelectorAll("[data-evaluation-link]").forEach((link) => {
+    link.href = evaluationHref();
+  });
+}
+
 function fmt(n, digits = 1) {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
   return Number(n).toLocaleString(undefined, {
@@ -177,18 +195,25 @@ function updateStrategyCopy(data, strategy) {
   if (modelCount) modelCount.textContent = `${(data.models || []).length} Models Compared`;
 }
 
-/** Renders the shared top nav: Overview + one pill per model. */
+/** Renders the shared top nav: Overview + Dataset + Evaluation + one pill per model. */
 function renderNav(data, activeSlug) {
   const nav = document.getElementById("site-nav");
   if (!nav) return;
-  const items = [{ slug: "", label: "Overview", color: "#ffffff" }].concat(
-    (data.models || []).map((m) => ({ slug: m.slug, label: m.label, color: m.color })),
-  );
+  const items = [
+    { slug: "", label: "Overview", color: "#ffffff", href: overviewHref() },
+    { slug: "dataset", label: "Data story", color: "#a78bfa", href: datasetHref() },
+    { slug: "evaluation", label: "Evaluation", color: "#9ca3af", href: evaluationHref() },
+    ...(data.models || []).map((m) => ({
+      slug: m.slug,
+      label: m.label,
+      color: m.color,
+      href: modelHref(m.slug),
+    })),
+  ];
   nav.innerHTML = items
     .map((it) => {
-      const href = it.slug ? modelHref(it.slug) : overviewHref();
       const active = it.slug === (activeSlug || "");
-      return `<a class="nav-pill${active ? " active" : ""}" style="--pill-color:${it.color}" href="${href}">${it.label}</a>`;
+      return `<a class="nav-pill${active ? " active" : ""}" style="--pill-color:${it.color}" href="${it.href}">${it.label}</a>`;
     })
     .join("");
 }
@@ -201,3 +226,5 @@ if (window.Chart) {
   Chart.defaults.font.family = "Roboto, -apple-system, sans-serif";
   Chart.defaults.borderColor = CHART_GRID;
 }
+
+wireSharedLinks();

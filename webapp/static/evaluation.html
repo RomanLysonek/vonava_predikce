@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evaluation Process — Notino Quantity Forecast</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/styles.css?v=18" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="promo-bar">
+    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
+    <span id="promo-strategy">7-Day Forecast</span>
+    <span id="promo-model-count">Models Compared</span>
+    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="brand-logo">NOTINO</span>
+        <span class="brand-tagline">Interview Assignment</span>
+      </div>
+      <div class="hero-title-block">
+        <h1>Quantity Forecast Dashboard</h1>
+      </div>
+    </div>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+
+  <header class="model-hero evaluation-hero" style="--mc:#4b5563">
+    <span class="model-badge">Methodology</span>
+    <h1>Evaluation process</h1>
+    <p class="blurb">How rolling forecast origins, direct and recursive inference, availability-aware scoring, model selection, confirmation and the frozen final audit fit together.</p>
+  </header>
+
+  <main id="app">
+    <section class="panel evaluation-distinction-panel">
+      <div class="panel-header">
+        <h2>Two separate ideas</h2>
+        <p>“Walk-forward” describes the evaluation loop; “direct” and “recursive” describe how a model produces the seven forecast days inside each loop.</p>
+      </div>
+      <div class="evaluation-concept-grid">
+        <article class="evaluation-concept-card">
+          <span class="evaluation-concept-kicker">Outer loop</span>
+          <h3>Walk-forward / rolling-origin validation</h3>
+          <p>Choose a historical cutoff, train using only information available by that cutoff, predict the following seven days, score after their actuals are revealed, then repeat at another cutoff. Each repetition is an independent out-of-fold test.</p>
+        </article>
+        <article class="evaluation-concept-card">
+          <span class="evaluation-concept-kicker">Inside one fold</span>
+          <h3>Direct vs. recursive forecasting</h3>
+          <p>Direct predicts horizons 1–7 from the same observed pre-origin history. Recursive predicts one day, appends that estimate as synthetic history, and uses it to construct the next day. Either strategy can be evaluated with the same walk-forward origins.</p>
+        </article>
+      </div>
+      <div class="diagnostic-note compact evaluation-current-note" id="evaluation-current-note"></div>
+    </section>
+
+    <section class="panel evaluation-method-panel">
+      <div class="panel-header">
+        <h2>One walk-forward fold, step by step</h2>
+        <p>The same leakage-safe sequence is repeated for every selected origin.</p>
+      </div>
+      <div class="definition-list evaluation-step-list">
+        <div class="definition-item evaluation-step-item"><strong>1 · Freeze the origin</strong><span>The origin is the final day considered known. Quantities, availability states and aggregate-demand features after that date are unavailable to training and feature construction.</span></div>
+        <div class="definition-item evaluation-step-item"><strong>2 · Build training data</strong><span>The model is fitted only on eligible historical targets at or before the origin. Unavailable-product quantities are treated as censored observations rather than genuine zero demand.</span></div>
+        <div class="definition-item evaluation-step-item"><strong>3 · Forecast seven days</strong><span>The target block is origin + 1 through origin + 7. Future-known calendar, campaign, discount, price and event information may be used; future realized quantities may not.</span></div>
+        <div class="definition-item evaluation-step-item"><strong>4 · Align common rows</strong><span>Compared models are scored on the same product-date population. This prevents one model from appearing better merely because difficult or missing rows were silently excluded.</span></div>
+        <div class="definition-item evaluation-step-item"><strong>5 · Score after the fact</strong><span>WAPE is primary; MAE, RMSE, signed bias and bias ratio diagnose scale, tail errors and systematic over- or under-forecasting.</span></div>
+        <div class="definition-item evaluation-step-item"><strong>6 · Move the origin</strong><span>The complete process is repeated at another historical cutoff. Models are refitted or baselines recomputed from the information that would genuinely have existed at that time.</span></div>
+      </div>
+    </section>
+
+    <section class="evaluation-stage-grid" id="evaluation-stage-grid"></section>
+
+    <section class="panel-grid evaluation-two-column-grid">
+      <section class="panel evaluation-method-panel">
+        <div class="panel-header">
+          <h2>Forecast-generation strategies</h2>
+          <p>Both contracts were implemented; the current published submission uses the development-selected winner.</p>
+        </div>
+        <div class="definition-list" id="strategy-method-list"></div>
+      </section>
+
+      <section class="panel evaluation-method-panel">
+        <div class="panel-header">
+          <h2>Scoring contract</h2>
+          <p>The metric population is fixed before comparing model scores.</p>
+        </div>
+        <div class="definition-list">
+          <div class="definition-item evaluation-step-item"><strong>Conditional demand · primary</strong><span>Score only product-days on which the product was available. This estimates underlying customer demand rather than penalizing a model for inventory censorship.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Realized sales · diagnostic</strong><span>Score every observed product-day, including unavailable days. This measures what was sold under actual stock constraints, not the unconstrained demand target.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Common population</strong><span>For a comparison, retain rows with an actual value and valid predictions from every included model. Expected, predicted and scored row counts are reported explicitly.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Global aggregation</strong><span>Pool absolute errors and actual demand across the selected rows before computing WAPE. Large-volume product-days therefore receive proportionate operational weight.</span></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel-grid evaluation-two-column-grid">
+      <section class="panel evaluation-method-panel">
+        <div class="panel-header">
+          <h2>Selection objective</h2>
+          <p>Development decisions are optimized for a January-like test week without inspecting test actuals.</p>
+        </div>
+        <div class="definition-list" id="selection-objective-list"></div>
+      </section>
+
+      <section class="panel evaluation-method-panel">
+        <div class="panel-header">
+          <h2>Leakage and overfitting controls</h2>
+          <p>Controls that make the reported OOF scores comparable to a real forecast made on January 11, 2026.</p>
+        </div>
+        <div class="definition-list">
+          <div class="definition-item evaluation-step-item"><strong>Origin-relative features</strong><span>Rolling demand, market state and ordinary lags are calculated only from observations known at the fold origin.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Target-known covariates only</strong><span>Future calendar, campaign, discount, price and event variables are admitted only because they are supplied or knowable for the forecast dates.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>No fold early-stopping leakage</strong><span>The seven-day evaluation block is never used as an early-stopping or hyperparameter-tuning set for the model being scored on it.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Development-only decisions</strong><span>Feature, loss, strategy and ensemble-weight decisions are made from development OOF. Recent benchmark and final audit have confirmation roles and do not refit those decisions.</span></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel evaluation-method-panel">
+      <div class="panel-header">
+        <h2>Metric glossary</h2>
+        <p>Why several metrics are retained even though WAPE drives selection.</p>
+      </div>
+      <div class="metric-glossary-grid">
+        <article><strong>WAPE</strong><span>Σ|actual − prediction| / Σactual. Primary scale-weighted accuracy measure; lower is better.</span></article>
+        <article><strong>MAE</strong><span>Average absolute unit error. Easy to interpret directly in quantities.</span></article>
+        <article><strong>RMSE</strong><span>Square-root mean squared error. Penalizes occasional large misses more strongly than MAE.</span></article>
+        <article><strong>Bias</strong><span>Average prediction − actual. Positive means systematic over-forecasting; negative means under-forecasting.</span></article>
+        <article><strong>Bias ratio</strong><span>Total signed error divided by total actual demand. Makes aggregate directional bias comparable across periods.</span></article>
+        <article><strong>Coverage</strong><span>Share of expected rows for which a finite prediction exists. Accuracy is not accepted at the cost of missing difficult rows.</span></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="footer-method-text">Loading canonical forecasting method…</p>
+  </footer>
+
+  <script src="/static/common.js?v=13"></script>
+  <script src="/static/evaluation.js?v=2"></script>
+</body>
+</html>

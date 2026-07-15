@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/styles.css?v=12" />
+  <link rel="stylesheet" href="/static/styles.css?v=18" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="bg-glow"></div>
 
   <div class="promo-bar">
-    <span>30 Product Time Series</span>
+    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
     <span id="promo-strategy">7-Day Forecast</span>
     <span id="promo-model-count">Models Compared</span>
-    <span>Walk-Forward Validated</span>
+    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
   </div>
 
   <header class="hero">
@@ -264,34 +264,11 @@
       </div>
     </section>
 
-    <section class="panel-grid">
-      <div class="panel" id="channel-panel">
-        <div class="panel-header">
-          <h2>App-vs-web split experiment</h2>
-          <p>An optional NeuralNet task tested whether predicting channel mix alongside total quantity improved the submitted forecast</p>
-        </div>
-        <div id="channel-share-content" class="empty-state">Loading channel experiment decision…</div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h2>Tier-C ablation showcase</h2>
-          <p>Selected candidates and their controlled screening evidence</p>
-        </div>
-        <div class="table-wrap diagnostic-table-wrap">
-          <table class="data-table" id="ablation-table">
-            <thead><tr><th>Tier</th><th>Stage</th><th>Candidate</th><th>Model</th><th>Aligned WAPE</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
     <section class="panel">
       <div class="panel-header row">
         <div>
           <h2>Product explorer — all models</h2>
-          <p>History vs. <span id="product-strategy-note">selected</span> forecasts; legend items can still hide individual models</p>
+          <p>History vs. <span id="product-strategy-note">selected</span> forecasts; click a model label below to show or hide its forecast</p>
         </div>
         <div class="controls product-explorer-controls">
           <div class="control-group">
@@ -302,8 +279,13 @@
             <input id="product-history-toggle" type="checkbox" checked />
             <span>Show history</span>
           </label>
-          <button class="secondary-action" id="product-models-select-all" type="button">Select all models</button>
-          <button class="secondary-action" id="product-models-deselect-all" type="button">Deselect all models</button>
+        </div>
+      </div>
+      <div class="product-model-legend-row" aria-label="Product explorer model visibility controls">
+        <div class="product-model-legend" id="product-model-legend"></div>
+        <div class="product-model-actions">
+          <button class="legend-action" id="product-models-select-all" type="button">Select all</button>
+          <button class="legend-action" id="product-models-deselect-all" type="button">Deselect all</button>
         </div>
       </div>
       <div class="chart-wrap tall">
@@ -324,7 +306,7 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=11"></script>
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/common.js?v=13"></script>
+  <script src="/static/app.js?v=14"></script>
 </body>
 </html>

@@ -65,13 +65,21 @@ def test_static_dashboard_is_self_contained(tmp_path):
     outputs.mkdir()
     (static / "index.html").write_text('<link href="/static/styles.css"><script src="/static/common.js?v=1"></script>')
     (static / "model.html").write_text('<script src="/static/common.js?v=1"></script>')
+    (static / "evaluation.html").write_text('<script src="/static/common.js?v=1"></script><script src="/static/evaluation.js?v=1"></script>')
+    (static / "dataset.html").write_text('<script src="/static/common.js?v=1"></script><script src="/static/dataset.js?v=1"></script>')
     (static / "common.js").write_text("function ok() {}")
+    (static / "evaluation.js").write_text("function evaluation() {}")
+    (static / "dataset.js").write_text("function dataset() {}")
     (static / "styles.css").write_text("body{}")
     results = outputs / "results.json"
     results.write_text(json.dumps({"selection": {"canonical_model": "NeuralNet"}}))
 
     manifest = publish_static_dashboard(tmp_path, results)
     assert (tmp_path / "docs" / "index.html").exists()
+    assert (tmp_path / "docs" / "evaluation.html").exists()
+    assert (tmp_path / "docs" / "evaluation.js").exists()
+    assert (tmp_path / "docs" / "dataset.html").exists()
+    assert (tmp_path / "docs" / "dataset.js").exists()
     html = (tmp_path / "docs" / "index.html").read_text()
     assert 'window.STATIC_DASHBOARD = true' in html
     assert './styles.css' in html
