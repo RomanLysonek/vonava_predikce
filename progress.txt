@@ -232,7 +232,13 @@ STATUS
       while remaining inside the broad-development guard
     - NN candidates skip structured models; tree target modes run only in a
       dedicated structured-only stage
-[ ] C3/C4 screen + one full 512/fixed direct confirmation on the user's Mac
+[x] C3/C4 fast screen on the user's Mac
+    - selected: all C2 groups, no recency decay, MSE residual NN, no channel
+      history/auxiliary head, XGBoost residual target, LightGBM log1p target
+[ ] C3/C4 full 512/fixed direct confirmation on the user's Mac
+    - the latest uploaded ZIP contains only pipeline_c34_screening.log; its
+      canonical outputs are byte-identical to outputs_c1_half365 and therefore
+      are not the full C3/C4 confirmation
 
 [x] C4 source implementation
     - shared total-demand head + optional auxiliary app-share head
@@ -243,16 +249,24 @@ STATUS
     - channel-history-only and channel-history+auxiliary candidates screened
       separately so representation and multitask-loss effects are identifiable
 
-[ ] C5 OOF-fitted ensemble weights
-    - development OOF only, nonnegative, sum-to-one
-    - common paired keys and test-aligned fold weights
-    - recent benchmark confirmation only; final audit checked once
+[x] C5 source implementation: constrained development-OOF ensemble
+    - development OOF only, nonnegative, sum-to-one simplex-grid weights
+    - common conditional rows and exact test-aligned stratum objective
+    - frozen recent-benchmark evaluation; final forecasts and submissions
+    - automatic eligibility requires development gain + benchmark guard
+    - one-shot ml/run_final_audit.py over frozen disjoint origins
+    - C5/C6 implementation verification: 112 fast tests passed; native
+      tree-worker integration exceeded the Linux verification timeout
+[ ] C5 real-data weights + one-shot final audit
+    - produced by the combined full C3/C4+C5 command, then final-audit script
 
-[ ] C6 dashboard depth and delivery
-    - strategy selector and horizon curves complete
-    - per-product error/bias, regime diagnostics, top-decile views
-    - channel-share diagnostics and ablation showcase
-    - static results.json / GitHub Pages portability
+[x] C6 source implementation: dashboard depth and static delivery
+    - strategy selector and horizon curves retained
+    - ensemble weights/acceptance, per-product error/bias, validation regimes
+    - top-decile demand, largest recent errors, channel-share diagnostics
+    - C1/C2/C3/C4 ablation showcase and frozen final-audit panel
+    - webapp/static/results.json fallback and generated docs/ GitHub Pages site
+[ ] C6 final artifact refresh after combined full run and final audit
 
 
 Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;
@@ -270,8 +284,10 @@ post strategy work both direct and recursive engines are supported):
   ml/tree_worker.py        - thin subprocess dispatcher over models/xgboost_model.py,
                              lightgbm_model.py, and dynamic_ridge.py
   tests/test_pipeline.py   - update + extend
-  webapp/static/*          - strategy-aware metrics, forecasts, paired comparison
-                             and horizon curves; remaining Tier C5 depth deferred
+  ml/ensemble.py           - constrained development-OOF convex C5 ensemble
+  ml/dashboard_artifacts.py - per-product/top-decile/ablation summaries + docs/ site
+  ml/run_final_audit.py    - one-shot frozen-origin audit with fixed C5 weights
+  webapp/static/*          - full C6 diagnostics and static/runtime dashboard
 
 [x] Direct/recursive/both strategy architecture implemented:
     - explicit CLI/runtime strategy types

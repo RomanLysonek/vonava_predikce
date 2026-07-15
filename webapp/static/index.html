@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
-  <link rel="stylesheet" href="/static/styles.css?v=8" />
+  <link rel="stylesheet" href="/static/styles.css?v=10" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -13,7 +13,7 @@
   <div class="promo-bar">
     <span>30 Product Time Series</span>
     <span id="promo-strategy">7-Day Forecast</span>
-    <span>6 Models Compared</span>
+    <span id="promo-model-count">Models Compared</span>
     <span>Walk-Forward Validated</span>
   </div>
 
@@ -66,6 +66,30 @@
         </div>
       </div>
       <div class="columns-grid" id="columns-grid"></div>
+    </section>
+
+    <section class="panel" id="ensemble-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Development-OOF ensemble</h2>
+          <p>Non-negative weights sum to one; recent benchmark is confirmation-only</p>
+        </div>
+        <span class="winner-badge" id="ensemble-status">—</span>
+      </div>
+      <div class="panel-grid compact-grid">
+        <div class="table-wrap">
+          <table class="data-table" id="ensemble-weights-table">
+            <thead><tr><th>Member</th><th>Weight</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="ensemble-comparison-table">
+            <thead><tr><th>Measure</th><th>Ensemble</th><th>Best single</th><th>Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section class="panel-grid">
@@ -148,6 +172,116 @@
       </div>
     </section>
 
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header row">
+          <div>
+            <h2>Per-product error &amp; bias</h2>
+            <p>Conditional common population, sorted by WAPE</p>
+          </div>
+          <div class="controls">
+            <div class="control-group">
+              <label for="product-error-model-select">Model</label>
+              <select id="product-error-model-select"></select>
+            </div>
+            <div class="control-group">
+              <label for="product-error-split-select">Split</label>
+              <select id="product-error-split-select">
+                <option value="recent_benchmark">Recent benchmark</option>
+                <option value="development">Development</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="per-product-table">
+            <thead><tr><th>Product</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Actual</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Validation regimes</h2>
+          <p>Winter/test-like, regular, and holiday-event performance</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="regime-table">
+            <thead><tr><th>Stratum</th><th>Model</th><th>WAPE</th><th>Bias%</th><th>n</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Top-decile demand</h2>
+          <p>Performance on the highest-demand 10% of product-days</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="top-decile-table">
+            <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Threshold</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Largest recent errors</h2>
+          <p>Rows requiring business interpretation, not automatic clipping</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="top-error-table">
+            <thead><tr><th>Date</th><th>Product</th><th>Model</th><th>Actual</th><th>Pred.</th><th>|Error|</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="final-audit-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Frozen final audit</h2>
+          <p>Three untouched origins, evaluated once after C1-C5 decisions were frozen</p>
+        </div>
+        <span class="winner-badge">One-shot</span>
+      </div>
+      <div class="table-wrap diagnostic-table-wrap">
+        <table class="data-table" id="final-audit-table">
+          <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Coverage</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel" id="channel-panel">
+        <div class="panel-header">
+          <h2>Channel-share diagnostics</h2>
+          <p>Total demand remains canonical; app-share is an auxiliary structural task</p>
+        </div>
+        <div id="channel-share-content" class="empty-state">No channel-share head selected.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Tier-C ablation showcase</h2>
+          <p>Selected candidates and their controlled screening evidence</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="ablation-table">
+            <thead><tr><th>Tier</th><th>Stage</th><th>Candidate</th><th>Model</th><th>Aligned WAPE</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-header row">
         <div>
@@ -174,7 +308,7 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=8"></script>
-  <script src="/static/app.js?v=8"></script>
+  <script src="/static/common.js?v=10"></script>
+  <script src="/static/app.js?v=10"></script>
 </body>
 </html>

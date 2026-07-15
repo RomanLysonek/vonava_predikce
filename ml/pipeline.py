@@ -71,6 +71,21 @@ from models.neural_net import (
     neural_training_target, nn_performance_signature, predict_direct,
     resolve_training_backend, train_model,
 )
+from ensemble import (
+    ENSEMBLE_SCHEMA_VERSION,
+    EnsembleFit,
+    apply_ensemble_prediction,
+    combine_forecasts,
+    evaluate_fit,
+    fit_convex_ensemble,
+    parse_model_list,
+)
+from dashboard_artifacts import (
+    collect_ablation_showcase,
+    publish_static_dashboard,
+    summarize_per_product_oof,
+    summarize_top_deciles,
+)
 
 np.random.seed(CFG.seed)
 
@@ -90,6 +105,7 @@ class PrimaryStrategy(str, Enum):
 
 class SubmissionModel(str, Enum):
     NEURAL_NET = "NeuralNet"
+    ENSEMBLE = "Ensemble"
     DYNAMIC_RIDGE = "DynamicRidge"
     XGBOOST = "XGBoost"
     LIGHTGBM = "LightGBM"
@@ -127,6 +143,11 @@ class RuntimeOptions:
     channel_history_features: str | None = None
     channel_aux_weight: float | None = None
     channel_share_smoothing: float | None = None
+    ensemble: str = "off"
+    ensemble_models: str | None = None
+    ensemble_grid_step: float | None = None
+    ensemble_min_relative_improvement: float | None = None
+    ensemble_benchmark_tolerance: float | None = None
 
 
 def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ...]:
@@ -228,6 +249,18 @@ def parse_args(argv=None) -> RuntimeOptions:
     )
     parser.add_argument("--channel-aux-weight", type=float, default=None)
     parser.add_argument("--channel-share-smoothing", type=float, default=None)
+    parser.add_argument(
+        "--ensemble", choices=["on", "off"], default="off",
+        help=("Fit a non-negative sum-to-one ensemble on development OOF and "
+              "apply the frozen weights to benchmark and final forecasts"),
+    )
+    parser.add_argument(
+        "--ensemble-models", default=None,
+        help="Comma-separated ensemble members (default: NeuralNet,XGBoost,LightGBM)",
+    )
+    parser.add_argument("--ensemble-grid-step", type=float, default=None)
+    parser.add_argument("--ensemble-min-relative-improvement", type=float, default=None)
+    parser.add_argument("--ensemble-benchmark-tolerance", type=float, default=None)
     args = parser.parse_args(argv)
     if args.nn_batch_size != "auto":
         try:
@@ -257,6 +290,18 @@ def parse_args(argv=None) -> RuntimeOptions:
         parser.error("--channel-aux-weight must be nonnegative")
     if args.channel_share_smoothing is not None and args.channel_share_smoothing < 0.0:
         parser.error("--channel-share-smoothing must be nonnegative")
+    if args.ensemble_grid_step is not None and not (0 < args.ensemble_grid_step <= 0.5):
+        parser.error("--ensemble-grid-step must be in (0, 0.5]")
+    if (
+        args.ensemble_min_relative_improvement is not None
+        and args.ensemble_min_relative_improvement < 0
+    ):
+        parser.error("--ensemble-min-relative-improvement must be nonnegative")
+    if (
+        args.ensemble_benchmark_tolerance is not None
+        and args.ensemble_benchmark_tolerance < 0
+    ):
+        parser.error("--ensemble-benchmark-tolerance must be nonnegative")
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
@@ -287,6 +332,11 @@ def parse_args(argv=None) -> RuntimeOptions:
         channel_history_features=args.channel_history_features,
         channel_aux_weight=args.channel_aux_weight,
         channel_share_smoothing=args.channel_share_smoothing,
+        ensemble=args.ensemble,
+        ensemble_models=args.ensemble_models,
+        ensemble_grid_step=args.ensemble_grid_step,
+        ensemble_min_relative_improvement=args.ensemble_min_relative_improvement,
+        ensemble_benchmark_tolerance=args.ensemble_benchmark_tolerance,
     )
 
 
@@ -533,6 +583,39 @@ def configure_c34_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     }
 
 
+def configure_c5_runtime(cfg: Config, options: RuntimeOptions) -> dict:
+    """Configure the post-model OOF ensemble without changing member fits."""
+    cfg.enable_ensemble = options.ensemble == "on"
+    if options.ensemble_models is not None:
+        cfg.ensemble_models = parse_model_list(options.ensemble_models)
+    else:
+        cfg.ensemble_models = parse_model_list(cfg.ensemble_models)
+    if options.ensemble_grid_step is not None:
+        cfg.ensemble_grid_step = float(options.ensemble_grid_step)
+    if options.ensemble_min_relative_improvement is not None:
+        cfg.ensemble_min_relative_improvement = float(
+            options.ensemble_min_relative_improvement
+        )
+    if options.ensemble_benchmark_tolerance is not None:
+        cfg.ensemble_benchmark_max_relative_regression = float(
+            options.ensemble_benchmark_tolerance
+        )
+    # Validate exact simplex divisibility early rather than after an expensive
+    # CV run. ``fit_convex_ensemble`` performs the same defensive check.
+    units = round(1.0 / cfg.ensemble_grid_step)
+    if not np.isclose(units * cfg.ensemble_grid_step, 1.0, atol=1e-9):
+        raise ValueError("ensemble_grid_step must divide 1.0 exactly")
+    return {
+        "enabled": cfg.enable_ensemble,
+        "models": list(cfg.ensemble_models),
+        "grid_step": cfg.ensemble_grid_step,
+        "min_relative_improvement": cfg.ensemble_min_relative_improvement,
+        "benchmark_max_relative_regression": (
+            cfg.ensemble_benchmark_max_relative_regression
+        ),
+    }
+
+
 def configure_nn_runtime(cfg: Config, options: RuntimeOptions) -> dict:
     """Resolve batch/LR/backend without guessing away model quality.
 
@@ -623,6 +706,16 @@ def _fold_checkpoint_signature(
     cfg_signature = asdict(cfg)
     # The execution backend changes throughput, not the estimator definition.
     cfg_signature.pop("nn_training_backend", None)
+    # C5 is post-processing over already-produced member predictions and must
+    # not invalidate otherwise identical expensive fold checkpoints.
+    for name in (
+        "enable_ensemble",
+        "ensemble_models",
+        "ensemble_grid_step",
+        "ensemble_min_relative_improvement",
+        "ensemble_benchmark_max_relative_regression",
+    ):
+        cfg_signature.pop(name, None)
     return {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "strategy": strategy,
@@ -1301,6 +1394,7 @@ def run_walk_forward_cv(
 
 OOF_MODEL_COLUMNS = {
     "NeuralNet": "pred_NeuralNet",
+    "Ensemble": "pred_Ensemble",
     "XGBoost": "pred_XGBoost",
     "LightGBM": "pred_LightGBM",
     "DynamicRidge": "pred_DynamicRidge",
@@ -1500,8 +1594,10 @@ def compute_test_aligned_scores(
     stratum_summary: pd.DataFrame,
     metric: str = "WAPE",
     weights: dict[str, float] | None = None,
+    *,
+    origin_type: str = "development",
 ) -> pd.DataFrame:
-    """Weighted development score emphasizing winter/test-like weeks."""
+    """Weighted stratum score for one explicitly named evaluation split."""
     if stratum_summary.empty:
         return pd.DataFrame()
     weights = weights or VALIDATION_STRATUM_WEIGHTS
@@ -1511,7 +1607,7 @@ def compute_test_aligned_scores(
         & stratum_summary["aggregation"].eq("global")
     ].copy()
     if "origin_type" in selected.columns:
-        selected = selected[selected["origin_type"].eq("development")]
+        selected = selected[selected["origin_type"].eq(origin_type)]
     rows = []
     for (strategy, model), group in selected.groupby(["strategy", "model"]):
         available = group[group["validation_stratum"].isin(weights)].copy()
@@ -1534,6 +1630,142 @@ def compute_test_aligned_scores(
             "strata_present": ",".join(sorted(available["validation_stratum"].unique())),
         })
     return pd.DataFrame(rows)
+
+
+def fit_c5_ensembles(
+    dev_oof: pd.DataFrame,
+    benchmark_oof: pd.DataFrame,
+    strategies: tuple[ForecastStrategy, ...],
+    cfg: Config = CFG,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, EnsembleFit], dict, pd.DataFrame]:
+    """Fit one frozen convex ensemble per available strategy.
+
+    Only development OOF participates in weight fitting. The recent benchmark
+    is evaluated after weights are frozen and contributes confirmation status
+    only; it never changes a weight.
+    """
+    fits: dict[str, EnsembleFit] = {}
+    payload = {
+        "schema_version": ENSEMBLE_SCHEMA_VERSION,
+        "fit_split": "development",
+        "benchmark_role": "confirmation_only",
+        "models": list(cfg.ensemble_models),
+        "stratum_weights": VALIDATION_STRATUM_WEIGHTS,
+        "grid_step": cfg.ensemble_grid_step,
+        "min_relative_improvement": cfg.ensemble_min_relative_improvement,
+        "benchmark_max_relative_regression": (
+            cfg.ensemble_benchmark_max_relative_regression
+        ),
+        "strategies": {},
+    }
+    comparison_rows: list[dict] = []
+    unknown_models = [
+        model for model in cfg.ensemble_models if model not in OOF_MODEL_COLUMNS
+    ]
+    if unknown_models:
+        raise ValueError(f"Unknown ensemble models: {unknown_models}")
+    for strategy_enum in strategies:
+        strategy = strategy_enum.value
+        unsupported = [
+            model for model in cfg.ensemble_models
+            if not model_supports_strategy(model, strategy)
+        ]
+        if unsupported:
+            raise ValueError(
+                f"Ensemble members {unsupported} do not support strategy={strategy!r}"
+            )
+        fit = fit_convex_ensemble(
+            dev_oof,
+            strategy=strategy,
+            models=cfg.ensemble_models,
+            stratum_weights=VALIDATION_STRATUM_WEIGHTS,
+            grid_step=cfg.ensemble_grid_step,
+            min_relative_improvement=cfg.ensemble_min_relative_improvement,
+        )
+        benchmark = evaluate_fit(
+            benchmark_oof,
+            fit,
+            stratum_weights=VALIDATION_STRATUM_WEIGHTS,
+        )
+        relative_regression = float(benchmark["relative_test_aligned_change"])
+        benchmark_confirmed = bool(
+            np.isfinite(relative_regression)
+            and relative_regression
+            <= cfg.ensemble_benchmark_max_relative_regression
+        )
+        accepted = bool(fit.accepted_on_development and benchmark_confirmed)
+        strategy_payload = fit.to_dict()
+        strategy_payload.update({
+            "benchmark": benchmark,
+            "benchmark_confirmed": benchmark_confirmed,
+            "accepted": accepted,
+        })
+        payload["strategies"][strategy] = strategy_payload
+        fits[strategy] = fit
+        comparison_rows.append({
+            "strategy": strategy,
+            "candidate": "OOF Ensemble",
+            "best_single_model": fit.best_single_model,
+            "development_test_aligned_WAPE": fit.ensemble_test_aligned_wape,
+            "best_single_development_test_aligned_WAPE": (
+                fit.best_single_test_aligned_wape
+            ),
+            "development_relative_improvement": fit.relative_improvement,
+            "development_broad_WAPE": fit.broad_wape,
+            "benchmark_test_aligned_WAPE": benchmark[
+                "ensemble_test_aligned_wape"
+            ],
+            "best_single_benchmark_test_aligned_WAPE": benchmark[
+                "best_single_test_aligned_wape"
+            ],
+            "benchmark_relative_change": relative_regression,
+            "benchmark_confirmed": benchmark_confirmed,
+            "accepted": accepted,
+            "n_development_rows": fit.n_rows,
+            "n_benchmark_rows": benchmark["n_rows"],
+        })
+
+    dev_with_ensemble = apply_ensemble_prediction(dev_oof, fits)
+    benchmark_with_ensemble = apply_ensemble_prediction(benchmark_oof, fits)
+    return (
+        dev_with_ensemble,
+        benchmark_with_ensemble,
+        fits,
+        payload,
+        pd.DataFrame(comparison_rows),
+    )
+
+
+def save_c5_ensemble_artifacts(
+    payload: dict,
+    comparison: pd.DataFrame,
+    cfg: Config = CFG,
+) -> None:
+    os.makedirs(cfg.output_dir, exist_ok=True)
+    json_path = os.path.join(cfg.output_dir, "ensemble_weights.json")
+    tmp_path = f"{json_path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(_json_safe(payload), handle, indent=2, allow_nan=False)
+    os.replace(tmp_path, json_path)
+
+    weight_rows = []
+    for strategy, details in payload.get("strategies", {}).items():
+        for model, weight in details.get("weights", {}).items():
+            weight_rows.append({
+                "strategy": strategy,
+                "model": model,
+                "weight": weight,
+                "accepted": details.get("accepted", False),
+                "benchmark_confirmed": details.get(
+                    "benchmark_confirmed", False
+                ),
+            })
+    pd.DataFrame(weight_rows).to_csv(
+        os.path.join(cfg.output_dir, "ensemble_weights.csv"), index=False
+    )
+    comparison.to_csv(
+        os.path.join(cfg.output_dir, "ensemble_comparison.csv"), index=False
+    )
 
 
 def summarize_channel_share_oof(oof: pd.DataFrame) -> pd.DataFrame:
@@ -2058,7 +2290,14 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          test_aligned_scores: pd.DataFrame | None = None,
                          prediction_diagnostics: pd.DataFrame | None = None,
                          prediction_diagnostics_by_origin: pd.DataFrame | None = None,
-                         channel_share_summary: pd.DataFrame | None = None) -> dict:
+                         channel_share_summary: pd.DataFrame | None = None,
+                         ensemble_payload: dict | None = None,
+                         ensemble_comparison: pd.DataFrame | None = None,
+                         per_product_summary: pd.DataFrame | None = None,
+                         top_decile_summary: pd.DataFrame | None = None,
+                         top_error_rows: pd.DataFrame | None = None,
+                         ablation_showcase: pd.DataFrame | None = None,
+                         final_audit_summary: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
@@ -2182,6 +2421,15 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "nn_residual_guard_margin": cfg.nn_residual_guard_margin,
             "recursive_safety_multiplier": cfg.recursive_safety_multiplier,
             "recursive_safety_floor": cfg.recursive_safety_floor,
+            "enable_ensemble": cfg.enable_ensemble,
+            "ensemble_models": list(cfg.ensemble_models),
+            "ensemble_grid_step": cfg.ensemble_grid_step,
+            "ensemble_min_relative_improvement": (
+                cfg.ensemble_min_relative_improvement
+            ),
+            "ensemble_benchmark_max_relative_regression": (
+                cfg.ensemble_benchmark_max_relative_regression
+            ),
         },
         "models": models_meta,
         # Canonical compatibility fields used by the original dashboard.
@@ -2251,6 +2499,35 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             channel_share_summary.round(6).to_dict(orient="records")
             if channel_share_summary is not None else []
         ),
+        "ensemble": ensemble_payload or {
+            "schema_version": ENSEMBLE_SCHEMA_VERSION,
+            "enabled": False,
+            "strategies": {},
+        },
+        "ensemble_comparison": (
+            ensemble_comparison.round(6).to_dict(orient="records")
+            if ensemble_comparison is not None else []
+        ),
+        "per_product_summary": (
+            per_product_summary.round(6).to_dict(orient="records")
+            if per_product_summary is not None else []
+        ),
+        "top_decile_summary": (
+            top_decile_summary.round(6).to_dict(orient="records")
+            if top_decile_summary is not None else []
+        ),
+        "top_error_rows": (
+            top_error_rows.round(6).to_dict(orient="records")
+            if top_error_rows is not None else []
+        ),
+        "ablation_showcase": (
+            ablation_showcase.round(6).to_dict(orient="records")
+            if ablation_showcase is not None else []
+        ),
+        "final_audit_summary": (
+            final_audit_summary.round(6).to_dict(orient="records")
+            if final_audit_summary is not None else []
+        ),
         "selection": {
             "canonical_model": canonical_model,
             "canonical_strategy": canonical_strategy,
@@ -2296,9 +2573,15 @@ def _choose_canonical_model_strategy(
     options: RuntimeOptions,
     dev_summary: pd.DataFrame,
     test_aligned_scores: pd.DataFrame | None = None,
+    ensemble_payload: dict | None = None,
 ) -> tuple[str, str]:
     strategies = set(dev_summary["strategy"].unique())
     requested_model = options.submission_model.value
+    accepted_ensemble_strategies = {
+        strategy
+        for strategy, details in (ensemble_payload or {}).get("strategies", {}).items()
+        if details.get("accepted")
+    }
 
     def choose_from_test_aligned(model: str | None = None) -> tuple[str, str]:
         if test_aligned_scores is None or test_aligned_scores.empty:
@@ -2308,6 +2591,13 @@ def _choose_canonical_model_strategy(
         candidates = test_aligned_scores.copy()
         if model is not None:
             candidates = candidates[candidates["model"].eq(model)]
+        elif accepted_ensemble_strategies:
+            candidates = candidates[
+                ~candidates["model"].eq("Ensemble")
+                | candidates["strategy"].isin(accepted_ensemble_strategies)
+            ]
+        else:
+            candidates = candidates[~candidates["model"].eq("Ensemble")]
         if candidates.empty:
             raise RuntimeError(
                 f"No test-aligned candidates available for {model or 'auto model selection'}"
@@ -2323,11 +2613,22 @@ def _choose_canonical_model_strategy(
             & dev_summary["comparison_population"].eq("common")
             & dev_summary["aggregation"].eq("global")
             & dev_summary["model"].isin(
-                ["NeuralNet", "DynamicRidge", "XGBoost", "LightGBM"]
+                ["NeuralNet", "Ensemble", "DynamicRidge", "XGBoost", "LightGBM"]
             )
+        ]
+        candidates = candidates[
+            ~candidates["model"].eq("Ensemble")
+            | candidates["strategy"].isin(accepted_ensemble_strategies)
         ]
         row = candidates.sort_values(options.selection_metric).iloc[0]
         return str(row["model"]), str(row["strategy"])
+
+    if requested_model == "Ensemble":
+        available = set((ensemble_payload or {}).get("strategies", {}))
+        if not available:
+            raise RuntimeError(
+                "--submission-model Ensemble requires --ensemble on and a successful OOF fit"
+            )
 
     if not any(model_supports_strategy(requested_model, s) for s in strategies):
         raise RuntimeError(
@@ -2377,6 +2678,7 @@ def main(argv=None) -> None:
     c1_runtime = configure_c1_runtime(cfg, options)
     c2_runtime = configure_c2_runtime(cfg, options)
     c34_runtime = configure_c34_runtime(cfg, options)
+    c5_runtime = configure_c5_runtime(cfg, options)
     nn_runtime = configure_nn_runtime(cfg, options)
     print(f"Device: {DEVICE}")
     print(f"Forecast strategy: {options.forecast_strategy.value}")
@@ -2406,6 +2708,12 @@ def main(argv=None) -> None:
         f"lgb_target={c34_runtime['lightgbm_target_mode']}"
     )
     print(
+        "C5 ensemble: "
+        f"enabled={c5_runtime['enabled']}, "
+        f"models={','.join(c5_runtime['models'])}, "
+        f"grid={c5_runtime['grid_step']}"
+    )
+    print(
         "NN runtime: "
         f"batch={nn_runtime['batch_size']} "
         f"({nn_runtime['batch_source']}), "
@@ -2422,7 +2730,7 @@ def main(argv=None) -> None:
     timings: dict = {
         "cv_folds": [], "nn_runtime": nn_runtime,
         "c1_runtime": c1_runtime, "c2_runtime": c2_runtime,
-        "c34_runtime": c34_runtime,
+        "c34_runtime": c34_runtime, "c5_runtime": c5_runtime,
     }
 
     train_raw, test_raw = load_raw(cfg)
@@ -2449,6 +2757,36 @@ def main(argv=None) -> None:
 
     dev_oof = pd.concat(dev_frames, ignore_index=True)
     benchmark_oof = pd.concat(benchmark_frames, ignore_index=True)
+    ensemble_fits: dict[str, EnsembleFit] = {}
+    ensemble_payload: dict = {
+        "schema_version": ENSEMBLE_SCHEMA_VERSION,
+        "enabled": False,
+        "strategies": {},
+    }
+    ensemble_comparison = pd.DataFrame()
+    if cfg.enable_ensemble:
+        ensemble_start = time.perf_counter()
+        (
+            dev_oof,
+            benchmark_oof,
+            ensemble_fits,
+            ensemble_payload,
+            ensemble_comparison,
+        ) = fit_c5_ensembles(dev_oof, benchmark_oof, strategies, cfg)
+        ensemble_payload["enabled"] = True
+        timings["ensemble_fit_seconds"] = round(
+            time.perf_counter() - ensemble_start, 3
+        )
+        for strategy, details in ensemble_payload["strategies"].items():
+            weights = ", ".join(
+                f"{model}={weight:.2f}"
+                for model, weight in details["weights"].items()
+            )
+            print(
+                f"C5 {strategy} ensemble: {weights}; "
+                f"dev gain={details['relative_improvement']:.2%}; "
+                f"benchmark confirmed={details['benchmark_confirmed']}"
+            )
     oof = pd.concat([dev_oof, benchmark_oof], ignore_index=True)
     dev_summary = summarize_oof_by_strategy(dev_oof)
     benchmark_summary = summarize_oof_by_strategy(benchmark_oof)
@@ -2462,9 +2800,14 @@ def main(argv=None) -> None:
     prediction_diagnostics = summarize_prediction_diagnostics(oof)
     prediction_diagnostics_by_origin = summarize_prediction_diagnostics_by_origin(oof)
     channel_share_summary = summarize_channel_share_oof(oof)
+    per_product_summary = summarize_per_product_oof(oof, OOF_MODEL_COLUMNS)
+    top_decile_summary, top_error_rows = summarize_top_deciles(
+        oof, OOF_MODEL_COLUMNS
+    )
+    ablation_showcase = collect_ablation_showcase(cfg.output_dir)
 
     canonical_model, canonical_strategy = _choose_canonical_model_strategy(
-        options, dev_summary, test_aligned_scores
+        options, dev_summary, test_aligned_scores, ensemble_payload
     )
     print(f"\nCanonical selection: {canonical_model} / {canonical_strategy}")
 
@@ -2491,6 +2834,10 @@ def main(argv=None) -> None:
             structured, paths = run_final_structured_forecast_recursive(train_raw, test_raw, cfg)
             paths["NeuralNet"] = nn_path
         forecasts = {"NeuralNet": nn_preds, **structured, **naive_final}
+        if strategy.value in ensemble_fits:
+            forecasts["Ensemble"] = combine_forecasts(
+                forecasts, ensemble_fits[strategy.value].weights
+            )
         final_by_strategy[strategy.value] = forecasts
         submissions_by_strategy[strategy.value] = nn_submission
         for model, preds in forecasts.items():
@@ -2577,6 +2924,28 @@ def main(argv=None) -> None:
         ).astype(int)
         strategy_submission.to_csv(os.path.join(cfg.output_dir, f"submission_{strategy}.csv"), index=False)
         strategy_submission.to_parquet(os.path.join(cfg.output_dir, f"submission_{strategy}.parquet"), index=False)
+        if "Ensemble" in forecasts:
+            ensemble_submission = test_raw[["ProductId", "DateKey"]].copy()
+            ensemble_submission["Quantity"] = np.round(
+                np.clip(forecasts["Ensemble"], 0, None)
+            ).astype(int)
+            ensemble_submission.to_csv(
+                os.path.join(cfg.output_dir, f"submission_{strategy}_ensemble.csv"),
+                index=False,
+            )
+            ensemble_submission.to_parquet(
+                os.path.join(cfg.output_dir, f"submission_{strategy}_ensemble.parquet"),
+                index=False,
+            )
+            if strategy == canonical_strategy:
+                ensemble_submission.to_csv(
+                    os.path.join(cfg.output_dir, "submission_ensemble.csv"),
+                    index=False,
+                )
+                ensemble_submission.to_parquet(
+                    os.path.join(cfg.output_dir, "submission_ensemble.parquet"),
+                    index=False,
+                )
 
     final_forecast_df = pd.DataFrame(raw_rows)
     final_forecast_df.to_parquet(os.path.join(cfg.output_dir, "final_forecasts.parquet"), index=False)
@@ -2600,6 +2969,22 @@ def main(argv=None) -> None:
     channel_share_summary.to_csv(
         os.path.join(cfg.output_dir, "channel_share_summary.csv"), index=False
     )
+    per_product_summary.to_csv(
+        os.path.join(cfg.output_dir, "per_product_summary.csv"), index=False
+    )
+    top_decile_summary.to_csv(
+        os.path.join(cfg.output_dir, "top_decile_summary.csv"), index=False
+    )
+    top_error_rows.to_csv(
+        os.path.join(cfg.output_dir, "top_error_rows.csv"), index=False
+    )
+    ablation_showcase.to_csv(
+        os.path.join(cfg.output_dir, "ablation_showcase.csv"), index=False
+    )
+    if cfg.enable_ensemble:
+        save_c5_ensemble_artifacts(
+            ensemble_payload, ensemble_comparison, cfg
+        )
 
     by_horizon_frames = []
     # Export both development and recent-benchmark curves.  The explicit
@@ -2636,7 +3021,13 @@ def main(argv=None) -> None:
         strategy: _forecast_dict_to_json(test_raw, forecasts)
         for strategy, forecasts in final_by_strategy.items()
     }
-    export_results_json(
+    final_audit_path = os.path.join(cfg.output_dir, "final_audit_summary.csv")
+    final_audit_summary = (
+        pd.read_csv(final_audit_path)
+        if os.path.exists(final_audit_path) and os.path.getsize(final_audit_path) > 0
+        else pd.DataFrame()
+    )
+    payload = export_results_json(
         train_raw, test_raw, submission, final_by_strategy[canonical_strategy], cv_results, cfg,
         dev_summary=dev_summary, benchmark_summary=benchmark_summary,
         runtime_options=options, forecasts_by_strategy=forecasts_json,
@@ -2648,6 +3039,17 @@ def main(argv=None) -> None:
         prediction_diagnostics=prediction_diagnostics,
         prediction_diagnostics_by_origin=prediction_diagnostics_by_origin,
         channel_share_summary=channel_share_summary,
+        ensemble_payload=ensemble_payload,
+        ensemble_comparison=ensemble_comparison,
+        per_product_summary=per_product_summary,
+        top_decile_summary=top_decile_summary,
+        top_error_rows=top_error_rows,
+        ablation_showcase=ablation_showcase,
+        final_audit_summary=final_audit_summary,
+    )
+    publish_static_dashboard(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        os.path.join(cfg.output_dir, "results.json"),
     )
     try:
         plot_forecast(train_raw, submission, cfg=cfg)

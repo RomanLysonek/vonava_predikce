@@ -1,7 +1,8 @@
 strategy,model,metric,test_aligned_score,weight_sum,strata_present
-direct,DynamicRidge,WAPE,0.39917571220566794,1.0,"holiday_event,regular,winter_test_like"
-direct,LightGBM,WAPE,0.2791720983198638,1.0,"holiday_event,regular,winter_test_like"
+direct,DynamicRidge,WAPE,0.3757196524729086,1.0,"holiday_event,regular,winter_test_like"
+direct,Ensemble,WAPE,0.2532487113897438,1.0,"holiday_event,regular,winter_test_like"
+direct,LightGBM,WAPE,0.2665205556507743,1.0,"holiday_event,regular,winter_test_like"
 direct,MovingAvg28,WAPE,0.5208687791170858,1.0,"holiday_event,regular,winter_test_like"
-direct,NeuralNet,WAPE,0.31896801500520683,1.0,"holiday_event,regular,winter_test_like"
+direct,NeuralNet,WAPE,0.27614949160233926,1.0,"holiday_event,regular,winter_test_like"
 direct,SeasonalNaive,WAPE,0.5946946499122712,1.0,"holiday_event,regular,winter_test_like"
-direct,XGBoost,WAPE,0.2775163584409267,1.0,"holiday_event,regular,winter_test_like"
+direct,XGBoost,WAPE,0.27462526486532907,1.0,"holiday_event,regular,winter_test_like"

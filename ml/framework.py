@@ -95,6 +95,16 @@ class Config:
     channel_aux_weight: float = 0.0
     channel_share_smoothing: float = 0.5
 
+    # Tier C5: convex OOF ensemble. These controls do not change any member
+    # estimator and are therefore excluded from fold-checkpoint signatures.
+    enable_ensemble: bool = False
+    ensemble_models: tuple[str, ...] = (
+        "NeuralNet", "XGBoost", "LightGBM",
+    )
+    ensemble_grid_step: float = 0.01
+    ensemble_min_relative_improvement: float = 0.002
+    ensemble_benchmark_max_relative_regression: float = 0.02
+
 
 CFG = Config()
 np.random.seed(CFG.seed)
@@ -1553,9 +1563,13 @@ def direct_panel_tree_frame(df: pd.DataFrame, cfg: Config = CFG) -> pd.DataFrame
 # ---------------------------------------------------------------------------
 # Model registry/metadata & metrics
 # ---------------------------------------------------------------------------
-MODEL_ORDER = ["NeuralNet", "XGBoost", "LightGBM", "DynamicRidge", "SeasonalNaive", "MovingAvg28"]
+MODEL_ORDER = [
+    "NeuralNet", "Ensemble", "XGBoost", "LightGBM", "DynamicRidge",
+    "SeasonalNaive", "MovingAvg28",
+]
 MODEL_STRATEGY_SUPPORT = {
     "NeuralNet": {"direct", "recursive"},
+    "Ensemble": {"direct", "recursive"},
     "XGBoost": {"direct", "recursive"},
     "LightGBM": {"direct", "recursive"},
     # Recursive Ridge is empirically unstable on this panel even after
@@ -1595,6 +1609,18 @@ MODEL_META = {
         "source_url": "https://pytorch.org",
         "blurb": ("Feed-forward network with product & campaign embeddings. "
                   "The task brief's requested non-tree approach -- this is the actual submission."),
+    },
+    "Ensemble": {
+        "label": "OOF Ensemble",
+        "short": "Convex blend",
+        "color": "#D81B60",
+        "kind": "ensemble",
+        "source_url": None,
+        "blurb": (
+            "Non-negative, sum-to-one blend fitted only on development OOF "
+            "predictions. Weights are frozen before the recent benchmark and "
+            "final forecast are evaluated."
+        ),
     },
     "XGBoost": {
         "label": "XGBoost",

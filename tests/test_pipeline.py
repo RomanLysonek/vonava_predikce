@@ -361,12 +361,12 @@ def test_predict_ensemble_averages_reconstructed_quantities_not_residuals():
 
 def test_order_models_ml_first_then_naive_then_unknown_alphabetical():
     df = pd.DataFrame({
-        "model": ["MovingAvg28", "Zeta", "SeasonalNaive", "LightGBM", "XGBoost", "NeuralNet"],
-        "MAE": [1, 2, 3, 4, 5, 6],
+        "model": ["MovingAvg28", "Zeta", "SeasonalNaive", "LightGBM", "XGBoost", "Ensemble", "NeuralNet"],
+        "MAE": [1, 2, 3, 4, 5, 6, 7],
     })
     ordered = order_models(df)
     assert list(ordered["model"]) == [
-        "NeuralNet", "XGBoost", "LightGBM", "SeasonalNaive", "MovingAvg28", "Zeta",
+        "NeuralNet", "Ensemble", "XGBoost", "LightGBM", "SeasonalNaive", "MovingAvg28", "Zeta",
     ]
 
 

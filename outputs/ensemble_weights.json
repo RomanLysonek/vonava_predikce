@@ -1,0 +1,65 @@
+{
+  "schema_version": "c5-convex-ensemble-v1",
+  "fit_split": "development",
+  "benchmark_role": "confirmation_only",
+  "models": [
+    "NeuralNet",
+    "XGBoost",
+    "LightGBM"
+  ],
+  "stratum_weights": {
+    "winter_test_like": 0.6,
+    "regular": 0.25,
+    "holiday_event": 0.15
+  },
+  "grid_step": 0.01,
+  "min_relative_improvement": 0.002,
+  "benchmark_max_relative_regression": 0.02,
+  "strategies": {
+    "direct": {
+      "strategy": "direct",
+      "models": [
+        "NeuralNet",
+        "XGBoost",
+        "LightGBM"
+      ],
+      "weights": {
+        "NeuralNet": 0.36,
+        "XGBoost": 0.25,
+        "LightGBM": 0.39
+      },
+      "best_single_model": "LightGBM",
+      "best_single_test_aligned_wape": 0.26675117325068537,
+      "ensemble_test_aligned_wape": 0.25349196453999245,
+      "equal_weight_test_aligned_wape": 0.25382146578452824,
+      "broad_wape": 0.26887831204706397,
+      "best_single_broad_wape": 0.2903100758266929,
+      "relative_improvement": 0.04970628076013101,
+      "accepted_on_development": true,
+      "n_rows": 2393,
+      "n_origins": 12,
+      "grid_step": 0.01,
+      "strata_present": [
+        "holiday_event",
+        "regular",
+        "winter_test_like"
+      ],
+      "benchmark": {
+        "strategy": "direct",
+        "n_rows": 840,
+        "n_origins": 4,
+        "ensemble_test_aligned_wape": 0.26958129929084396,
+        "best_single_test_aligned_wape": 0.2873191455177483,
+        "ensemble_broad_wape": 0.24707764303790314,
+        "best_single_broad_wape": 0.2865697862138265,
+        "ensemble_bias_ratio": 0.0425263982085547,
+        "best_single_bias_ratio": 0.05782307212013228,
+        "relative_test_aligned_change": -0.06173569183821977,
+        "relative_broad_change": -0.13780986369043094
+      },
+      "benchmark_confirmed": true,
+      "accepted": true
+    }
+  },
+  "enabled": true
+}

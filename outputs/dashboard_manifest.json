@@ -1,0 +1,6 @@
+{
+  "schema_version": "c6-dashboard-v1",
+  "runtime_results": "webapp/static/results.json",
+  "static_site": "docs",
+  "entrypoint": "docs/index.html"
+}

@@ -25,11 +25,13 @@ from pipeline import (
     configure_c1_runtime,
     configure_c2_runtime,
     configure_c34_runtime,
+    configure_c5_runtime,
     configure_nn_runtime,
     export_results_json,
     load_raw,
     parse_args,
 )
+from dashboard_artifacts import publish_static_dashboard
 
 
 def _read_csv_if_present(path: str, **kwargs) -> pd.DataFrame:
@@ -71,6 +73,7 @@ def main(argv=None) -> None:
     configure_c1_runtime(CFG, options)
     configure_c2_runtime(CFG, options)
     configure_c34_runtime(CFG, options)
+    configure_c5_runtime(CFG, options)
     configure_nn_runtime(CFG, options)
 
     out = CFG.output_dir
@@ -106,6 +109,26 @@ def main(argv=None) -> None:
     channel_share_summary = _read_csv_if_present(
         os.path.join(out, "channel_share_summary.csv")
     )
+    ensemble_comparison = _read_csv_if_present(
+        os.path.join(out, "ensemble_comparison.csv")
+    )
+    per_product_summary = _read_csv_if_present(
+        os.path.join(out, "per_product_summary.csv")
+    )
+    top_decile_summary = _read_csv_if_present(
+        os.path.join(out, "top_decile_summary.csv")
+    )
+    top_error_rows = _read_csv_if_present(
+        os.path.join(out, "top_error_rows.csv"), parse_dates=["origin", "DateKey"]
+    )
+    ablation_showcase = _read_csv_if_present(
+        os.path.join(out, "ablation_showcase.csv")
+    )
+    final_audit_summary = _read_csv_if_present(
+        os.path.join(out, "final_audit_summary.csv")
+    )
+    ensemble_path = os.path.join(out, "ensemble_weights.json")
+    ensemble_payload = _load_existing_results(ensemble_path)
 
     existing_path = os.path.join(out, "results.json")
     existing = _load_existing_results(existing_path)
@@ -198,6 +221,17 @@ def main(argv=None) -> None:
         prediction_diagnostics=prediction_diagnostics,
         prediction_diagnostics_by_origin=prediction_diagnostics_by_origin,
         channel_share_summary=channel_share_summary,
+        ensemble_payload=ensemble_payload,
+        ensemble_comparison=ensemble_comparison,
+        per_product_summary=per_product_summary,
+        top_decile_summary=top_decile_summary,
+        top_error_rows=top_error_rows,
+        ablation_showcase=ablation_showcase,
+        final_audit_summary=final_audit_summary,
+    )
+    publish_static_dashboard(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        os.path.join(out, "results.json"),
     )
     print("Artifact-only export complete; no model training was performed.")
 

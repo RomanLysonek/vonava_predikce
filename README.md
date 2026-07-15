@@ -619,3 +619,118 @@ The recommendation contains the one full direct `512/fixed`, three-seed
 confirmation command. That single confirmation jointly validates the selected
 C2 features, C3 objective, and C4 channel formulation before Tier C5 ensemble
 fitting.
+
+## Tier C5 constrained OOF ensemble and Tier C6 delivery
+
+Tier C5 fits a convex blend only after the member models have produced full
+walk-forward predictions. The default members are NeuralNet, XGBoost, and
+LightGBM. For each available strategy, the ensemble:
+
+- uses development OOF rows only for fitting;
+- requires the common conditional-demand population across all members;
+- minimizes the frozen test-aligned stratum-weighted WAPE;
+- constrains every weight to be nonnegative and all weights to sum to one;
+- performs a deterministic exhaustive simplex search (1% grid by default);
+- applies the frozen weights unchanged to the recent benchmark and final test;
+- records recent-benchmark confirmation but never refits from that benchmark.
+
+Enable it with:
+
+```text
+--ensemble on
+--ensemble-models NeuralNet,XGBoost,LightGBM
+--ensemble-grid-step 0.01
+```
+
+The pipeline writes:
+
+```text
+outputs/ensemble_weights.json
+outputs/ensemble_weights.csv
+outputs/ensemble_comparison.csv
+outputs/submission_ensemble.csv
+outputs/per_product_summary.csv
+outputs/top_decile_summary.csv
+outputs/top_error_rows.csv
+outputs/ablation_showcase.csv
+```
+
+The canonical task submission may remain NeuralNet while the unrounded and
+rounded ensemble forecasts are preserved as separate artifacts. With
+`--submission-model auto`, an ensemble is eligible only after it clears the
+minimum development gain and recent-benchmark tolerance.
+
+### Combined C3/C4 confirmation and C5 fit
+
+Run the selected C3/C4 configuration once and fit C5 from that same full OOF
+run rather than performing another duplicate training pass:
+
+```bash
+caffeinate -i uv run python ml/pipeline.py \
+  --forecast-strategy direct \
+  --primary-strategy direct \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol test-aligned \
+  --training-window-days all \
+  --recency-half-life-days none \
+  --baseline-variant weighted_4321 \
+  --trend-features off \
+  --c2-feature-groups price,campaign,lifecycle,market,event \
+  --c34-config outputs/c34_screening/recommendation.json \
+  --ensemble on \
+  --ensemble-models NeuralNet,XGBoost,LightGBM \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed \
+  --reset-checkpoints \
+  2>&1 | tee pipeline_c34_c5_c6_direct_512_fixed.log
+```
+
+Resume after interruption by replacing `--reset-checkpoints` with `--resume`
+and appending to the same log.
+
+### Frozen final audit
+
+After the full run has frozen C5 weights, execute the disjoint audit origins
+once using the exact same modeling arguments:
+
+```bash
+caffeinate -i uv run python ml/run_final_audit.py \
+  --forecast-strategy direct \
+  --primary-strategy direct \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol test-aligned \
+  --training-window-days all \
+  --recency-half-life-days none \
+  --baseline-variant weighted_4321 \
+  --trend-features off \
+  --c2-feature-groups price,campaign,lifecycle,market,event \
+  --c34-config outputs/c34_screening/recommendation.json \
+  --ensemble on \
+  --ensemble-models NeuralNet,XGBoost,LightGBM \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed \
+  2>&1 | tee pipeline_final_audit.log
+```
+
+The script refuses a second audit unless `--force` is supplied. It never
+refits ensemble weights and refreshes `results.json` from persisted artifacts.
+
+### Tier C6 dashboard and GitHub Pages
+
+Every normal pipeline/export now adds:
+
+- per-product WAPE, MAE, volume and bias;
+- winter/test-like, regular, and event-regime diagnostics;
+- highest-demand-decile performance;
+- the largest recent row-level errors for business interpretation;
+- channel-share diagnostics when a C4 auxiliary head is present;
+- C1/C2/C3/C4 ablation recommendations;
+- C5 weights and benchmark confirmation;
+- the one-shot final-audit table once available.
+
+`outputs/results.json` is copied to `webapp/static/results.json`, and a static
+GitHub Pages site is generated in `docs/`. Configure Pages to serve the `/docs`
+directory. The static model pages use query-string navigation and no FastAPI
+server is required.

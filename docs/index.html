@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
+  <link rel="stylesheet" href="./styles.css?v=10" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="promo-bar">
+    <span>30 Product Time Series</span>
+    <span id="promo-strategy">7-Day Forecast</span>
+    <span id="promo-model-count">Models Compared</span>
+    <span>Walk-Forward Validated</span>
+  </div>
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="brand-logo">NOTINO</span>
+        <span class="brand-tagline">Interview Assignment</span>
+      </div>
+      <div class="hero-title-block">
+        <h1>Quantity Forecast Dashboard</h1>
+      </div>
+    </div>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+
+  <main id="app">
+    <section class="selection-strip">
+      <div>
+        <span class="selection-label">View</span>
+        <strong id="canonical-selection-text">Canonical submission</strong>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="strategy-select">Forecast strategy</label>
+          <select id="strategy-select"></select>
+        </div>
+        <div class="control-group">
+          <label for="regime-select">Evaluation regime</label>
+          <select id="regime-select">
+            <option value="conditional">Conditional Demand</option>
+            <option value="realized">Realized Sales</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+      <div class="kpi-card skeleton"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Model comparison</h2>
+          <p>Recent-benchmark OOF · conditional/common/global is the primary view</p>
+        </div>
+      </div>
+      <div class="columns-grid" id="columns-grid"></div>
+    </section>
+
+    <section class="panel" id="ensemble-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Development-OOF ensemble</h2>
+          <p>Non-negative weights sum to one; recent benchmark is confirmation-only</p>
+        </div>
+        <span class="winner-badge" id="ensemble-status">—</span>
+      </div>
+      <div class="panel-grid compact-grid">
+        <div class="table-wrap">
+          <table class="data-table" id="ensemble-weights-table">
+            <thead><tr><th>Member</th><th>Weight</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="ensemble-comparison-table">
+            <thead><tr><th>Measure</th><th>Ensemble</th><th>Best single</th><th>Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>MAE &amp; RMSE by model</h2>
+          <p>Selected strategy and evaluation regime — lower is better</p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-comparison"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Walk-forward benchmark folds</h2>
+          <p>Every model is scored on the same common population</p>
+        </div>
+        <div class="table-wrap" id="cv-table-wrap">
+          <table class="data-table" id="cv-table">
+            <thead>
+              <tr><th>Fold</th><th>Model</th><th>MAE</th><th>RMSE</th><th>Bias</th><th>Bias%</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="strategy-comparison-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Direct vs. recursive — paired development OOF</h2>
+          <p>Same products, origins, dates and horizons for both strategies</p>
+        </div>
+        <div class="control-group">
+          <label for="pair-metric-select">Metric</label>
+          <select id="pair-metric-select">
+            <option value="WAPE">WAPE</option>
+            <option value="MAE">MAE</option>
+            <option value="RMSE">RMSE</option>
+            <option value="Bias">Bias</option>
+            <option value="BiasRatio">Bias ratio</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="strategy-comparison-table">
+          <thead>
+            <tr><th>Model</th><th>Direct</th><th>Recursive</th><th>Recursive − Direct</th><th>Winner</th><th>Paired rows</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Error by forecast horizon</h2>
+          <p>Development OOF · use this to inspect recursive error propagation</p>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <label for="horizon-model-select">Model</label>
+            <select id="horizon-model-select"></select>
+          </div>
+          <div class="control-group">
+            <label for="horizon-metric-select">Metric</label>
+            <select id="horizon-metric-select">
+              <option value="WAPE">WAPE</option>
+              <option value="MAE">MAE</option>
+              <option value="RMSE">RMSE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-horizon"></canvas>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header row">
+          <div>
+            <h2>Per-product error &amp; bias</h2>
+            <p>Conditional common population, sorted by WAPE</p>
+          </div>
+          <div class="controls">
+            <div class="control-group">
+              <label for="product-error-model-select">Model</label>
+              <select id="product-error-model-select"></select>
+            </div>
+            <div class="control-group">
+              <label for="product-error-split-select">Split</label>
+              <select id="product-error-split-select">
+                <option value="recent_benchmark">Recent benchmark</option>
+                <option value="development">Development</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="per-product-table">
+            <thead><tr><th>Product</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Actual</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Validation regimes</h2>
+          <p>Winter/test-like, regular, and holiday-event performance</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="regime-table">
+            <thead><tr><th>Stratum</th><th>Model</th><th>WAPE</th><th>Bias%</th><th>n</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Top-decile demand</h2>
+          <p>Performance on the highest-demand 10% of product-days</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="top-decile-table">
+            <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Threshold</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Largest recent errors</h2>
+          <p>Rows requiring business interpretation, not automatic clipping</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="top-error-table">
+            <thead><tr><th>Date</th><th>Product</th><th>Model</th><th>Actual</th><th>Pred.</th><th>|Error|</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="final-audit-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Frozen final audit</h2>
+          <p>Three untouched origins, evaluated once after C1-C5 decisions were frozen</p>
+        </div>
+        <span class="winner-badge">One-shot</span>
+      </div>
+      <div class="table-wrap diagnostic-table-wrap">
+        <table class="data-table" id="final-audit-table">
+          <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Coverage</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-grid">
+      <div class="panel" id="channel-panel">
+        <div class="panel-header">
+          <h2>Channel-share diagnostics</h2>
+          <p>Total demand remains canonical; app-share is an auxiliary structural task</p>
+        </div>
+        <div id="channel-share-content" class="empty-state">No channel-share head selected.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Tier-C ablation showcase</h2>
+          <p>Selected candidates and their controlled screening evidence</p>
+        </div>
+        <div class="table-wrap diagnostic-table-wrap">
+          <table class="data-table" id="ablation-table">
+            <thead><tr><th>Tier</th><th>Stage</th><th>Candidate</th><th>Model</th><th>Aligned WAPE</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header row">
+        <div>
+          <h2>Product explorer — all models</h2>
+          <p>History vs. <span id="product-strategy-note">selected</span> forecasts</p>
+        </div>
+        <select id="product-select"></select>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="chart-product"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Canonical submission grid</h2>
+        <p>The table below always remains the selected submission, independent of the dashboard view.</p>
+      </div>
+      <div class="table-wrap tall" id="submission-table-wrap"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="footer-method-text">Loading canonical forecasting method…</p>
+  </footer>
+
+  <script>window.STATIC_DASHBOARD = true;</script>
+  <script src="./common.js?v=10"></script>
+  <script src="./app.js?v=10"></script>
+</body>
+</html>
