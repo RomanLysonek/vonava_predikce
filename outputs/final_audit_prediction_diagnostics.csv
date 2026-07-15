@@ -1,0 +1,8 @@
+origin_type,strategy,model,n_rows,n_finite,coverage,fallback_count,fallback_rate,nonfinite_raw_count,catastrophic_guard_count,residual_guard_count,residual_nonfinite_count,residual_guard_rate,residual_raw_min,residual_raw_max,safety_limit_min,prediction_max,prediction_p99,observed_max,prediction_to_observed_max_ratio
+final_audit,direct,NeuralNet,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,248.47392840223935,146.8980342403866,323.0,0.7692691281803076
+final_audit,direct,Ensemble,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,154.68462705744776,138.61595915835272,323.0,0.4788997741716649
+final_audit,direct,XGBoost,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,182.6407928466797,132.00434814453138,323.0,0.565451371042352
+final_audit,direct,LightGBM,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,151.7281494140625,140.4024424743654,323.0,0.46974659261319657
+final_audit,direct,DynamicRidge,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,322.9004211425781,276.74111083984405,323.0,0.9996917063237712
+final_audit,direct,SeasonalNaive,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,222.0,140.26000000000022,323.0,0.6873065015479877
+final_audit,direct,MovingAvg28,630,630,1.0,0,0.0,0,0,0,0,0.0,,,,91.64285714285714,90.37928571428587,323.0,0.28372401592215835
