@@ -8,9 +8,76 @@ const MODEL_ORDER = [
   "MovingAvg28",
 ];
 
+const VALIDATION_STRATA = {
+  winter_test_like: {
+    order: 0,
+    label: "January/February test-season proxy",
+    definition: "All seven target dates fall in January or February, making this the closest seasonal proxy for the supplied January test week.",
+  },
+  regular: {
+    order: 1,
+    label: "Regular periods",
+    definition: "Development windows outside the winter-proxy and holiday/event rules; these represent ordinary trading conditions.",
+  },
+  holiday_event: {
+    order: 2,
+    label: "Holiday / retail-event stress",
+    definition: "Any target date falls in December or on/after 20 November, covering Black Friday and pre-Christmas demand shifts.",
+  },
+};
+
 function modelRank(model) {
   const idx = MODEL_ORDER.indexOf(model);
   return idx === -1 ? MODEL_ORDER.length : idx;
+}
+
+function regimeLabel(regime) {
+  return regime === "realized" ? "all days / realized sales" : "available days only";
+}
+
+function renderRegimeExplanation(data, strategy, regime) {
+  const target = document.getElementById("regime-explanation");
+  const context = document.getElementById("model-comparison-context");
+  if (context) {
+    context.textContent = `Recent-benchmark OOF · ${regimeLabel(regime)} · common rows · global aggregation`;
+  }
+  if (!target) return;
+
+  const conditional = summaryRows(data, { strategy, regime: "conditional" });
+  const realized = summaryRows(data, { strategy, regime: "realized" });
+  const realizedByModel = new Map(realized.map((row) => [row.model, row]));
+  const identical = conditional.length > 0 && conditional.every((row) => {
+    const other = realizedByModel.get(row.model);
+    return other
+      && Math.abs(Number(row.MAE) - Number(other.MAE)) < 1e-10
+      && Math.abs(Number(row.WAPE) - Number(other.WAPE)) < 1e-10
+      && Number(row.n_scored) === Number(other.n_scored);
+  });
+
+  const selected = regime === "realized" ? realized : conditional;
+  const nScored = selected[0]?.n_scored;
+  const scope = Number.isFinite(Number(nScored)) ? `${Number(nScored).toLocaleString()} common rows` : "the common evaluation rows";
+  const definition = regime === "realized"
+    ? "All observed product-days are scored, including unavailable days and their realized sales."
+    : "Only product-days on which the product was available for purchase are scored.";
+  const sameReason = identical
+    ? ` In this recent benchmark, all ${scope} were available, so both choices produce identical headline numbers.`
+    : " The two views differ whenever unavailable product-days occur.";
+  target.innerHTML = `<strong>Scoring lens only:</strong> ${definition} This never changes the forecast or canonical submission.${sameReason}`;
+}
+
+function renderRegimeDefinitions(data) {
+  const target = document.getElementById("regime-definitions");
+  if (!target) return;
+  const weights = data.config?.validation_stratum_weights || {};
+  target.innerHTML = Object.entries(VALIDATION_STRATA)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([key, meta]) => {
+      const weight = Number(weights[key]);
+      const weightText = Number.isFinite(weight) ? ` · ${ratePct(weight, 0)} of the test-aligned score` : "";
+      return `<div class="definition-item"><strong>${meta.label}</strong><span>${meta.definition}${weightText}</span></div>`;
+    })
+    .join("");
 }
 
 function summaryMap(data, strategy, regime) {
@@ -50,7 +117,7 @@ function renderKpis(data, strategy, regime) {
     {
       label: "Best WAPE",
       value: ratePct(bestWape.WAPE),
-      sub: `${bestWape.model} · conditional/common`,
+      sub: `${bestWape.model} · ${regimeLabel(regime)}`,
       color: modelByKey(data, bestWape.model)?.color,
     },
     {
@@ -162,53 +229,93 @@ function renderCvTable(data, strategy, regime) {
 }
 
 let productChart = null;
-function renderProductChart(data, productId, strategy) {
-  const hist = data.history[productId];
-  const strategyForecasts = forecastsFor(data, strategy);
-  const labels = [...hist.dates];
-  const bridge = hist.quantity[hist.quantity.length - 1];
-  let forecastDates = null;
+let productHistoryVisible = true;
+const productModelVisibility = new Map();
 
-  const datasets = [{
-    label: "History",
-    data: [...hist.quantity],
-    borderColor: "#0a0a0a",
-    backgroundColor: "transparent",
-    tension: 0.25,
-    pointRadius: 0,
-    borderWidth: 2,
-  }];
+function setAllProductModels(data, visible) {
+  (data.models || []).forEach((model) => productModelVisibility.set(model.key, visible));
+}
+
+function renderProductChart(data, productId, strategy) {
+  const hist = data.history?.[productId];
+  if (!hist) return;
+  const strategyForecasts = forecastsFor(data, strategy);
+  const firstForecast = (data.models || [])
+    .map((model) => strategyForecasts[model.key]?.[productId])
+    .find(Boolean);
+  const forecastDates = firstForecast?.dates || [];
+  const labels = productHistoryVisible
+    ? [...hist.dates, ...forecastDates]
+    : [...forecastDates];
+  const bridge = hist.quantity[hist.quantity.length - 1];
+  const datasets = [];
+
+  if (productHistoryVisible) {
+    datasets.push({
+      label: "History",
+      data: [...hist.quantity, ...forecastDates.map(() => null)],
+      borderColor: "#0a0a0a",
+      backgroundColor: "transparent",
+      tension: 0.25,
+      pointRadius: 0,
+      borderWidth: 2,
+      isHistory: true,
+    });
+  }
 
   (data.models || []).forEach((model) => {
     const forecast = strategyForecasts[model.key]?.[productId];
     if (!forecast) return;
-    if (!forecastDates) forecastDates = forecast.dates;
+    const values = productHistoryVisible
+      ? [...hist.dates.slice(0, -1).map(() => null), bridge, ...forecast.quantity]
+      : [...forecast.quantity];
     datasets.push({
       label: model.label,
-      data: [...hist.dates.slice(0, -1).map(() => null), bridge, ...forecast.quantity],
+      data: values,
       borderColor: model.color,
       backgroundColor: "transparent",
       borderDash: [6, 4],
       tension: 0.25,
       pointRadius: 3,
       borderWidth: 2,
+      hidden: productModelVisibility.get(model.key) === false,
+      modelKey: model.key,
     });
   });
-
-  const allLabels = forecastDates ? [...labels, ...forecastDates] : labels;
-  datasets[0].data = [...datasets[0].data, ...(forecastDates || []).map(() => null)];
 
   if (productChart) productChart.destroy();
   productChart = new Chart(document.getElementById("chart-product"), {
     type: "line",
-    data: { labels: allLabels, datasets },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { position: "top", labels: { boxWidth: 12 } } },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: { boxWidth: 12 },
+          onClick(event, legendItem, legend) {
+            const chart = legend.chart;
+            const dataset = chart.data.datasets[legendItem.datasetIndex];
+            if (dataset?.isHistory) {
+              productHistoryVisible = false;
+              const toggle = document.getElementById("product-history-toggle");
+              if (toggle) toggle.checked = false;
+              renderProductChart(data, productId, strategy);
+              return;
+            }
+            if (dataset?.modelKey) {
+              const nextVisible = !chart.isDatasetVisible(legendItem.datasetIndex);
+              productModelVisibility.set(dataset.modelKey, nextVisible);
+              chart.setDatasetVisibility(legendItem.datasetIndex, nextVisible);
+              chart.update();
+            }
+          },
+        },
+      },
       scales: {
-        x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: productHistoryVisible ? 10 : 7 } },
         y: { grid: { color: CHART_GRID }, beginAtZero: true },
       },
     },
@@ -347,13 +454,28 @@ function renderEnsemble(data, strategy) {
     ["Recent broad WAPE", benchmark.ensemble_broad_wape, benchmark.best_single_broad_wape,
       benchmark.relative_broad_change],
   ];
-  comparisonBody.innerHTML = rows.map(([label, ensemble, single, change]) => `
-    <tr>
-      <td>${label}</td>
-      <td>${ratePct(ensemble, 2)}</td>
-      <td>${ratePct(single, 2)}</td>
-      <td class="${Number(change) <= 0 ? "good-text" : "bad-text"}">${pct(change, 2)}</td>
-    </tr>`).join("");
+  comparisonBody.innerHTML = rows.map(([label, ensemble, single, change]) => {
+    const ensembleValue = Number(ensemble);
+    const singleValue = Number(single);
+    const hasScores = (
+      ensemble !== null && ensemble !== undefined
+      && single !== null && single !== undefined
+      && Number.isFinite(ensembleValue) && Number.isFinite(singleValue)
+    );
+    const absoluteDeltaPp = hasScores ? (ensembleValue - singleValue) * 100 : null;
+    const changeClass = Number(change) <= 0 ? "good-text" : "bad-text";
+    const absoluteDeltaText = absoluteDeltaPp === null
+      ? "—"
+      : `${absoluteDeltaPp >= 0 ? "+" : ""}${fmt(absoluteDeltaPp, 2)} pp`;
+    return `
+      <tr>
+        <td>${label}</td>
+        <td>${ratePct(ensemble, 2)}</td>
+        <td>${ratePct(single, 2)}</td>
+        <td class="${changeClass}">${absoluteDeltaText}</td>
+        <td class="${changeClass}">${pct(change, 2)}</td>
+      </tr>`;
+  }).join("");
 }
 
 function populateDiagnosticModelSelector(data, select) {
@@ -397,29 +519,46 @@ function renderRegimeDiagnostics(data, strategy, regime) {
       && row.comparison_population === "common"
       && row.aggregation === "global"
     ))
-    .sort((a, b) => String(a.validation_stratum).localeCompare(String(b.validation_stratum)) || modelRank(a.model) - modelRank(b.model));
+    .sort((a, b) => (
+      (VALIDATION_STRATA[a.validation_stratum]?.order ?? 99)
+      - (VALIDATION_STRATA[b.validation_stratum]?.order ?? 99)
+      || modelRank(a.model) - modelRank(b.model)
+    ));
   if (!rows.length) {
     emptyTable(tbody, "No validation-stratum diagnostics.", 5);
     return;
   }
-  tbody.innerHTML = rows.map((row) => `
+  tbody.innerHTML = rows.map((row) => {
+    const meta = VALIDATION_STRATA[row.validation_stratum] || {
+      label: String(row.validation_stratum).replaceAll("_", " "),
+      definition: "",
+    };
+    return `
     <tr>
-      <td>${String(row.validation_stratum).replaceAll("_", " ")}</td>
+      <td title="${meta.definition}">${meta.label}</td>
       <td class="model-cell" style="color:${modelByKey(data, row.model)?.color || "#0a0a0a"}">${row.model}</td>
       <td>${ratePct(row.WAPE, 1)}</td>
       <td>${pct(row.BiasRatio, 1)}</td>
       <td>${row.n_scored ?? row.n ?? "—"}</td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
 }
 
 function renderTopDecile(data, strategy) {
   const tbody = document.querySelector("#top-decile-table tbody");
+  const explanation = document.getElementById("top-decile-explanation");
   const rows = (data.top_decile_summary || [])
     .filter((row) => row.strategy === strategy && row.origin_type === "recent_benchmark")
     .sort((a, b) => Number(a.WAPE) - Number(b.WAPE));
   if (!rows.length) {
-    emptyTable(tbody, "No top-decile diagnostics.", 5);
+    emptyTable(tbody, "No high-volume diagnostics.", 5);
+    if (explanation) explanation.textContent = "No recent-benchmark high-volume population was persisted.";
     return;
+  }
+  const threshold = Number(rows[0].actual_threshold);
+  const nRows = Number(rows[0].n);
+  if (explanation) {
+    explanation.innerHTML = `<strong>Concrete reading:</strong> within the recent benchmark, product-day rows were ranked by their actual total quantity. The ${Number(rows[0].quantile || 0.9) * 100}th-percentile cutoff was ${fmt(threshold, 1)} units, leaving ${nRows.toLocaleString()} high-volume rows. WAPE, MAE and bias below are recomputed only on those rows; this is a retrospective stress diagnostic, not an input feature or a forecast filter.`;
   }
   tbody.innerHTML = rows.map((row) => `
     <tr>
@@ -427,8 +566,101 @@ function renderTopDecile(data, strategy) {
       <td>${ratePct(row.WAPE, 1)}</td>
       <td>${fmt(row.MAE, 1)}</td>
       <td>${pct(row.BiasRatio, 1)}</td>
-      <td>${fmt(row.actual_threshold, 1)}</td>
+      <td>${fmt(row.actual_threshold, 1)} units</td>
     </tr>`).join("");
+}
+
+function mean(values) {
+  const finite = values.map(Number).filter(Number.isFinite);
+  return finite.length ? finite.reduce((sum, value) => sum + value, 0) / finite.length : null;
+}
+
+function dayNumber(value) {
+  return Date.parse(`${String(value).slice(0, 10)}T00:00:00Z`) / 86400000;
+}
+
+function renderTopErrorInsight(data, strategy) {
+  const target = document.getElementById("top-error-insight");
+  if (!target) return;
+  const row = (data.top_error_rows || []).find((candidate) => (
+    candidate.strategy === strategy
+    && candidate.origin_type === "recent_benchmark"
+    && candidate.model === "NeuralNet"
+    && Number(candidate.ProductId) === 26
+    && String(candidate.DateKey).slice(0, 10) === "2025-12-16"
+  ));
+  if (!row) {
+    target.hidden = true;
+    target.innerHTML = "";
+    return;
+  }
+
+  const origin = String(row.origin).slice(0, 10);
+  const originDay = dayNumber(origin);
+  const history = data.history?.[String(row.ProductId)] || { dates: [], quantity: [] };
+  const knownHistory = history.dates
+    .map((date, index) => ({
+      day: dayNumber(date),
+      rawQuantity: history.quantity[index],
+    }))
+    .filter((item) => item.rawQuantity !== null && item.rawQuantity !== undefined)
+    .map((item) => ({ day: item.day, quantity: Number(item.rawQuantity) }))
+    .filter((item) => Number.isFinite(item.quantity) && item.day <= originDay);
+  const recent = knownHistory.filter((item) => item.day > originDay - 7).map((item) => item.quantity);
+  const previous = knownHistory.filter((item) => item.day <= originDay - 7 && item.day > originDay - 14).map((item) => item.quantity);
+  const recentMean = mean(recent);
+  const previousMean = mean(previous);
+  const productLift = Number.isFinite(recentMean) && Number.isFinite(previousMean) && previousMean !== 0
+    ? recentMean / previousMean - 1
+    : null;
+  const knownValues = knownHistory.map((item) => item.quantity);
+  const percentile = knownValues.length
+    ? knownValues.filter((value) => value <= Number(row.actual)).length / knownValues.length
+    : null;
+
+  const portfolioByDay = new Map();
+  Object.values(data.history || {}).forEach((series) => {
+    (series.dates || []).forEach((date, index) => {
+      const rawQuantity = series.quantity?.[index];
+      if (rawQuantity === null || rawQuantity === undefined) return;
+      const quantity = Number(rawQuantity);
+      if (!Number.isFinite(quantity)) return;
+      const day = dayNumber(date);
+      portfolioByDay.set(day, (portfolioByDay.get(day) || 0) + quantity);
+    });
+  });
+  const recentMarket = mean([...portfolioByDay.entries()]
+    .filter(([day]) => day <= originDay && day > originDay - 7)
+    .map(([, value]) => value));
+  const previousMarket = mean([...portfolioByDay.entries()]
+    .filter(([day]) => day <= originDay - 7 && day > originDay - 14)
+    .map(([, value]) => value));
+  const marketLift = Number.isFinite(recentMarket) && Number.isFinite(previousMarket) && previousMarket !== 0
+    ? recentMarket / previousMarket - 1
+    : null;
+
+  const originWindow = (data.top_error_rows || []).filter((candidate) => (
+    candidate.strategy === strategy
+    && candidate.origin_type === "recent_benchmark"
+    && candidate.model === "NeuralNet"
+    && Number(candidate.ProductId) === 26
+    && String(candidate.origin).slice(0, 10) === origin
+  ));
+  const meanOverforecast = mean(originWindow.map((candidate) => candidate.signed_error));
+  const allOverforecast = originWindow.length === 7
+    && originWindow.every((candidate) => Number(candidate.signed_error) > 0);
+
+  const productLiftText = Number.isFinite(productLift)
+    ? `${ratePct(productLift, 1)} (${fmt(recentMean, 1)} vs. ${fmt(previousMean, 1)} units/day)`
+    : "strongly";
+  const marketLiftText = Number.isFinite(marketLift) ? ratePct(marketLift, 1) : "materially";
+  const percentileText = Number.isFinite(percentile) ? `${fmt(percentile * 100, 1)}th percentile` : "the extreme upper tail";
+  const windowText = allOverforecast
+    ? `It overpredicted all seven days of the 15–21 December window by ${fmt(meanOverforecast, 1)} units/day on average.`
+    : `The same origin shows a broader positive-bias pattern for Product 26.`;
+
+  target.hidden = false;
+  target.innerHTML = `<strong>Interesting miss — Product 26, 16 December 2025:</strong> this was a systematic pre-Christmas uplift overshoot, not a stockout or a one-day demand collapse. At the ${origin} forecast origin, Product 26's trailing seven-day mean had increased ${productLiftText}, while portfolio demand was ${marketLiftText} higher week-on-week. Together with the known holiday/event covariates, that pattern is consistent with the direct NeuralNet extrapolating a stronger and more persistent surge. ${windowText} Actual demand of ${fmt(row.actual, 1)} was still at roughly the ${percentileText} of Product 26 observations available at the origin—demand was high, just below the NN's ${fmt(row.prediction, 1)} forecast. Per-row neural attribution was not persisted, so this is the strongest diagnosis supported by the saved OOF path and feature history rather than a SHAP-style causal decomposition.`;
 }
 
 function renderTopErrors(data, strategy) {
@@ -439,6 +671,7 @@ function renderTopErrors(data, strategy) {
     .slice(0, 30);
   if (!rows.length) {
     emptyTable(tbody, "No recent row-level errors.", 6);
+    renderTopErrorInsight(data, strategy);
     return;
   }
   tbody.innerHTML = rows.map((row) => `
@@ -450,6 +683,7 @@ function renderTopErrors(data, strategy) {
       <td>${fmt(row.prediction, 1)}</td>
       <td>${fmt(row.absolute_error, 1)}</td>
     </tr>`).join("");
+  renderTopErrorInsight(data, strategy);
 }
 
 function renderChannelShare(data, strategy) {
@@ -458,32 +692,58 @@ function renderChannelShare(data, strategy) {
     row.strategy === strategy && Number(row.n_scored ?? row.app_share_n ?? 0) > 0
   ));
   if (!rows.length) {
-    target.className = "empty-state";
-    target.textContent = "The screened channel-aware head was not selected; total demand remains canonical.";
+    const candidates = (data.ablation_showcase || []).filter((row) => (
+      row.tier === "C3/C4" && row.stage === "channel_aux"
+    ));
+    const control = candidates.find((row) => row.candidate === "channel_control");
+    const channelCandidates = candidates.filter((row) => row.candidate !== "channel_control");
+    const bestChannel = channelCandidates
+      .filter((row) => Number.isFinite(Number(row.test_aligned_WAPE)))
+      .sort((a, b) => Number(a.test_aligned_WAPE) - Number(b.test_aligned_WAPE))[0];
+    const deterioration = control && bestChannel && Number(control.test_aligned_WAPE) !== 0
+      ? Number(bestChannel.test_aligned_WAPE) / Number(control.test_aligned_WAPE) - 1
+      : null;
+    const evidence = control && bestChannel
+      ? `The best channel-aware candidate (${bestChannel.candidate.replaceAll("_", " ")}) reached ${ratePct(bestChannel.test_aligned_WAPE, 2)} aligned WAPE versus ${ratePct(control.test_aligned_WAPE, 2)} for the control${Number.isFinite(deterioration) ? `, a ${ratePct(deterioration, 2)} deterioration` : ""}.`
+      : "The channel-aware candidates did not improve the primary total-demand objective.";
+    target.className = "empty-state explanatory-state";
+    target.innerHTML = `<p><strong>What was tested:</strong> the submitted target is total quantity, <code>QuantityApp + QuantityWeb</code>. An optional second NeuralNet output also tried to predict app share, <code>QuantityApp / total quantity</code>, using the same hidden representation.</p><p><strong>Why no diagnostics are shown:</strong> ${evidence} Because model selection is based on total-demand WAPE, the auxiliary head and channel-history features were deliberately rejected.</p><p><strong>Practical meaning:</strong> nothing is missing from the final model. It predicts the required total demand only; it does not separately forecast how that total splits between app and web.</p>`;
     return;
   }
   target.className = "table-wrap";
-  target.innerHTML = `<table class="data-table"><thead><tr><th>Split</th><th>Share MAE</th><th>Weighted MAE</th><th>n</th></tr></thead><tbody>${rows.map((row) => `
+  target.innerHTML = `<div class="table-intro"><strong>Selected auxiliary task:</strong> total quantity remains the submission target; these metrics measure only the predicted app share.</div><table class="data-table"><thead><tr><th>Split</th><th>Share MAE</th><th>Weighted MAE</th><th>n</th></tr></thead><tbody>${rows.map((row) => `
     <tr><td>${row.origin_type || "development"}</td><td>${fmt(row.app_share_MAE, 3)}</td><td>${fmt(row.app_share_weighted_MAE, 3)}</td><td>${row.n_scored ?? row.app_share_n ?? row.n ?? "—"}</td></tr>`).join("")}</tbody></table>`;
 }
 
 
-function renderFinalAudit(data, strategy, regime) {
+function renderFinalAudit(data, strategy) {
   const panel = document.getElementById("final-audit-panel");
   const tbody = document.querySelector("#final-audit-table tbody");
+  const metric = data.config?.selection_metric || "WAPE";
+  const alignedByModel = new Map(
+    (data.final_audit_test_aligned_scores || [])
+      .filter((row) => row.strategy === strategy && row.metric === metric)
+      .map((row) => [row.model, Number(row.test_aligned_score)])
+  );
   const rows = (data.final_audit_summary || [])
     .filter((row) => (
       row.strategy === strategy
-      && row.evaluation_regime === regime
+      && row.evaluation_regime === "conditional"
       && row.comparison_population === "common"
       && row.aggregation === "global"
     ))
-    .sort((a, b) => Number(a.WAPE) - Number(b.WAPE));
+    .map((row) => ({ ...row, aligned_score: alignedByModel.get(row.model) }))
+    .sort((a, b) => {
+      const alignedA = Number.isFinite(a.aligned_score) ? a.aligned_score : Number(a.WAPE);
+      const alignedB = Number.isFinite(b.aligned_score) ? b.aligned_score : Number(b.WAPE);
+      return alignedA - alignedB;
+    });
   panel.hidden = rows.length === 0;
   if (!rows.length) return;
   tbody.innerHTML = rows.map((row) => `
     <tr>
       <td class="model-cell" style="color:${modelByKey(data, row.model)?.color || "#0a0a0a"}">${row.model}</td>
+      <td>${ratePct(row.aligned_score, 2)}</td>
       <td>${ratePct(row.WAPE, 2)}</td>
       <td>${fmt(row.MAE, 2)}</td>
       <td>${pct(row.BiasRatio, 2)}</td>
@@ -523,6 +783,9 @@ async function main() {
     const horizonMetricSelect = document.getElementById("horizon-metric-select");
     const productErrorModelSelect = document.getElementById("product-error-model-select");
     const productErrorSplitSelect = document.getElementById("product-error-split-select");
+    const productHistoryToggle = document.getElementById("product-history-toggle");
+    const productModelsSelectAll = document.getElementById("product-models-select-all");
+    const productModelsDeselectAll = document.getElementById("product-models-deselect-all");
 
     pairMetricSelect.value = data.config?.selection_metric || "WAPE";
     horizonMetricSelect.value = data.config?.selection_metric || "WAPE";
@@ -532,19 +795,27 @@ async function main() {
     horizonModelSelect.value = canonicalModel(data);
 
     const firstProduct = populateProductSelector(data);
+    setAllProductModels(data, true);
+    renderRegimeDefinitions(data);
     populateDiagnosticModelSelector(data, productErrorModelSelect);
     configureStrategySelect(data, strategySelect, refresh);
     regimeSelect.value = data.config?.primary_evaluation_regime || "conditional";
+
+    function refreshProductExplorer() {
+      const strategy = strategySelect.value || canonicalStrategy(data);
+      renderProductChart(data, productSelect.value || firstProduct, strategy);
+    }
 
     function refresh() {
       const strategy = strategySelect.value || canonicalStrategy(data);
       const regime = regimeSelect.value || "conditional";
       updateStrategyCopy(data, strategy);
+      renderRegimeExplanation(data, strategy, regime);
       renderKpis(data, strategy, regime);
       renderColumns(data, strategy, regime);
       renderComparisonChart(data, strategy, regime);
       renderCvTable(data, strategy, regime);
-      renderProductChart(data, productSelect.value || firstProduct, strategy);
+      refreshProductExplorer();
       renderStrategyComparison(data, pairMetricSelect.value);
       renderHorizonChart(data, horizonModelSelect.value, horizonMetricSelect.value, regime);
       renderEnsemble(data, strategy);
@@ -553,7 +824,7 @@ async function main() {
       renderTopDecile(data, strategy);
       renderTopErrors(data, strategy);
       renderChannelShare(data, strategy);
-      renderFinalAudit(data, strategy, regime);
+      renderFinalAudit(data, strategy);
       renderAblations(data);
       document.getElementById("product-strategy-note").textContent = strategyLabel(strategy);
     }
@@ -561,6 +832,19 @@ async function main() {
     [regimeSelect, productSelect, pairMetricSelect, horizonModelSelect, horizonMetricSelect,
       productErrorModelSelect, productErrorSplitSelect]
       .forEach((select) => select.addEventListener("change", refresh));
+
+    productHistoryToggle.addEventListener("change", () => {
+      productHistoryVisible = productHistoryToggle.checked;
+      refreshProductExplorer();
+    });
+    productModelsSelectAll.addEventListener("click", () => {
+      setAllProductModels(data, true);
+      refreshProductExplorer();
+    });
+    productModelsDeselectAll.addEventListener("click", () => {
+      setAllProductModels(data, false);
+      refreshProductExplorer();
+    });
 
     renderNav(data, "");
     renderSubmissionTable(data);

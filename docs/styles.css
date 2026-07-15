@@ -485,3 +485,173 @@ select:disabled {
 @media (max-width: 900px) {
   .compact-grid { grid-template-columns: 1fr; }
 }
+
+/* Dashboard explanation and explorer controls (dashboard tour v3) */
+.selection-explanation {
+  flex-basis: 100%;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.definition-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.definition-item {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.42fr) 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ink);
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.definition-item strong { font-weight: 800; }
+.definition-item span { color: var(--text-dim); }
+
+.diagnostic-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--ink);
+  background: #fffdf4;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.diagnostic-note.compact {
+  margin: 0 0 14px;
+  border-color: var(--hairline);
+  background: var(--surface);
+}
+
+.explanatory-state p { margin: 0 0 10px; }
+.explanatory-state p:last-child { margin-bottom: 0; }
+.explanatory-state code {
+  padding: 1px 4px;
+  background: #ededed;
+  color: var(--ink);
+}
+
+.table-intro {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.product-explorer-controls {
+  align-items: flex-end;
+}
+
+.checkbox-control {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkbox-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.secondary-action {
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  background: var(--ink);
+  color: #fff;
+}
+
+@media (max-width: 700px) {
+  .definition-item { grid-template-columns: 1fr; }
+  .product-explorer-controls { width: 100%; }
+  .secondary-action { width: 100%; }
+}
+
+/* Keep all seven model cards on one desktop row without widening every panel. */
+.model-comparison-panel {
+  width: min(1480px, calc(100vw - 32px));
+  align-self: center;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+.model-comparison-panel .columns-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.model-comparison-panel .model-column {
+  min-width: 0;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.model-comparison-panel .model-column-header h3 {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1179px) {
+  .model-comparison-panel {
+    width: 100%;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .model-comparison-panel .columns-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .model-comparison-panel .model-column {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .model-comparison-panel .model-column-header h3 {
+    font-size: 17px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 1100px) {
+  .model-comparison-panel .columns-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .model-comparison-panel .columns-grid {
+    grid-template-columns: 1fr;
+  }
+}

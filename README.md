@@ -141,7 +141,8 @@ tests/
   test_direct_recursive_strategies.py
                           strategy alignment, feedback and leakage tests
   test_webapp_strategy_sync.py
-                          JSON contract and frontend smoke checks
+                          JSON contract and static frontend checks
+  webapp_smoke_test.js   optional Node.js syntax and browser-logic smoke checks
   test_nn_performance.py  batch/LR/backend and recommendation tests
 webapp/
   server.py              FastAPI app serving the dashboard + /api/results,
@@ -157,7 +158,8 @@ task.md                  original assignment brief (Czech)
 
 ```bash
 uv run python ml/pipeline.py         # runs CV, trains final ensemble, writes outputs/ + results.json
-uv run pytest tests/ -v              # unit tests
+uv run pytest tests/ -m "not integration" -q  # fast Python suite
+node tests/webapp_smoke_test.js             # optional; requires Node.js
 ```
 
 Uses `mps` automatically on Apple Silicon if available, else CPU.
@@ -267,7 +269,7 @@ the browser to iterate on the presentation.
 
 **Pages:**
 - `/` — overview with direct/recursive and conditional/realized selectors,
-  all six models, paired strategy comparison, development horizon curves,
+  all seven models, paired strategy comparison, development horizon curves,
   benchmark fold metrics, product explorer and canonical submission.
 - `/model/<slug>` — one page per model (`neuralnet`, `xgboost`, `lightgbm`,
   `dynamicridge`, `seasonalnaive`, `movingavg28`) with strategy-aware metrics,
@@ -734,3 +736,15 @@ Every normal pipeline/export now adds:
 GitHub Pages site is generated in `docs/`. Configure Pages to serve the `/docs`
 directory. The static model pages use query-string navigation and no FastAPI
 server is required.
+
+### Final C5/C6 confirmation result
+
+The completed direct confirmation run froze the convex weights at 0.36
+NeuralNet, 0.25 XGBoost, and 0.39 LightGBM. The ensemble improved the
+development test-aligned WAPE by 4.97% and passed the recent-benchmark guard.
+On the three untouched final-audit origins, the ensemble was slightly better
+on global WAPE (0.299304 vs 0.301079 for NeuralNet) but slightly worse on the
+frozen test-aligned objective (0.279737 vs 0.278328). Therefore the canonical
+submission remains NeuralNet, while the ensemble is retained as a transparent
+secondary artifact rather than being refitted after the audit. The dashboard
+shows both audit metrics explicitly.

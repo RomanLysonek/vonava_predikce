@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-15T05:53:47.870737+00:00",
+  "generated_at": "2026-07-15T06:39:37.886495+00:00",
   "config": {
     "forecast_strategy": "direct",
     "primary_strategy": "direct",
@@ -81139,6 +81139,64 @@
       "BiasRatio": -0.1533,
       "n": 210.0,
       "strategy": "direct"
+    }
+  ],
+  "final_audit_test_aligned_scores": [
+    {
+      "strategy": "direct",
+      "model": "DynamicRidge",
+      "metric": "WAPE",
+      "test_aligned_score": 0.376861,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "Ensemble",
+      "metric": "WAPE",
+      "test_aligned_score": 0.279737,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "LightGBM",
+      "metric": "WAPE",
+      "test_aligned_score": 0.290177,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "MovingAvg28",
+      "metric": "WAPE",
+      "test_aligned_score": 0.43683,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "NeuralNet",
+      "metric": "WAPE",
+      "test_aligned_score": 0.278328,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "SeasonalNaive",
+      "metric": "WAPE",
+      "test_aligned_score": 0.607865,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
+    },
+    {
+      "strategy": "direct",
+      "model": "XGBoost",
+      "metric": "WAPE",
+      "test_aligned_score": 0.307696,
+      "weight_sum": 1.0,
+      "strata_present": "holiday_event,regular,winter_test_like"
     }
   ],
   "selection": {

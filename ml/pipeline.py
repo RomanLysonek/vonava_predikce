@@ -2275,6 +2275,54 @@ def select_primary_summary(
     return selected
 
 
+def _file_sha256(path: str) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def load_current_final_audit_artifacts(
+    output_dir: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load final-audit tables only when their manifest matches C5 weights.
+
+    A later full pipeline run may replace ``ensemble_weights.json`` while old
+    one-shot audit CSVs remain on disk. Publishing those rows would attach
+    audit evidence to the wrong model configuration, so stale artifacts are
+    treated as absent until the audit is deliberately rerun.
+    """
+    manifest_path = os.path.join(output_dir, "final_audit_manifest.json")
+    weights_path = os.path.join(output_dir, "ensemble_weights.json")
+    if not os.path.exists(manifest_path) or not os.path.exists(weights_path):
+        return pd.DataFrame(), pd.DataFrame()
+    try:
+        with open(manifest_path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+    except (OSError, ValueError, TypeError):
+        return pd.DataFrame(), pd.DataFrame()
+    expected_hash = manifest.get("ensemble_weights_sha256")
+    if not expected_hash or expected_hash != _file_sha256(weights_path):
+        return pd.DataFrame(), pd.DataFrame()
+
+    def read_optional(name: str) -> pd.DataFrame:
+        path = os.path.join(output_dir, name)
+        if not os.path.exists(path) or os.path.getsize(path) == 0:
+            return pd.DataFrame()
+        try:
+            return pd.read_csv(path)
+        except pd.errors.EmptyDataError:
+            return pd.DataFrame()
+
+    return (
+        read_optional("final_audit_summary.csv"),
+        read_optional("final_audit_test_aligned_scores.csv"),
+    )
+
+
 def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submission: pd.DataFrame,
                          final_forecasts: dict, cv_results: pd.DataFrame, cfg: Config = CFG,
                          history_lookback: int = 90, path: str | None = None,
@@ -2297,7 +2345,8 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          top_decile_summary: pd.DataFrame | None = None,
                          top_error_rows: pd.DataFrame | None = None,
                          ablation_showcase: pd.DataFrame | None = None,
-                         final_audit_summary: pd.DataFrame | None = None) -> dict:
+                         final_audit_summary: pd.DataFrame | None = None,
+                         final_audit_test_aligned_scores: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
     Uses 'Conditional Demand' on a 'Common' population as the primary summary
     (Tier B Corrections).
@@ -2527,6 +2576,10 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
         "final_audit_summary": (
             final_audit_summary.round(6).to_dict(orient="records")
             if final_audit_summary is not None else []
+        ),
+        "final_audit_test_aligned_scores": (
+            final_audit_test_aligned_scores.round(6).to_dict(orient="records")
+            if final_audit_test_aligned_scores is not None else []
         ),
         "selection": {
             "canonical_model": canonical_model,
@@ -3021,12 +3074,10 @@ def main(argv=None) -> None:
         strategy: _forecast_dict_to_json(test_raw, forecasts)
         for strategy, forecasts in final_by_strategy.items()
     }
-    final_audit_path = os.path.join(cfg.output_dir, "final_audit_summary.csv")
-    final_audit_summary = (
-        pd.read_csv(final_audit_path)
-        if os.path.exists(final_audit_path) and os.path.getsize(final_audit_path) > 0
-        else pd.DataFrame()
-    )
+    (
+        final_audit_summary,
+        final_audit_test_aligned_scores,
+    ) = load_current_final_audit_artifacts(cfg.output_dir)
     payload = export_results_json(
         train_raw, test_raw, submission, final_by_strategy[canonical_strategy], cv_results, cfg,
         dev_summary=dev_summary, benchmark_summary=benchmark_summary,
@@ -3046,6 +3097,7 @@ def main(argv=None) -> None:
         top_error_rows=top_error_rows,
         ablation_showcase=ablation_showcase,
         final_audit_summary=final_audit_summary,
+        final_audit_test_aligned_scores=final_audit_test_aligned_scores,
     )
     publish_static_dashboard(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

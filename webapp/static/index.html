@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
-  <link rel="stylesheet" href="/static/styles.css?v=10" />
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/styles.css?v=12" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -42,13 +43,14 @@
           <select id="strategy-select"></select>
         </div>
         <div class="control-group">
-          <label for="regime-select">Evaluation regime</label>
+          <label for="regime-select">Availability treatment</label>
           <select id="regime-select">
-            <option value="conditional">Conditional Demand</option>
-            <option value="realized">Realized Sales</option>
+            <option value="conditional">Available days only</option>
+            <option value="realized">All days / realized sales</option>
           </select>
         </div>
       </div>
+      <p class="selection-explanation" id="regime-explanation"></p>
     </section>
 
     <section class="kpi-grid" id="kpi-grid">
@@ -58,11 +60,11 @@
       <div class="kpi-card skeleton"></div>
     </section>
 
-    <section class="panel">
+    <section class="panel model-comparison-panel">
       <div class="panel-header row">
         <div>
           <h2>Model comparison</h2>
-          <p>Recent-benchmark OOF · conditional/common/global is the primary view</p>
+          <p id="model-comparison-context">Recent-benchmark OOF · available product-days · common rows · global aggregation</p>
         </div>
       </div>
       <div class="columns-grid" id="columns-grid"></div>
@@ -72,7 +74,7 @@
       <div class="panel-header row">
         <div>
           <h2>Development-OOF ensemble</h2>
-          <p>Non-negative weights sum to one; recent benchmark is confirmation-only</p>
+          <p>Negative deltas favour the ensemble; Δ WAPE is absolute percentage points, while relative change is measured against the best single model</p>
         </div>
         <span class="winner-badge" id="ensemble-status">—</span>
       </div>
@@ -85,7 +87,7 @@
         </div>
         <div class="table-wrap">
           <table class="data-table" id="ensemble-comparison-table">
-            <thead><tr><th>Measure</th><th>Ensemble</th><th>Best single</th><th>Change</th></tr></thead>
+            <thead><tr><th>Measure</th><th>Ensemble</th><th>Best single</th><th>Δ WAPE (pp)</th><th>Relative change</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -203,12 +205,13 @@
 
       <div class="panel">
         <div class="panel-header">
-          <h2>Validation regimes</h2>
-          <p>Winter/test-like, regular, and holiday-event performance</p>
+          <h2>Validation periods</h2>
+          <p>Development windows grouped by how closely they resemble the January test week or stress retail-event behavior</p>
         </div>
+        <div class="definition-list" id="regime-definitions"></div>
         <div class="table-wrap diagnostic-table-wrap">
           <table class="data-table" id="regime-table">
-            <thead><tr><th>Stratum</th><th>Model</th><th>WAPE</th><th>Bias%</th><th>n</th></tr></thead>
+            <thead><tr><th>Period type</th><th>Model</th><th>WAPE</th><th>Bias%</th><th>n</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -218,12 +221,13 @@
     <section class="panel-grid">
       <div class="panel">
         <div class="panel-header">
-          <h2>Top-decile demand</h2>
-          <p>Performance on the highest-demand 10% of product-days</p>
+          <h2>High-volume product-days</h2>
+          <p>Retrospective stress test on rows whose actual demand is in the top 10% of the recent benchmark</p>
         </div>
+        <div class="diagnostic-note compact" id="top-decile-explanation"></div>
         <div class="table-wrap diagnostic-table-wrap">
           <table class="data-table" id="top-decile-table">
-            <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Threshold</th></tr></thead>
+            <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Actual cutoff</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -240,6 +244,7 @@
             <tbody></tbody>
           </table>
         </div>
+        <div class="diagnostic-note" id="top-error-insight" hidden></div>
       </div>
     </section>
 
@@ -247,13 +252,13 @@
       <div class="panel-header row">
         <div>
           <h2>Frozen final audit</h2>
-          <p>Three untouched origins, evaluated once after C1-C5 decisions were frozen</p>
+          <p>Three untouched origins; the frozen conditional test-aligned objective is primary, with global WAPE shown for context</p>
         </div>
         <span class="winner-badge">One-shot</span>
       </div>
       <div class="table-wrap diagnostic-table-wrap">
         <table class="data-table" id="final-audit-table">
-          <thead><tr><th>Model</th><th>WAPE</th><th>MAE</th><th>Bias%</th><th>Coverage</th></tr></thead>
+          <thead><tr><th>Model</th><th>Aligned WAPE</th><th>Global WAPE</th><th>MAE</th><th>Bias%</th><th>Coverage</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -262,10 +267,10 @@
     <section class="panel-grid">
       <div class="panel" id="channel-panel">
         <div class="panel-header">
-          <h2>Channel-share diagnostics</h2>
-          <p>Total demand remains canonical; app-share is an auxiliary structural task</p>
+          <h2>App-vs-web split experiment</h2>
+          <p>An optional NeuralNet task tested whether predicting channel mix alongside total quantity improved the submitted forecast</p>
         </div>
-        <div id="channel-share-content" class="empty-state">No channel-share head selected.</div>
+        <div id="channel-share-content" class="empty-state">Loading channel experiment decision…</div>
       </div>
 
       <div class="panel">
@@ -286,9 +291,20 @@
       <div class="panel-header row">
         <div>
           <h2>Product explorer — all models</h2>
-          <p>History vs. <span id="product-strategy-note">selected</span> forecasts</p>
+          <p>History vs. <span id="product-strategy-note">selected</span> forecasts; legend items can still hide individual models</p>
         </div>
-        <select id="product-select"></select>
+        <div class="controls product-explorer-controls">
+          <div class="control-group">
+            <label for="product-select">Product</label>
+            <select id="product-select"></select>
+          </div>
+          <label class="checkbox-control" for="product-history-toggle">
+            <input id="product-history-toggle" type="checkbox" checked />
+            <span>Show history</span>
+          </label>
+          <button class="secondary-action" id="product-models-select-all" type="button">Select all models</button>
+          <button class="secondary-action" id="product-models-deselect-all" type="button">Deselect all models</button>
+        </div>
       </div>
       <div class="chart-wrap tall">
         <canvas id="chart-product"></canvas>
@@ -308,7 +324,7 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=10"></script>
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/common.js?v=11"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 </html>

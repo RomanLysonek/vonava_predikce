@@ -43,6 +43,12 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> FileResponse:
+    """Serve the explicit SVG favicon for browsers that still request /favicon.ico."""
+    return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
+
 @app.get("/model/{slug}")
 def model_page(slug: str) -> FileResponse:
     # One shared template; model.js reads `slug` from the URL itself and

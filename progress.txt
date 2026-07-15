@@ -235,10 +235,10 @@ STATUS
 [x] C3/C4 fast screen on the user's Mac
     - selected: all C2 groups, no recency decay, MSE residual NN, no channel
       history/auxiliary head, XGBoost residual target, LightGBM log1p target
-[ ] C3/C4 full 512/fixed direct confirmation on the user's Mac
-    - the latest uploaded ZIP contains only pipeline_c34_screening.log; its
-      canonical outputs are byte-identical to outputs_c1_half365 and therefore
-      are not the full C3/C4 confirmation
+[x] C3/C4 full 512/fixed direct confirmation on the user's Mac
+    - completed in pipeline_c34_c5_c6_direct_512_fixed.log
+    - selected all C2 groups, MSE residual NN, XGBoost residual target,
+      LightGBM log1p target, and no channel auxiliary head
 
 [x] C4 source implementation
     - shared total-demand head + optional auxiliary app-share head
@@ -255,10 +255,14 @@ STATUS
     - frozen recent-benchmark evaluation; final forecasts and submissions
     - automatic eligibility requires development gain + benchmark guard
     - one-shot ml/run_final_audit.py over frozen disjoint origins
-    - C5/C6 implementation verification: 112 fast tests passed; native
+    - C5/C6 implementation verification: 113 fast tests passed; native
       tree-worker integration exceeded the Linux verification timeout
-[ ] C5 real-data weights + one-shot final audit
-    - produced by the combined full C3/C4+C5 command, then final-audit script
+[x] C5 real-data weights + one-shot final audit
+    - frozen direct weights: NeuralNet 0.36, XGBoost 0.25, LightGBM 0.39
+    - development aligned-WAPE gain: 4.97%; recent benchmark confirmed
+    - untouched audit aligned WAPE: NeuralNet 0.278328, Ensemble 0.279737
+    - untouched audit global WAPE: Ensemble 0.299304, NeuralNet 0.301079
+    - canonical submission remains NeuralNet; weights were not refitted
 
 [x] C6 source implementation: dashboard depth and static delivery
     - strategy selector and horizon curves retained
@@ -266,7 +270,10 @@ STATUS
     - top-decile demand, largest recent errors, channel-share diagnostics
     - C1/C2/C3/C4 ablation showcase and frozen final-audit panel
     - webapp/static/results.json fallback and generated docs/ GitHub Pages site
-[ ] C6 final artifact refresh after combined full run and final audit
+[x] C6 final artifact refresh after combined full run and final audit
+    - outputs/results.json, webapp/static/results.json, and docs/results.json synchronized
+    - final-audit panel exposes both frozen aligned WAPE and global WAPE
+    - stale final-audit artifacts are suppressed when ensemble weights change
 
 
 Working file map (restructured post-Tier-A into framework.py + models/ + pipeline.py;

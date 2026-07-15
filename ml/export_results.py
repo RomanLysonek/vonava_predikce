@@ -28,6 +28,7 @@ from pipeline import (
     configure_c5_runtime,
     configure_nn_runtime,
     export_results_json,
+    load_current_final_audit_artifacts,
     load_raw,
     parse_args,
 )
@@ -124,9 +125,10 @@ def main(argv=None) -> None:
     ablation_showcase = _read_csv_if_present(
         os.path.join(out, "ablation_showcase.csv")
     )
-    final_audit_summary = _read_csv_if_present(
-        os.path.join(out, "final_audit_summary.csv")
-    )
+    (
+        final_audit_summary,
+        final_audit_test_aligned_scores,
+    ) = load_current_final_audit_artifacts(out)
     ensemble_path = os.path.join(out, "ensemble_weights.json")
     ensemble_payload = _load_existing_results(ensemble_path)
 
@@ -228,6 +230,7 @@ def main(argv=None) -> None:
         top_error_rows=top_error_rows,
         ablation_showcase=ablation_showcase,
         final_audit_summary=final_audit_summary,
+        final_audit_test_aligned_scores=final_audit_test_aligned_scores,
     )
     publish_static_dashboard(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

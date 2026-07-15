@@ -109,3 +109,35 @@ def test_duplicate_oof_forecast_keys_are_rejected():
             stratum_weights={"winter_test_like": 0.6, "regular": 0.4},
             grid_step=0.1,
         )
+
+
+def test_stale_final_audit_is_not_loaded(tmp_path):
+    import hashlib
+    import json
+
+    from pipeline import load_current_final_audit_artifacts
+
+    weights = tmp_path / "ensemble_weights.json"
+    weights.write_text('{"weights": 1}', encoding="utf-8")
+    stale_hash = hashlib.sha256(b'different').hexdigest()
+    (tmp_path / "final_audit_manifest.json").write_text(
+        json.dumps({"ensemble_weights_sha256": stale_hash}), encoding="utf-8"
+    )
+    pd.DataFrame([{"model": "Ensemble", "WAPE": 0.1}]).to_csv(
+        tmp_path / "final_audit_summary.csv", index=False
+    )
+    pd.DataFrame([{"model": "Ensemble", "test_aligned_score": 0.1}]).to_csv(
+        tmp_path / "final_audit_test_aligned_scores.csv", index=False
+    )
+
+    summary, aligned = load_current_final_audit_artifacts(str(tmp_path))
+    assert summary.empty
+    assert aligned.empty
+
+    valid_hash = hashlib.sha256(weights.read_bytes()).hexdigest()
+    (tmp_path / "final_audit_manifest.json").write_text(
+        json.dumps({"ensemble_weights_sha256": valid_hash}), encoding="utf-8"
+    )
+    summary, aligned = load_current_final_audit_artifacts(str(tmp_path))
+    assert summary.iloc[0]["model"] == "Ensemble"
+    assert aligned.iloc[0]["test_aligned_score"] == 0.1

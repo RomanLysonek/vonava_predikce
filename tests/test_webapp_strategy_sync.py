@@ -1,11 +1,8 @@
 import json
-import shutil
-import subprocess
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from framework import Config
 from pipeline import (
@@ -132,6 +129,12 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
         "prediction_max": 13.0, "prediction_p99": 12.99,
         "observed_max": 11.0, "prediction_to_observed_max_ratio": 13 / 11,
     }])
+    final_audit_summary = summaries[summaries["strategy"].eq("direct")].copy()
+    final_audit_test_aligned_scores = pd.DataFrame([{
+        "strategy": "direct", "model": "NeuralNet", "metric": "WAPE",
+        "test_aligned_score": 0.19, "weight_sum": 1.0,
+        "strata_present": "winter_test_like",
+    }])
 
     options = RuntimeOptions(
         forecast_strategy=ForecastStrategy.BOTH,
@@ -160,6 +163,8 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
         validation_strata_summary=validation_strata,
         test_aligned_scores=test_aligned_scores,
         prediction_diagnostics=prediction_diagnostics,
+        final_audit_summary=final_audit_summary,
+        final_audit_test_aligned_scores=final_audit_test_aligned_scores,
     )
 
     assert set(payload["forecasts_by_strategy"]) == {"direct", "recursive"}
@@ -174,6 +179,8 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
     assert payload["validation_strata_summary"]
     assert payload["test_aligned_scores"]
     assert payload["prediction_diagnostics"]
+    assert payload["final_audit_summary"]
+    assert payload["final_audit_test_aligned_scores"][0]["test_aligned_score"] == 0.19
     ridge = next(model for model in payload["models"] if model["key"] == "DynamicRidge")
     assert ridge["strategies"] == ["direct"]
     assert payload["selection"]["canonical_model"] == "NeuralNet"
@@ -187,6 +194,7 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
 def test_strategy_controls_exist_on_overview_and_model_pages():
     for name in ("index.html", "model.html"):
         text = (STATIC / name).read_text()
+        assert 'rel="icon" href="/static/favicon.svg"' in text
         assert 'id="strategy-select"' in text
         assert 'id="regime-select"' in text
         assert 'id="promo-strategy"' in text
@@ -194,20 +202,28 @@ def test_strategy_controls_exist_on_overview_and_model_pages():
     overview = (STATIC / "index.html").read_text()
     assert 'id="strategy-comparison-table"' in overview
     assert 'id="chart-horizon"' in overview
+    assert "Aligned WAPE" in overview
+    assert "Δ WAPE (pp)" in overview
+    assert "Relative change" in overview
+    assert 'id="regime-explanation"' in overview
+    assert 'id="regime-definitions"' in overview
+    assert 'id="top-decile-explanation"' in overview
+    assert 'id="top-error-insight"' in overview
+    assert 'id="product-history-toggle"' in overview
+    assert 'id="product-models-select-all"' in overview
+    assert 'id="product-models-deselect-all"' in overview
+    assert 'class="panel model-comparison-panel"' in overview
 
+    app_js = (STATIC / "app.js").read_text()
+    assert "(ensembleValue - singleValue) * 100" in app_js
+    assert '`${absoluteDeltaPp >= 0 ? "+" : ""}${fmt(absoluteDeltaPp, 2)} pp`' in app_js
+    assert "function renderRegimeExplanation" in app_js
+    assert "function renderRegimeDefinitions" in app_js
+    assert "function renderTopErrorInsight" in app_js
+    assert "function setAllProductModels" in app_js
+    assert "const labels = productHistoryVisible" in app_js
+    assert 'row.stage === "channel_aux"' in app_js
 
-def test_frontend_javascript_is_syntax_valid():
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("Node.js is not installed")
-    for name in ("common.js", "app.js", "model.js"):
-        subprocess.run(
-            [node, "--check", str(STATIC / name)],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
 
 
 def test_api_results_serves_strategy_payload(tmp_path, monkeypatch):
@@ -233,56 +249,16 @@ def test_api_results_serves_strategy_payload(tmp_path, monkeypatch):
     assert served["selection"]["canonical_strategy"] == "direct"
 
 
-def test_common_js_strategy_helpers_support_single_and_both_modes():
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("Node.js is not installed")
-    script = f"""
-      const fs = require('fs');
-      const vm = require('vm');
-      const context = {{ window: {{}}, console }};
-      vm.createContext(context);
-      vm.runInContext(fs.readFileSync({json.dumps(str(STATIC / 'common.js'))}, 'utf8'), context);
+def test_favicon_route_serves_static_icon():
+    from webapp import server
 
-      const directOnly = {{
-        forecasts_by_strategy: {{ direct: {{}} }},
-        selection: {{ canonical_strategy: 'direct' }},
-      }};
-      if (context.availableStrategies(directOnly).join(',') !== 'direct') process.exit(2);
-      if (context.canonicalStrategy(directOnly) !== 'direct') process.exit(3);
+    response = server.favicon()
+    assert Path(response.path) == STATIC / "favicon.svg"
+    assert response.media_type == "image/svg+xml"
 
-      const recursiveOnly = {{
-        forecasts_by_strategy: {{ recursive: {{}} }},
-        selection: {{ canonical_strategy: 'recursive' }},
-      }};
-      if (context.canonicalStrategy(recursiveOnly) !== 'recursive') process.exit(4);
-
-      const both = {{
-        forecasts_by_strategy: {{ direct: {{}}, recursive: {{}} }},
-        selection: {{ canonical_strategy: 'recursive' }},
-        benchmark_summary_all: [
-          {{ model: 'NeuralNet', strategy: 'direct', evaluation_regime: 'conditional', comparison_population: 'common', aggregation: 'global', MAE: 1 }},
-          {{ model: 'NeuralNet', strategy: 'recursive', evaluation_regime: 'conditional', comparison_population: 'common', aggregation: 'global', MAE: 2 }},
-        ],
-      }};
-      if (context.availableStrategies(both).length !== 2) process.exit(5);
-      const rows = context.summaryRows(both, {{ strategy: 'recursive', regime: 'conditional' }});
-      if (rows.length !== 1 || rows[0].MAE !== 2) process.exit(6);
-
-      const withDirectOnlyRidge = {{
-        ...both,
-        models: [{{ key: 'DynamicRidge', slug: 'dynamicridge', strategies: ['direct'] }}],
-        forecasts_by_strategy: {{
-          direct: {{ DynamicRidge: {{}} }},
-          recursive: {{ NeuralNet: {{}} }},
-        }},
-      }};
-      if (context.availableStrategies(withDirectOnlyRidge, 'DynamicRidge').join(',') !== 'direct') process.exit(7);
-    """
-    subprocess.run(
-        [node, "-e", script],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+def test_model_comparison_uses_wide_seven_column_desktop_layout():
+    styles = (STATIC / "styles.css").read_text()
+    assert "width: min(1480px, calc(100vw - 32px));" in styles
+    assert "grid-template-columns: repeat(7, minmax(0, 1fr));" in styles
+    assert ".model-comparison-panel .model-column-header h3" in styles
+    assert "white-space: nowrap;" in styles
