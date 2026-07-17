@@ -14,7 +14,6 @@
     "XGBoost": 0.25,
     "LightGBM": 0.39
   },
-  "results_sha256_before_refresh": "5f51b582a8db199c4351947ec7ba7876dffd54b322f5ba173872bdb55d9911fd",
   "configuration": {
     "forecast_strategy": "direct",
     "primary_strategy": "direct",
@@ -92,5 +91,31 @@
     "ensemble_min_relative_improvement": 0.002,
     "ensemble_benchmark_max_relative_regression": 0.02
   },
-  "force_used": false
+  "force_used": false,
+  "provenance_status": "partial_historical",
+  "provenance_note": "The original one-shot run did not record source, input, lock, command, or runtime metadata. Those fields remain null rather than being guessed; outputs/run_manifest.json describes the current published export. The audit evaluates the cv_epochs fold estimator; historical final_epochs describes a separate final-forecast fit and is not audit policy.",
+  "source": null,
+  "inputs": null,
+  "lock": null,
+  "command": null,
+  "runtime": null,
+  "legacy_results_sha256_before_refresh": "5f51b582a8db199c4351947ec7ba7876dffd54b322f5ba173872bdb55d9911fd",
+  "published_results_sha256_after_refresh": "94fa1e14c5879fc9541b17c14738ddd4ab39fc97a96ade0117f3128ff92e05e1",
+  "audit_output_hashes": {
+    "outputs/final_audit_oof.parquet": "f39f7455b178eb61afa3f8ac163202ad653a8394da83c9f779a19c60ab2cb8a9",
+    "outputs/final_audit_summary.csv": "0f1894193881f51768079f5120a3f696d4e2681709a826bb01096efe3b057b85",
+    "outputs/final_audit_validation_strata.csv": "11fdfb2fd7e22ec5286d173a06eff8d0947090af41c28f7faed4b1bc5f5c6254",
+    "outputs/final_audit_test_aligned_scores.csv": "c9bfb6b25cb9c38bd01994988a324b60c7b5c504a96230dbf08562d5a4e95dba",
+    "outputs/final_audit_prediction_diagnostics.csv": "f43320c74324a97689d5f4661e580ec2ff1d95b0eb6d7ab12cf7b54c58a0ce46",
+    "outputs/final_audit_prediction_diagnostics_by_origin.csv": "2bd1b1b655fc03d3f12f89ab45044a732cedf999079a69bd91cda26d74d49f1f"
+  },
+  "evaluated_estimator": {
+    "epochs": 30,
+    "seeds": [
+      42,
+      123,
+      777
+    ],
+    "strategy": "direct"
+  }
 }

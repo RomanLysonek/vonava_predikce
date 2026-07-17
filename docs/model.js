@@ -78,14 +78,14 @@ function modelMethodology(data, model, strategy) {
 
   const methods = {
     NeuralNet: {
-      intro: "The submitted forecast is the end result of a controlled selection path: a direct, baseline-relative PyTorch model whose complexity was retained only where rolling-origin validation supported it.",
+      intro: "The submitted forecast is the predeclared non-tree assignment model: a direct, baseline-relative PyTorch network whose design choices were retained only where development rolling-origin validation supported them.",
       items: [
         ["Final architecture", `Three feed-forward networks, seeded ${Array.isArray(cfg.seeds) ? cfg.seeds.join(", ") : "independently"}, are trained independently and averaged to reduce seed-level variance. Product, web-campaign, app-campaign and forecast-horizon identifiers use learned embeddings; numeric inputs are median-imputed with explicit missingness indicators and standardized.`],
-        ["What the network predicts", `Instead of learning raw quantity from scratch, it predicts log1p(actual quantity) minus log1p of the 4:3:2:1 weighted 7/14/21/28-day same-weekday baseline. The retained ${String(cfg.nn_loss || "selected").toUpperCase()} objective learns the correction around that strong seasonal anchor; the correction is then added back in log space and transformed to nonnegative natural-scale demand.`],
+        ["What the network predicts", `Instead of learning raw quantity from scratch, it predicts log1p(actual quantity) minus log1p of the 4:3:2:1 weighted 7/14/21/28-day same-weekday baseline. The retained ${String(cfg.nn_loss || "selected").toUpperCase()} objective learns the correction around that strong seasonal anchor; the correction is then added back in log space and transformed to nonnegative observed sales.`],
         ["Information available to it", `${commonPanel} The final fit uses ${historyScope} ${recency}, ${cfg.final_epochs || "the configured number of"} epochs and batch size ${cfg.nn_batch_size || "as configured"}. Future inputs are limited to covariates known for the target date; availability is used to construct safer history and scoring populations, not as an unavailable test-time predictor.`],
         ["Seven-day forecast", `${directMechanism} The same global network handles the stacked product × horizon panel, with horizon supplied explicitly, so Monday through Sunday can have different responses without feeding predicted demand back into later days.`],
         ["What screening removed", "Extra trend features, exponential recency decay, channel-history features and an auxiliary app-share output were all plausible from the data profile, but none earned a place in the final configuration on the frozen test-aligned objective. The app/web experiment is summarized in the decision panel below."],
-        ["How we use it", `NeuralNet / Direct multi-horizon generates the canonical 210-row submission grid. It remained the submission after the untouched final audit${auditNn ? ` (${auditNn} aligned WAPE)` : ""}; the convex ensemble is retained as a strong secondary forecast rather than replacing the predeclared canonical output after audit inspection.`],
+        ["How we use it", `NeuralNet / Direct multi-horizon generates the canonical 210-row submission grid because the brief predeclared a non-tree primary solution. The spent three-origin audit${auditNn ? ` recorded ${auditNn} aligned WAPE` : ""} but did not select this model; the convex ensemble remains a competitive secondary forecast.`],
       ],
     },
     Ensemble: {
@@ -94,7 +94,7 @@ function modelMethodology(data, model, strategy) {
         ["Mechanism", `For each product-date row, the ensemble calculates ${ensembleWeightsText(data, strategy)}. Weights are nonnegative and sum to one, so the result remains inside the range implied by the member forecasts rather than introducing a separate extrapolating model.`],
         ["How the weights were fitted", `An exhaustive 0.01 simplex grid was evaluated only on development out-of-fold predictions shared by NeuralNet, XGBoost and LightGBM. The objective was the frozen test-aligned WAPE: 60% January/February proxy, 25% regular periods and 15% holiday/event stress. No test-week actuals or final-audit rows entered the fit.`],
         ["Seven-day forecast", `${directMechanism} The ensemble has no independent features, target or training pass: it combines the already-produced member quantities at each horizon. Its weights were frozen before recent-benchmark confirmation, the final audit and final forecasting.`],
-        ["How we use it", `It is retained for comparison and as an alternative forecast because it improved development and recent-benchmark performance. The canonical submission remains NeuralNet because the untouched final audit slightly favored NeuralNet on the predeclared aligned objective${auditNn && auditEnsemble ? ` (${auditNn} vs. ${auditEnsemble})` : ""}, even though the ensemble was marginally better on broad global WAPE.`],
+        ["How we use it", `It is retained for comparison and as an alternative forecast because it improved the development objective and was reported on the recent benchmark. NeuralNet remains canonical by the assignment contract. The three-origin audit${auditNn && auditEnsemble ? ` was effectively tied (${auditNn} vs. ${auditEnsemble})` : ""} and is too small to establish either model as superior.`],
       ],
     },
     XGBoost: {
@@ -162,7 +162,7 @@ function modelMethodology(data, model, strategy) {
       ...method.items,
       [
         "Evaluation contract",
-        `${evaluationAction}, then scored on the following seven days under the ${strategyLabel(strategy)} contract. Model comparisons use the same conditional-demand common population; walk-forward validation is the outer evaluation loop and does not mean recursive inference.`,
+        `${evaluationAction}, then scored on the following seven days under the ${strategyLabel(strategy)} contract. Model comparisons use the same observed-sales-conditional-on-availability common population; walk-forward validation is the outer evaluation loop and does not mean recursive inference.`,
       ],
     ],
   };
@@ -222,8 +222,8 @@ function renderNeuralNetSelection(data, model, strategy) {
     ? `The control scored ${alignedScoreText(channelControl.test_aligned_WAPE)} aligned WAPE. The best channel-aware candidate scored ${alignedScoreText(bestChannel.test_aligned_WAPE)}${Number.isFinite(channelDeterioration) ? `, ${ratePct(channelDeterioration, 2)} worse` : ""}.`
     : "The persisted screening did not show an improvement from the channel-aware candidates.";
   const auditEvidence = auditNn && auditEnsemble
-    ? `On the untouched aligned audit, NeuralNet scored ${alignedScoreText(auditNn.test_aligned_score)} versus ${alignedScoreText(auditEnsemble.test_aligned_score)} for the ensemble.`
-    : "The canonical model decision was frozen before final forecasting.";
+    ? `The spent three-origin audit recorded ${alignedScoreText(auditNn.test_aligned_score)} for NeuralNet and ${alignedScoreText(auditEnsemble.test_aligned_score)} for the ensemble—an effectively tied descriptive result, not a new selection step.`
+    : "The canonical assignment model was fixed before final forecasting.";
 
   const cards = [
     {
@@ -254,7 +254,7 @@ function renderNeuralNetSelection(data, model, strategy) {
     {
       status: "Canonical",
       title: "Why this model is submitted",
-      body: `NeuralNet / Direct produces the fixed 30 × 7 submission. The later convex ensemble improved development and recent confirmation, but ${auditEvidence} We therefore preserved the predeclared NeuralNet submission and present the ensemble as a competitive secondary forecast rather than using the audit as another tuning set.`,
+      body: `NeuralNet / Direct produces the fixed 30 × 7 submission because the brief asks for a non-tree primary model. The later convex ensemble improved the development objective and was reported on the recent benchmark. ${auditEvidence} The ensemble is presented as a competitive secondary forecast rather than using audit evidence to rewrite the assignment contract.`,
     },
   ];
 
@@ -284,8 +284,8 @@ function renderKpis(data, model, strategy, regime) {
   const skill = modelSkill(byModel, model.key);
   const cards = [
     { label: "MAE", value: fmt(summary.MAE), sub: "global common population" },
-    { label: "WAPE", value: ratePct(summary.WAPE), sub: `${regime} demand` },
-    { label: "Bias", value: fmt(summary.Bias), sub: "positive = over-forecast" },
+    { label: "WAPE", value: ratePct(summary.WAPE), sub: `${regime} observed sales` },
+    { label: "Bias", value: fmt(summary.Bias), sub: "positive over · negative under" },
     {
       label: "Skill vs. Naive",
       value: skill === null ? "—" : pct(skill),
@@ -346,7 +346,7 @@ function renderFoldTable(data, model, strategy, regime) {
       <td>${row.fold}</td>
       <td>${fmt(row.MAE)}</td>
       <td>${fmt(row.RMSE)}</td>
-      <td style="color:${Number(row.Bias) >= 0 ? "var(--bad)" : "var(--good)"}">${fmt(row.Bias)}</td>
+      <td class="bias-value">${fmt(row.Bias)}</td>
       <td>${pct(row.BiasRatio)}</td>
       <td>${row.n ?? row.n_scored ?? "—"}</td>
     </tr>
@@ -469,7 +469,7 @@ async function main() {
     renderHero(model);
     refresh();
     document.getElementById("footer-note").innerHTML =
-      `Comparing against the other ${(data.models || []).length - 1} models? See the <a href="${overviewHref()}" style="color:${model.color}">Overview page</a>.`;
+      `Compare the other ${(data.models || []).length - 1} models on the <a href="${overviewHref()}" style="color:${model.color}">Overview page</a> · <a href="${runManifestHref()}">Run provenance</a>.`;
   } catch (err) {
     document.getElementById("app").innerHTML = `
       <div class="panel">

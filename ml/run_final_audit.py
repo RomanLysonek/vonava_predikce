@@ -9,19 +9,21 @@ artifact-only exporter.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import subprocess
 import sys
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
 from ensemble import apply_ensemble_prediction
+from dashboard_artifacts import publish_static_dashboard
 from pipeline import (
     CFG,
+    DEVICE,
     FINAL_AUDIT_ORIGINS,
     ForecastStrategy,
     OOF_MODEL_COLUMNS,
@@ -39,6 +41,7 @@ from pipeline import (
     summarize_prediction_diagnostics_by_origin,
     summarize_validation_strata,
 )
+from provenance import sha256_file, write_run_manifest
 
 
 def _json(path: Path) -> dict:
@@ -47,14 +50,6 @@ def _json(path: Path) -> dict:
     if not isinstance(payload, dict):
         raise ValueError(f"Expected an object in {path}")
     return payload
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def _parse(argv=None):
@@ -101,6 +96,50 @@ def _validate_configuration(results: dict, cfg) -> None:
         )
 
 
+def _validate_frozen_run_manifest(output_dir: Path, cfg) -> None:
+    """Bind the audit to the complete configuration and hashed frozen weights."""
+    manifest_path = output_dir / "run_manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"Missing {manifest_path}; the frozen run must have provenance"
+        )
+    manifest = _json(manifest_path)
+    recorded = (manifest.get("configuration") or {}).get("values") or {}
+    expected = json.loads(json.dumps(asdict(cfg)))
+    mismatches = {
+        key: {"recorded": recorded.get(key), "requested": value}
+        for key, value in expected.items()
+        if key not in recorded or recorded.get(key) != value
+    }
+    if mismatches:
+        lines = "\n".join(
+            f"  {key}: recorded={value['recorded']!r}, "
+            f"requested={value['requested']!r}"
+            for key, value in mismatches.items()
+        )
+        raise RuntimeError(
+            "Final-audit configuration differs from the immutable frozen run.\n"
+            + lines
+        )
+    weights_path = output_dir / "ensemble_weights.json"
+    recorded_weights_hash = next(
+        (
+            digest
+            for name, digest in (manifest.get("outputs") or {}).items()
+            if name.endswith("/ensemble_weights.json")
+        ),
+        None,
+    )
+    if (
+        not recorded_weights_hash
+        or not weights_path.exists()
+        or recorded_weights_hash != sha256_file(weights_path)
+    ):
+        raise RuntimeError(
+            "Frozen ensemble weights do not match outputs/run_manifest.json"
+        )
+
+
 def main(argv=None) -> None:
     gate, pipeline_args, options = _parse(argv)
     if options.forecast_strategy is not ForecastStrategy.DIRECT:
@@ -114,6 +153,7 @@ def main(argv=None) -> None:
     configure_c34_runtime(cfg, options)
     configure_c5_runtime(cfg, options)
     configure_nn_runtime(cfg, options)
+    _validate_frozen_run_manifest(Path(cfg.output_dir), cfg)
 
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -178,21 +218,47 @@ def main(argv=None) -> None:
     diagnostics_by_origin.to_csv(
         output_dir / "final_audit_prediction_diagnostics_by_origin.csv", index=False
     )
-
-    manifest = {
-        "schema_version": "c5-final-audit-v1",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "origins": [str(pd.Timestamp(origin).date()) for origin in FINAL_AUDIT_ORIGINS],
+    audit_data_outputs = [
+        output_dir / name
+        for name in (
+            "final_audit_oof.parquet",
+            "final_audit_summary.csv",
+            "final_audit_validation_strata.csv",
+            "final_audit_test_aligned_scores.csv",
+            "final_audit_prediction_diagnostics.csv",
+            "final_audit_prediction_diagnostics_by_origin.csv",
+        )
+    ]
+    audit_created_at = datetime.now(timezone.utc).isoformat()
+    provisional_manifest = {
+        "schema_version": "c5-final-audit-v2",
+        "created_at": audit_created_at,
+        "origins": [
+            str(pd.Timestamp(origin).date())
+            for origin in FINAL_AUDIT_ORIGINS
+        ],
         "strategy": "direct",
         "selection_metric": options.selection_metric,
-        "ensemble_weights_sha256": _sha256(weights_path),
+        "ensemble_weights_sha256": sha256_file(weights_path),
         "ensemble_weights": weights,
-        "results_sha256_before_refresh": _sha256(results_path),
         "configuration": results.get("config", {}),
+        "evaluated_configuration": asdict(cfg),
+        "audit_output_hashes": {
+            str(
+                path.resolve().relative_to(
+                    Path(__file__).resolve().parents[1]
+                )
+            ): sha256_file(path)
+            for path in audit_data_outputs
+        },
         "force_used": bool(gate.force),
+        "status": "outputs_written_dashboard_pending",
     }
     temporary = manifest_path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    temporary.write_text(
+        json.dumps(provisional_manifest, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
     os.replace(temporary, manifest_path)
 
     primary = summary[
@@ -207,6 +273,55 @@ def main(argv=None) -> None:
         exporter = Path(__file__).with_name("export_results.py")
         refresh_args = [arg for arg in pipeline_args if arg not in {"--reset-checkpoints", "--resume"}]
         subprocess.run([sys.executable, str(exporter), *refresh_args], check=True)
+        results = _json(results_path)
+
+    repository_root = Path(__file__).resolve().parents[1]
+    audit_outputs = [*audit_data_outputs, output_dir / "results.json"]
+    run_manifest = write_run_manifest(
+        repository_root,
+        command=[sys.executable, str(Path(__file__).resolve()), *(argv or sys.argv[1:])],
+        config={**asdict(cfg), "runtime_options": asdict(options)},
+        output_paths=[weights_path, *audit_outputs],
+        device={
+            "type": str(DEVICE),
+            "training_backend": cfg.nn_training_backend,
+        },
+    )
+    manifest = {
+        "schema_version": "c5-final-audit-v2",
+        "created_at": audit_created_at,
+        "origins": [str(pd.Timestamp(origin).date()) for origin in FINAL_AUDIT_ORIGINS],
+        "strategy": "direct",
+        "selection_metric": options.selection_metric,
+        "ensemble_weights_sha256": sha256_file(weights_path),
+        "ensemble_weights": weights,
+        "results_sha256_after_refresh": sha256_file(results_path),
+        "configuration": results.get("config", {}),
+        "evaluated_configuration": asdict(cfg),
+        "source": run_manifest["source"],
+        "inputs": run_manifest["inputs"],
+        "lock": run_manifest["lock"],
+        "command": run_manifest["command"],
+        "runtime": run_manifest["runtime"],
+        "output_hashes": {
+            str(path.relative_to(repository_root)): sha256_file(path)
+            for path in audit_outputs
+        },
+        "force_used": bool(gate.force),
+    }
+    temporary = manifest_path.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, manifest_path)
+    write_run_manifest(
+        repository_root,
+        command=[sys.executable, str(Path(__file__).resolve()), *(argv or sys.argv[1:])],
+        config={**asdict(cfg), "runtime_options": asdict(options)},
+        device=run_manifest["runtime"]["device"],
+    )
+    publish_static_dashboard(repository_root, results_path)
     print("Saved final-audit artifacts. No ensemble weights were refitted.")
 
 

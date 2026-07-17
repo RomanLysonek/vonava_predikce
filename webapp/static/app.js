@@ -56,7 +56,7 @@ function renderRegimeExplanation(data, strategy, regime) {
 
   const selected = regime === "realized" ? realized : conditional;
   const nScored = selected[0]?.n_scored;
-  const scope = Number.isFinite(Number(nScored)) ? `${Number(nScored).toLocaleString()} common rows` : "the common evaluation rows";
+  const scope = Number.isFinite(Number(nScored)) ? `${fmt(nScored, 0)} common rows` : "the common evaluation rows";
   const definition = regime === "realized"
     ? "All observed product-days are scored, including unavailable days and their realized sales."
     : "Only product-days on which the product was available for purchase are scored.";
@@ -78,6 +78,43 @@ function renderRegimeDefinitions(data) {
       return `<div class="definition-item"><strong>${meta.label}</strong><span>${meta.definition}${weightText}</span></div>`;
     })
     .join("");
+}
+
+function renderStrategyDevelopment(data) {
+  const panel = document.getElementById("strategy-development-panel");
+  const note = document.getElementById("strategy-development-note");
+  const history = data.strategy_development || {};
+  if (!panel || !note || history.role !== "development_history") return;
+  panel.hidden = false;
+  const range = Number.isFinite(Number(history.wape_min))
+    ? `${ratePct(history.wape_min, 1)}–${ratePct(history.wape_max, 1)} WAPE`
+    : "WAPE range unavailable";
+  note.innerHTML = `
+    <strong>Recursive inference was implemented, not hidden.</strong>
+    A ${history.epochs}-epoch, seed-${history.seed} development check passed numerical
+    stability at ${fmt(history.n_origins, 0)} origins (${range}). It was not a
+    like-for-like final model comparison and no recursive final forecast is published
+    in this run, so the overview stays fixed to the direct assignment contract rather
+    than exposing an empty selector.
+  `;
+}
+
+function renderOriginDispersion(data, strategy) {
+  const panel = document.getElementById("origin-dispersion-panel");
+  const tbody = document.querySelector("#origin-dispersion-table tbody");
+  const rows = (data.origin_dispersion || [])
+    .filter((row) => row.strategy === strategy && row.metric === "WAPE")
+    .sort((a, b) => Number(a.median) - Number(b.median));
+  panel.hidden = rows.length === 0;
+  if (!rows.length) return;
+  tbody.innerHTML = rows.map((row) => `
+    <tr>
+      <td class="model-cell" style="color:${modelByKey(data, row.model)?.color || "#0a0a0a"}">${row.model}</td>
+      <td>${fmt(row.n_origins, 0)}</td>
+      <td>${ratePct(row.median, 1)}</td>
+      <td>${ratePct(row.q25, 1)}–${ratePct(row.q75, 1)}</td>
+      <td>${ratePct(row.minimum, 1)}–${ratePct(row.maximum, 1)}</td>
+    </tr>`).join("");
 }
 
 function summaryMap(data, strategy, regime) {
@@ -161,7 +198,7 @@ function renderColumns(data, strategy, regime) {
         <div class="model-stats">
           <div class="model-stat-row"><span>MAE</span><span>${fmt(stats.MAE)}</span></div>
           <div class="model-stat-row"><span>WAPE</span><span>${ratePct(stats.WAPE)}</span></div>
-          <div class="model-stat-row"><span>Bias</span><span style="color:${Number(stats.Bias) >= 0 ? "var(--bad)" : "var(--good)"}">${fmt(stats.Bias)}</span></div>
+          <div class="model-stat-row"><span>Bias</span><span class="bias-value">${fmt(stats.Bias)}</span></div>
           <div class="model-stat-row"><span>vs. Naive</span><span>${skill === null ? "—" : pct(skill)}</span></div>
         </div>
         <span class="model-column-cta">View details →</span>
@@ -221,7 +258,7 @@ function renderCvTable(data, strategy, regime) {
         <td class="model-cell" style="color:${color}">${row.model}</td>
         <td>${fmt(row.MAE)}</td>
         <td>${fmt(row.RMSE)}</td>
-        <td style="color:${Number(row.Bias) >= 0 ? "var(--bad)" : "var(--good)"}">${fmt(row.Bias)}</td>
+        <td class="bias-value">${fmt(row.Bias)}</td>
         <td>${pct(row.BiasRatio)}</td>
       </tr>
     `;
@@ -442,9 +479,12 @@ function renderEnsemble(data, strategy) {
     return;
   }
   panel.hidden = false;
-  status.textContent = details.accepted ? "Accepted" : "Diagnostic";
-  status.classList.toggle("accepted", Boolean(details.accepted));
-  status.classList.toggle("rejected", !details.accepted);
+  const eligible = Boolean(
+    details.eligible_on_development ?? details.accepted_on_development
+  );
+  status.textContent = eligible ? "Development eligible" : "Diagnostic";
+  status.classList.toggle("accepted", eligible);
+  status.classList.toggle("rejected", !eligible);
   const weights = Object.entries(details.weights || {}).sort((a, b) => Number(b[1]) - Number(a[1]));
   if (!weights.length) {
     emptyTable(weightsBody, "No fitted weights.", 2);
@@ -475,7 +515,6 @@ function renderEnsemble(data, strategy) {
       && Number.isFinite(ensembleValue) && Number.isFinite(singleValue)
     );
     const absoluteDeltaPp = hasScores ? (ensembleValue - singleValue) * 100 : null;
-    const changeClass = Number(change) <= 0 ? "good-text" : "bad-text";
     const absoluteDeltaText = absoluteDeltaPp === null
       ? "—"
       : `${absoluteDeltaPp >= 0 ? "+" : ""}${fmt(absoluteDeltaPp, 2)} pp`;
@@ -484,8 +523,8 @@ function renderEnsemble(data, strategy) {
         <td>${label}</td>
         <td>${ratePct(ensemble, 2)}</td>
         <td>${ratePct(single, 2)}</td>
-        <td class="${changeClass}">${absoluteDeltaText}</td>
-        <td class="${changeClass}">${pct(change, 2)}</td>
+        <td>${absoluteDeltaText}</td>
+        <td>${pct(change, 2)}</td>
       </tr>`;
   }).join("");
 }
@@ -516,7 +555,7 @@ function renderPerProductDiagnostics(data, strategy, model, split) {
       <td>#${row.ProductId}</td>
       <td>${ratePct(row.WAPE, 1)}</td>
       <td>${fmt(row.MAE, 1)}</td>
-      <td class="${Math.abs(Number(row.BiasRatio)) <= 0.05 ? "good-text" : "bad-text"}">${pct(row.BiasRatio, 1)}</td>
+      <td class="bias-value">${pct(row.BiasRatio, 1)}</td>
       <td>${fmt(row.actual_total, 0)}</td>
     </tr>`).join("");
 }
@@ -570,7 +609,7 @@ function renderTopDecile(data, strategy) {
   const threshold = Number(rows[0].actual_threshold);
   const nRows = Number(rows[0].n);
   if (explanation) {
-    explanation.innerHTML = `<strong>Concrete reading:</strong> within the recent benchmark, product-day rows were ranked by their actual total quantity. The ${Number(rows[0].quantile || 0.9) * 100}th-percentile cutoff was ${fmt(threshold, 1)} units, leaving ${nRows.toLocaleString()} high-volume rows. WAPE, MAE and bias below are recomputed only on those rows; this is a retrospective stress diagnostic, not an input feature or a forecast filter.`;
+    explanation.innerHTML = `<strong>Concrete reading:</strong> within the recent benchmark, product-day rows were ranked by observed total sales. The ${Number(rows[0].quantile || 0.9) * 100}th-percentile cutoff was ${fmt(threshold, 1)} units, leaving ${fmt(nRows, 0)} high-volume rows. WAPE, MAE and bias below are recomputed only on those rows; this is a retrospective stress diagnostic, not an input feature or a forecast filter.`;
   }
   tbody.innerHTML = rows.map((row) => `
     <tr>
@@ -672,7 +711,7 @@ function renderTopErrorInsight(data, strategy) {
     : `The same origin shows a broader positive-bias pattern for Product 26.`;
 
   target.hidden = false;
-  target.innerHTML = `<strong>Interesting miss — Product 26, 16 December 2025:</strong> this was a systematic pre-Christmas uplift overshoot, not a stockout or a one-day demand collapse. At the ${origin} forecast origin, Product 26's trailing seven-day mean had increased ${productLiftText}, while portfolio demand was ${marketLiftText} higher week-on-week. Together with the known holiday/event covariates, that pattern is consistent with the direct NeuralNet extrapolating a stronger and more persistent surge. ${windowText} Actual demand of ${fmt(row.actual, 1)} was still at roughly the ${percentileText} of Product 26 observations available at the origin—demand was high, just below the NN's ${fmt(row.prediction, 1)} forecast. Per-row neural attribution was not persisted, so this is the strongest diagnosis supported by the saved OOF path and feature history rather than a SHAP-style causal decomposition.`;
+  target.innerHTML = `<strong>Interesting miss — Product 26, 16 December 2025:</strong> this was a systematic pre-Christmas uplift overshoot, not a stockout or a one-day sales collapse. At the ${origin} forecast origin, Product 26's trailing seven-day mean had increased ${productLiftText}, while portfolio sales were ${marketLiftText} higher week-on-week. Together with the known holiday/event covariates, that pattern is consistent with the direct NeuralNet extrapolating a stronger and more persistent surge. ${windowText} Observed sales of ${fmt(row.actual, 1)} were still at roughly the ${percentileText} of Product 26 observations available at the origin—sales were high, just below the NN's ${fmt(row.prediction, 1)} forecast. Per-row neural attribution was not persisted, so this is the strongest diagnosis supported by the saved OOF path and feature history rather than a SHAP-style causal decomposition.`;
 }
 
 function renderTopErrors(data, strategy) {
@@ -736,10 +775,8 @@ function renderFinalAudit(data, strategy) {
 async function main() {
   try {
     const data = await loadResults();
-    const strategySelect = document.getElementById("strategy-select");
     const regimeSelect = document.getElementById("regime-select");
     const productSelect = document.getElementById("product-select");
-    const pairMetricSelect = document.getElementById("pair-metric-select");
     const horizonModelSelect = document.getElementById("horizon-model-select");
     const horizonMetricSelect = document.getElementById("horizon-metric-select");
     const productErrorModelSelect = document.getElementById("product-error-model-select");
@@ -748,7 +785,6 @@ async function main() {
     const productModelsSelectAll = document.getElementById("product-models-select-all");
     const productModelsDeselectAll = document.getElementById("product-models-deselect-all");
 
-    pairMetricSelect.value = data.config?.selection_metric || "WAPE";
     horizonMetricSelect.value = data.config?.selection_metric || "WAPE";
     horizonModelSelect.innerHTML = (data.models || [])
       .map((model) => `<option value="${model.key}">${model.label}</option>`)
@@ -759,17 +795,15 @@ async function main() {
     setAllProductModels(data, true);
     renderRegimeDefinitions(data);
     populateDiagnosticModelSelector(data, productErrorModelSelect);
-    configureStrategySelect(data, strategySelect, refresh);
     regimeSelect.value = data.config?.primary_evaluation_regime || "conditional";
+    const strategy = canonicalStrategy(data);
 
     function refreshProductExplorer() {
-      const strategy = strategySelect.value || canonicalStrategy(data);
       renderProductChart(data, productSelect.value || firstProduct, strategy);
       renderProductModelLegend(data, strategy, refreshProductExplorer);
     }
 
     function refresh() {
-      const strategy = strategySelect.value || canonicalStrategy(data);
       const regime = regimeSelect.value || "conditional";
       updateStrategyCopy(data, strategy);
       renderRegimeExplanation(data, strategy, regime);
@@ -778,7 +812,6 @@ async function main() {
       renderComparisonChart(data, strategy, regime);
       renderCvTable(data, strategy, regime);
       refreshProductExplorer();
-      renderStrategyComparison(data, pairMetricSelect.value);
       renderHorizonChart(data, horizonModelSelect.value, horizonMetricSelect.value, regime);
       renderEnsemble(data, strategy);
       renderPerProductDiagnostics(data, strategy, productErrorModelSelect.value, productErrorSplitSelect.value);
@@ -786,10 +819,12 @@ async function main() {
       renderTopDecile(data, strategy);
       renderTopErrors(data, strategy);
       renderFinalAudit(data, strategy);
+      renderStrategyDevelopment(data);
+      renderOriginDispersion(data, strategy);
       document.getElementById("product-strategy-note").textContent = strategyLabel(strategy);
     }
 
-    [regimeSelect, productSelect, pairMetricSelect, horizonModelSelect, horizonMetricSelect,
+    [regimeSelect, productSelect, horizonModelSelect, horizonMetricSelect,
       productErrorModelSelect, productErrorSplitSelect]
       .forEach((select) => select.addEventListener("change", refresh));
 

@@ -34,7 +34,7 @@ function renderDatasetCurrentDecision(data) {
   const target = "QuantityApp + QuantityWeb";
   const note = document.getElementById("dataset-current-note");
   if (!note) return;
-  note.innerHTML = `<strong>Current published solution:</strong> forecast total demand (${target}) with ${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))}. The app-share head and recency decay were screened rather than assumed; neither was retained by the frozen development objective.`;
+  note.innerHTML = `<strong>Current published solution:</strong> forecast observed total sales (${target}) with the predeclared ${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))} assignment model. Availability filtering makes the target less censored but does not reconstruct latent demand. The app-share head and recency decay were screened rather than assumed; neither was retained by the frozen development objective.`;
 }
 
 function renderDatasetDecisionTrail(data) {
@@ -71,14 +71,14 @@ function renderDatasetDecisionTrail(data) {
     {
       badge: "Strategy · 7 days",
       title: `${strategyLabel(canonicalStrategy(data))} selected`,
-      body: "Direct and recursive engines were implemented under the same origin cutoff. Direct won the development selection and avoids feeding uncertain day-one predictions into later horizons for the submitted week.",
-      detail: "Walk-forward evaluation remains separate from forecast generation",
+      body: "Direct and recursive engines were implemented under the same origin cutoff. The published run uses the direct assignment contract and avoids feeding uncertain day-one predictions into later horizons. The retained recursive stability check remains visible as development history, not as a fabricated final comparison.",
+      detail: "Implemented capability is distinct from a published final artifact",
     },
     {
       badge: "C5 · Freeze and audit",
       title: "Blend where useful, submit what survived",
-      body: `The secondary convex blend is ${datasetEnsembleWeights(data)}. It improved development and recent confirmation, but the untouched aligned audit ${auditNn && auditEnsemble ? `favored NeuralNet ${ratePct(auditNn.test_aligned_score, 2)} vs. ensemble ${ratePct(auditEnsemble.test_aligned_score, 2)}` : "did not replace the canonical NeuralNet"}.`,
-      detail: "Weights were frozen before the one-shot audit",
+      body: `The secondary convex blend is ${datasetEnsembleWeights(data)}. It improved the development objective and was reported on the recent benchmark. The spent three-origin audit ${auditNn && auditEnsemble ? `was effectively tied: NeuralNet ${ratePct(auditNn.test_aligned_score, 2)} vs. ensemble ${ratePct(auditEnsemble.test_aligned_score, 2)}` : "did not participate in selection"}.`,
+      detail: "NeuralNet is canonical by the predeclared non-tree assignment contract",
     },
   ];
   document.getElementById("dataset-decision-trail").innerHTML = stages.map((stage) => `
@@ -105,7 +105,7 @@ function renderDatasetResponses(data) {
     ["Event-driven extreme quantities", "Retain plausible promotional peaks, add retail-event features, use holiday/event validation strata, and expose top-volume and largest-error diagnostics instead of winsorizing the business signal away."],
     ["Need for honest floors", "Compare against lag-7 seasonal persistence, a flat availability-aware 28-day mean, Dynamic Ridge, XGBoost and LightGBM. Complexity is credited only when it beats simple recent-seasonal behavior on the same rows."],
     ["Seven coupled forecast horizons", "Implement both direct stacked-horizon and genuine recursive one-step engines. Select the contract from development OOF and keep the seven target dates aligned to one shared observed origin."],
-    ["Small model-selection sample", "Separate development decisions, recent confirmation and a frozen one-shot audit. Fit ensemble weights only on development OOF and retain NeuralNet as canonical when the final aligned audit marginally favors it."],
+    ["Small model-selection sample", "Make every eligibility decision from development OOF, report the recent benchmark without gating candidates, and treat the spent three-origin audit as limited descriptive evidence. NeuralNet remains canonical because the brief predeclares a non-tree primary solution."],
   ];
   document.getElementById("dataset-response-list").innerHTML = rows.map(([title, description]) => `
     <div class="definition-item dataset-response-item"><strong>${title}</strong><span>${description}</span></div>

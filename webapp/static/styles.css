@@ -91,6 +91,30 @@ header.hero {
   color: #c8c8c8;
 }
 
+.suite-switcher {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0;
+  margin-top: 12px;
+  border: 1px solid #4a4a4a;
+}
+
+.suite-link {
+  padding: 8px 10px;
+  border-right: 1px solid #4a4a4a;
+  color: #b8b8b8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.suite-link:last-child { border-right: 0; }
+.suite-link:hover,
+.suite-link:focus-visible { color: #fff; background: #1c1c1c; }
+.suite-link.active { color: var(--ink); background: #fff; }
+
 /* ---------------------------------------------------------------------- */
 /* Nav (sits inside the black hero band, like notino.cz's category row)   */
 /* ---------------------------------------------------------------------- */
@@ -189,6 +213,7 @@ nav.site-nav {
 }
 .model-stat-row span:first-child { color: var(--text-dim); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
 .model-stat-row span:last-child { font-weight: 700; }
+.bias-value { color: var(--text); font-variant-numeric: tabular-nums; }
 
 .model-column-cta {
   margin-top: auto;
@@ -664,7 +689,7 @@ select:disabled {
 
 /* Keep all seven model cards on one desktop row without widening every panel. */
 .model-comparison-panel {
-  width: min(1480px, calc(100vw - 32px));
+  width: min(1280px, calc(100vw - 32px));
   align-self: center;
   padding-left: 22px;
   padding-right: 22px;
@@ -1306,7 +1331,7 @@ select:disabled {
 .nn-decision-card {
   min-width: 0;
   padding: 20px;
-  background: var(--paper);
+  background: var(--panel);
   border-right: 1px solid var(--ink);
   border-bottom: 1px solid var(--ink);
 }
@@ -1379,6 +1404,18 @@ select:disabled {
 @media (max-width: 620px) {
   .nn-selection-grid {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 760px) {
+    .suite-switcher {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .suite-link {
+      flex: 1 1 auto;
+      text-align: center;
+    }
   }
 
   .nn-decision-card,

@@ -23,6 +23,7 @@ The checked-in canonical submission uses:
 - LightGBM target: `log1p`;
 - channel-history features and auxiliary channel head: disabled;
 - NeuralNet seeds: `42`, `123`, `777`;
+- NeuralNet epochs: `30` in both validation and final deployment;
 - batch/LR policy: `512/fixed`;
 - optional C5 ensemble: enabled for comparison, while
   `outputs/submission.csv` remains NeuralNet/direct.
@@ -36,13 +37,19 @@ outputs/submission_ensemble.csv         secondary frozen ensemble submission
 outputs/final_forecasts.parquet         unrounded final model forecasts
 outputs/oof_predictions.parquet         development and benchmark OOF predictions
 outputs/results.json                    dashboard data contract
+outputs/run_manifest.json               post-export provenance and output hashes
 webapp/static/results.json              local dashboard copy
 docs/results.json                       GitHub Pages copy
+docs/run_manifest.json                  published immutable run manifest
 ```
 
 `--submission-model NeuralNet` controls the canonical `submission.csv`.
 `--ensemble on` additionally fits and exports the cross-model ensemble; it does
 not automatically replace the canonical model.
+
+The recent benchmark is reporting-only. It never changes model or ensemble
+eligibility. NeuralNet is canonical because the assignment asks for a non-tree
+primary solution, not because the three-origin audit proved it superior.
 
 ## 2. Environment preparation
 
@@ -231,7 +238,7 @@ caffeinate -i uv run python ml/pipeline.py \
 This is a new experiment, not an exact reproduction of the manually frozen
 submission decision. The pipeline selects the eligible candidate with the
 lowest development `test_aligned_score`; an accepted ensemble can become
-canonical.
+canonical. “Accepted” means it cleared the development-only gain threshold.
 
 ```bash
 caffeinate -i uv run python ml/pipeline.py \
@@ -274,14 +281,14 @@ Dynamic Ridge is direct-only:
 --forecast-strategy direct --primary-strategy direct --submission-model DynamicRidge
 ```
 
-To make the accepted cross-model blend canonical:
+To make the development-eligible cross-model blend canonical:
 
 ```text
 --submission-model Ensemble --ensemble on
 ```
 
 That changes the meaning of `outputs/submission.csv`: it will contain the
-accepted blend instead of the standalone NeuralNet.
+development-eligible blend instead of the standalone NeuralNet.
 
 ## 3.8 Recursive NeuralNet experiment
 
@@ -306,11 +313,42 @@ caffeinate -i uv run python ml/pipeline.py \
 
 Recursive inference feeds previous predictions back into later lag state, so
 error can accumulate across the seven steps. This is not the confirmed final
-configuration.
+configuration. The published overview intentionally shows retained recursive
+development history rather than an empty final-forecast selector.
+
+## 3.9 Regenerate final forecasts from retained OOF
+
+Use this only when the validated estimator policy is unchanged and final
+forecasts must be refreshed. The loader verifies the persisted configuration,
+required prediction columns, unique keys, and exact development/recent split;
+it rejects any final-audit row.
+
+```bash
+uv run python ml/pipeline.py \
+  --reuse-oof outputs/oof_predictions.parquet \
+  --forecast-strategy direct \
+  --primary-strategy direct \
+  --submission-model NeuralNet \
+  --selection-metric WAPE \
+  --selection-protocol test-aligned \
+  --training-window-days all \
+  --recency-half-life-days none \
+  --baseline-variant weighted_4321 \
+  --trend-features off \
+  --c2-feature-groups price,campaign,lifecycle,market,event \
+  --c34-config outputs/c34_screening/recommendation.json \
+  --ensemble on \
+  --ensemble-models NeuralNet,XGBoost,LightGBM \
+  --nn-batch-size 512 \
+  --nn-lr-scaling fixed
+```
+
+Do not combine `--reuse-oof` with `--resume` or `--reset-checkpoints`.
 
 # 4. Complete `ml/pipeline.py` flag reference
 
-The parser exposes 34 project-specific options, plus standard `-h/--help`.
+The parser exposes the documented project-specific options, plus standard
+`-h/--help`.
 
 ## 4.1 Strategy, selection and canonical output
 
@@ -390,7 +428,8 @@ parser default: global
 confirmed final value: test-aligned
 ```
 
-- `global`: ranks the common conditional-demand development population using
+- `global`: ranks the common observed-sales-conditional-on-availability
+  development population using
   one global metric.
 - `test-aligned`: combines development validation strata using frozen weights:
   `winter_test_like=0.60`, `regular=0.25`, `holiday_event=0.15`.
@@ -399,6 +438,12 @@ confirmed final value: test-aligned
 change the raw training rows or an estimator's architecture.
 
 ## 4.2 Checkpoint control
+
+### `--reuse-oof`
+
+Path to a compatible OOF Parquet artifact. Skips development/recent fold
+training and retrains final models only after strict compatibility checks.
+Final-audit rows are forbidden.
 
 ### `--resume`
 
@@ -925,11 +970,13 @@ a code/config edit rather than a pipeline flag.
 ## 8.1 Rebuild dashboard artifacts only
 
 ```bash
-uv run python ml/export_results.py
+uv run python ml/publish_dashboard.py
 ```
 
-This reads persisted results and rebuilds the JSON/static dashboard copies. It
-does not train any model.
+This republishes the already-authenticated `outputs/results.json` and
+`outputs/run_manifest.json` without changing result metadata or training a
+model. Use `ml/export_results.py` only with the exact modeling arguments from
+the producing run.
 
 ## 8.2 Run the local dashboard
 
@@ -950,8 +997,9 @@ python -m compileall -q ml webapp tests
 ## 8.4 Frozen final audit
 
 `ml/run_final_audit.py` accepts the pipeline modeling arguments and evaluates
-three separate audit origins. It is not a replacement for normal submission
-retraining.
+three separate audit origins only when the complete frozen configuration and
+weights match `outputs/run_manifest.json`. The committed origins are already
+spent; the command below is a historical record, not a rerun instruction.
 
 Additional audit-only flags:
 
@@ -980,8 +1028,9 @@ caffeinate -i uv run python ml/run_final_audit.py \
   2>&1 | tee pipeline_final_audit.log
 ```
 
-The audit never refits ensemble weights; it evaluates the frozen decision on
-disjoint origins.
+The audit never refits ensemble weights. A future legitimate audit writes six
+output hashes before export and publishes results only after complete
+configuration/provenance checks.
 
 # 9. Recommended final-presentation workflow
 
@@ -991,7 +1040,7 @@ disjoint origins.
 4. Verify `outputs/submission.csv`, `outputs/results.json` and the terminal line
    reporting the selected model and strategy.
 5. Run the Python and JavaScript checks.
-6. Launch `uv run python webapp/server.py` for the presentation.
+6. Present the static `docs/` site; FastAPI is an optional local preview only.
 
 For exact reproduction, do not use `--submission-model auto`, do not change the
 `512/fixed` batch/LR policy, and do not switch the forecast strategy to

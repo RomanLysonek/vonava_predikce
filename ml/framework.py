@@ -43,8 +43,8 @@ class Config:
     reference_batch_size: int = 512
     nn_lr_scaling: str = "fixed"        # fixed | sqrt | linear
     nn_training_backend: str = "auto"   # auto | device_resident | dataloader
-    cv_epochs: int = 30                   # per fold, no early stopping (avoids peeking at eval fold)
-    final_epochs: int = 60                # for the submission ensemble
+    cv_epochs: int = 30                   # no early stopping (avoids peeking at eval folds)
+    final_epochs: int = 30                # must match the validated estimator policy
     seeds: tuple = (42, 123, 777)
     n_cv_folds: int = 4
     seed: int = 42

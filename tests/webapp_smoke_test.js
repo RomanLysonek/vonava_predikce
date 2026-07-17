@@ -60,6 +60,28 @@ function checkStrategyHelpers() {
   assert.strictEqual(context.availableStrategies(withDirectOnlyRidge, "DynamicRidge").join(","), "direct");
 }
 
+function checkSuiteSwitcher() {
+  const target = { innerHTML: "" };
+  const context = {
+    window: {},
+    console,
+    document: {
+      getElementById: (id) => (id === "suite-switcher" ? target : null),
+      querySelectorAll: () => [],
+    },
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(staticDir, "common.js"), "utf8"), context);
+
+  assert.ok(target.innerHTML.includes("Classical Forecasting"));
+  assert.ok(target.innerHTML.includes("Anomaly Research"));
+  assert.ok(target.innerHTML.includes("Chronos-2 Challenger"));
+  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonava_predikce/"));
+  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonave_anomalie/"));
+  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonavy_chronos/"));
+  assert.strictEqual((target.innerHTML.match(/aria-current="page"/g) || []).length, 1);
+}
+
 function checkProductExplorerControls() {
   const instances = [];
   class ChartStub {
@@ -440,6 +462,7 @@ function checkSubmissionGridMarkup() {
 
 checkSyntax();
 checkStrategyHelpers();
+checkSuiteSwitcher();
 checkProductExplorerControls();
 checkSingleModelProductExplorer();
 checkModelMethodDescriptions();

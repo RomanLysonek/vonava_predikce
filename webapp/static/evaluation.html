@@ -21,10 +21,11 @@
     <div class="hero-top">
       <div class="brand">
         <span class="brand-logo">NOTINO</span>
-        <span class="brand-tagline">Interview Assignment</span>
+        <span class="brand-tagline">/ Interview Assignment</span>
       </div>
       <div class="hero-title-block">
         <h1>Quantity Forecast Dashboard</h1>
+        <nav class="suite-switcher" id="suite-switcher" aria-label="Interview assignment suite"></nav>
       </div>
     </div>
     <nav class="site-nav" id="site-nav"></nav>
@@ -89,7 +90,7 @@
           <p>The metric population is fixed before comparing model scores.</p>
         </div>
         <div class="definition-list">
-          <div class="definition-item evaluation-step-item"><strong>Conditional demand · primary</strong><span>Score only product-days on which the product was available. This estimates underlying customer demand rather than penalizing a model for inventory censorship.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Observed sales conditional on availability · primary</strong><span>Score only product-days on which the product was available. This is a less-censored sales proxy; without inventory quantities or lost-sales labels it does not identify unconstrained customer demand.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Realized sales · diagnostic</strong><span>Score every observed product-day, including unavailable days. This measures what was sold under actual stock constraints, not the unconstrained demand target.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Common population</strong><span>For a comparison, retain rows with an actual value and valid predictions from every included model. Expected, predicted and scored row counts are reported explicitly.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Global aggregation</strong><span>Pool absolute errors and actual demand across the selected rows before computing WAPE. Large-volume product-days therefore receive proportionate operational weight.</span></div>
@@ -140,7 +141,7 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=13"></script>
-  <script src="/static/evaluation.js?v=2"></script>
+  <script src="/static/common.js?v=15"></script>
+  <script src="/static/evaluation.js?v=3"></script>
 </body>
 </html>

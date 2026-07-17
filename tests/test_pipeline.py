@@ -41,7 +41,7 @@ from models.neural_net import (
     predict_ensemble,
     residual_log1p_target,
 )
-from pipeline import _json_safe
+from pipeline import _json_safe, validate_estimator_policy
 
 def test_add_calendar_features_bounds_and_weekend():
     df = pd.DataFrame({"DateKey": pd.date_range("2026-01-12", periods=14, freq="D")})
@@ -230,6 +230,12 @@ def test_compute_metrics_matches_manual_calculation():
     assert np.isclose(m["BiasRatio"], np.sum([2.0, -2.0, 3.0]) / 60.0)
     for key in ("sMAPE", "RMSLE"):
         assert key in m and not np.isnan(m[key])
+
+
+def test_neuralnet_validation_and_deployment_epochs_must_match():
+    validate_estimator_policy(Config(cv_epochs=30, final_epochs=30))
+    with np.testing.assert_raises_regex(ValueError, "estimator mismatch"):
+        validate_estimator_policy(Config(cv_epochs=30, final_epochs=60))
 
 
 class _EchoHorizonModel(nn.Module):

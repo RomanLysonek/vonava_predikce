@@ -1,134 +1,5 @@
 {
-  "cv_folds": [
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2022-02-01",
-      "nn_seconds": 36.4,
-      "tree_seconds": 6.89,
-      "fold_seconds": 44.05
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2022-06-15",
-      "nn_seconds": 46.44,
-      "tree_seconds": 7.58,
-      "fold_seconds": 55.02
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2022-11-20",
-      "nn_seconds": 59.61,
-      "tree_seconds": 8.26,
-      "fold_seconds": 69.1
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2023-01-10",
-      "nn_seconds": 63.5,
-      "tree_seconds": 8.49,
-      "fold_seconds": 73.32
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2023-07-01",
-      "nn_seconds": 85.4,
-      "tree_seconds": 9.52,
-      "fold_seconds": 96.65
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2023-11-24",
-      "nn_seconds": 101.12,
-      "tree_seconds": 10.41,
-      "fold_seconds": 113.51
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2023-12-18",
-      "nn_seconds": 102.72,
-      "tree_seconds": 10.56,
-      "fold_seconds": 115.35
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2024-02-14",
-      "nn_seconds": 119.35,
-      "tree_seconds": 18.04,
-      "fold_seconds": 139.68
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2024-06-20",
-      "nn_seconds": 125.38,
-      "tree_seconds": 11.56,
-      "fold_seconds": 139.38
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2024-11-29",
-      "nn_seconds": 150.38,
-      "tree_seconds": 12.53,
-      "fold_seconds": 165.8
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2024-12-20",
-      "nn_seconds": 145.36,
-      "tree_seconds": 12.5,
-      "fold_seconds": 160.79
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "development",
-      "origin": "2025-02-10",
-      "nn_seconds": 145.31,
-      "tree_seconds": 12.97,
-      "fold_seconds": 161.4
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "recent_benchmark",
-      "origin": "2026-01-04",
-      "nn_seconds": 185.93,
-      "tree_seconds": 14.94,
-      "fold_seconds": 204.72
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "recent_benchmark",
-      "origin": "2025-12-28",
-      "nn_seconds": 191.03,
-      "tree_seconds": 14.85,
-      "fold_seconds": 209.63
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "recent_benchmark",
-      "origin": "2025-12-21",
-      "nn_seconds": 193.92,
-      "tree_seconds": 15.14,
-      "fold_seconds": 212.83
-    },
-    {
-      "strategy": "direct",
-      "origin_type": "recent_benchmark",
-      "origin": "2025-12-14",
-      "nn_seconds": 189.49,
-      "tree_seconds": 14.89,
-      "fold_seconds": 208.24
-    }
-  ],
+  "cv_folds": [],
   "nn_runtime": {
     "batch_size": 512,
     "batch_source": "CLI override",
@@ -195,6 +66,12 @@
     "min_relative_improvement": 0.002,
     "benchmark_max_relative_regression": 0.02
   },
-  "ensemble_fit_seconds": 0.029,
-  "total_seconds": 2579.27
+  "reused_oof": {
+    "path": "outputs/oof_predictions.parquet",
+    "n_development_rows": 2429,
+    "n_recent_benchmark_rows": 840,
+    "final_audit_accessed": false
+  },
+  "ensemble_fit_seconds": 0.021,
+  "total_seconds": 225.91
 }

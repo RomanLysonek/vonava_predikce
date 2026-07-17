@@ -1,7 +1,7 @@
 {
   "schema_version": "c5-convex-ensemble-v1",
   "fit_split": "development",
-  "benchmark_role": "confirmation_only",
+  "benchmark_role": "reporting_only",
   "models": [
     "NeuralNet",
     "XGBoost",
@@ -58,6 +58,7 @@
         "relative_broad_change": -0.13780986369043094
       },
       "benchmark_confirmed": true,
+      "eligible_on_development": true,
       "accepted": true
     }
   },

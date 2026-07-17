@@ -34,6 +34,41 @@ function evaluationHref() {
   return window.STATIC_DASHBOARD ? "evaluation.html" : "/evaluation";
 }
 
+function runManifestHref() {
+  return window.STATIC_DASHBOARD ? "run_manifest.json" : "/static/run_manifest.json";
+}
+
+const SUITE_PROJECTS = [
+  {
+    key: "prediction",
+    label: "Classical Forecasting",
+    href: "https://romanlysonek.github.io/vonava_predikce/",
+  },
+  {
+    key: "anomaly",
+    label: "Anomaly Research",
+    href: "https://romanlysonek.github.io/vonave_anomalie/",
+  },
+  {
+    key: "chronos",
+    label: "Chronos-2 Challenger",
+    href: "https://romanlysonek.github.io/vonavy_chronos/",
+  },
+];
+
+function renderSuiteSwitcher() {
+  if (typeof document === "undefined") return;
+  const target = document.getElementById("suite-switcher");
+  if (!target) return;
+  target.innerHTML = SUITE_PROJECTS.map((project) => `
+    <a
+      class="suite-link${project.key === "prediction" ? " active" : ""}"
+      href="${project.href}"
+      ${project.key === "prediction" ? 'aria-current="page"' : ""}
+    >${project.label}</a>
+  `).join("");
+}
+
 function wireSharedLinks() {
   if (typeof document === "undefined" || !document.querySelectorAll) return;
   document.querySelectorAll("[data-dataset-link]").forEach((link) => {
@@ -46,7 +81,7 @@ function wireSharedLinks() {
 
 function fmt(n, digits = 1) {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
-  return Number(n).toLocaleString(undefined, {
+  return Number(n).toLocaleString("en-GB", {
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
   });
@@ -189,7 +224,7 @@ function updateStrategyCopy(data, strategy) {
 
   const footer = document.getElementById("footer-method-text");
   if (footer) {
-    footer.textContent = `Canonical submission: ${canonical}. The dashboard can compare every available strategy without changing the submitted forecast.`;
+    footer.innerHTML = `Canonical assignment model: ${canonical}. <a href="${runManifestHref()}">Immutable run provenance</a>.`;
   }
   const modelCount = document.getElementById("promo-model-count");
   if (modelCount) modelCount.textContent = `${(data.models || []).length} Models Compared`;
@@ -228,3 +263,4 @@ if (window.Chart) {
 }
 
 wireSharedLinks();
+renderSuiteSwitcher();
