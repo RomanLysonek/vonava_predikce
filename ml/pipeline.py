@@ -203,7 +203,7 @@ def parse_args(argv=None) -> RuntimeOptions:
     )
     parser.add_argument(
         "--c1-config", default=None,
-        help=("Recommendation JSON written by ml/run_c1_screening.py. "
+        help=("Recommendation JSON written by ml/experiments/c1_recency_screening.py. "
               "Explicit C1 CLI options override values from this file."),
     )
     parser.add_argument(
@@ -224,7 +224,7 @@ def parse_args(argv=None) -> RuntimeOptions:
     )
     parser.add_argument(
         "--c2-config", default=None,
-        help=("Recommendation JSON written by ml/run_c2_screening.py. "
+        help=("Recommendation JSON written by ml/experiments/c2_feature_screening.py. "
               "An explicit --c2-feature-groups value overrides it."),
     )
     parser.add_argument(
@@ -234,7 +234,7 @@ def parse_args(argv=None) -> RuntimeOptions:
     )
     parser.add_argument(
         "--c34-config", default=None,
-        help=("Recommendation JSON written by ml/run_c34_screening.py. "
+        help=("Recommendation JSON written by ml/experiments/c34_objective_channel_screening.py. "
               "Explicit C3/C4 CLI options override it."),
     )
     parser.add_argument("--nn-loss", choices=NN_LOSSES, default=None)

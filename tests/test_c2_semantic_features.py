@@ -14,7 +14,7 @@ from ml.framework import (
     product_reference_dates,
 )
 from ml.pipeline import RuntimeOptions, configure_c2_runtime
-from ml.run_c2_screening import _best_eligible, _group_key
+from ml.experiments.c2_feature_screening import _best_eligible, _group_key
 
 
 def _raw(periods=50, products=(1, 2)):

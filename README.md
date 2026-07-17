@@ -1,192 +1,148 @@
 # Notino Quantity Forecast
 
 Interview assignment: forecast total `Quantity` (`QuantityApp + QuantityWeb`)
-for 30 products over the 7 days following the training window. See
-`task.md` for the full brief (Czech). The brief explicitly asks for a
-**non-tree-based** approach as the primary solution, so the submission is a
-PyTorch feed-forward network with product/campaign embeddings -- XGBoost and
-LightGBM are still included as walk-forward-validated baselines, since the
-brief itself frames them as the standard comparison point.
+for 30 products over the 7 days following the training window. The complete
+brief is in `task.md`. Because the brief explicitly requests a **non-tree-based**
+primary solution, the canonical submission is a PyTorch feed-forward neural
+network with product and campaign embeddings. XGBoost and LightGBM are retained
+as fully walk-forward-validated reference models rather than hidden comparisons.
+
+## Final state
+
+- **Canonical submission:** NeuralNet using the direct multi-horizon strategy.
+- **Primary metric:** conditional-demand WAPE on the common evaluation population.
+- **Selection protocol:** frozen test-aligned weighting of development strata;
+  the recent benchmark is confirmation-only.
+- **Confirmed NeuralNet objective:** MSE on a baseline-relative log residual.
+- **Confirmed structured-model targets:** XGBoost `residual`, LightGBM `log1p`.
+- **Frozen cross-model ensemble:** 0.36 NeuralNet + 0.25 XGBoost + 0.39 LightGBM.
+- **Untouched final audit:** NeuralNet test-aligned WAPE `27.83%`; ensemble
+  `27.97%`. NeuralNet therefore remains canonical even though the ensemble was
+  slightly better on global WAPE (`29.93%` versus `30.11%`).
+- **Submission artifact:** `outputs/submission.csv`; the transparent secondary
+  blend is `outputs/submission_ensemble.csv`.
+
+## Presentation quick start
+
+```bash
+uv sync --frozen --group dev
+uv run python webapp/server.py
+```
+
+Open `http://127.0.0.1:8999`. The static GitHub Pages build is in `docs/`.
+See `RETRAINING_AND_CLI_GUIDE.md` for exact retraining commands and every
+supported pipeline flag, `outputs/README.md` for the retained artifacts, and
+`PRESENTATION_CLEANUP.md` for the scope of the repository cleanup.
 
 ## Approach
 
-- **Features**: cyclic calendar encodings (day-of-week/month/day-of-year/
-  week-of-year), campaign/discount/price info, price relative to a
-  product's own historical median, separate first-row/first-available
-  lifecycle clocks, and rolling mean/std/median demand lags (7/14/28 days).
-  Calendar gaps, observed stockouts, and valid available observations are
-  represented separately rather than being collapsed into one rate.
-- **Categorical handling**: `CampaignSubTypeWeb/App` are category codes
-  (-1, 0, 1, 2, 3, 4, 5, 16, 18, 19), not an ordinal scale, so they're fed
-  through embedding layers instead of as raw numeric features.
-- **Model**: an MLP (256→128→64) with BatchNorm/GELU/Dropout, taking the
-  numeric features plus product, campaign-web and campaign-app embeddings.
-  Target is a **baseline-relative log residual**: `log1p(Quantity) - log1p(target_baseline)`.
-  Trained with Huber loss.
-- **Missing seasonal history**: annual lags remain nullable for young
+- **Features:** cyclic calendar encodings; campaign, discount, list-price and
+  effective-price state; price relative to product history; separate
+  first-row and first-available lifecycle clocks; leakage-safe market state;
+  event proximity; and lagged/rolling demand summaries. Calendar gaps,
+  observed stockouts and valid available observations remain distinct states.
+- **Categorical handling:** `CampaignSubTypeWeb/App` are nominal category codes
+  (`-1, 0, 1, 2, 3, 4, 5, 16, 18, 19`), so the NN uses embeddings rather than
+  treating the raw IDs as an ordinal numeric scale.
+- **Neural model:** an MLP (`256 -> 128 -> 64`) with BatchNorm, GELU and Dropout,
+  plus product, campaign-web, campaign-app and horizon embeddings. It predicts
+  `log1p(Quantity) - log1p(target_baseline)` and the confirmed final run uses
+  MSE on that residual.
+- **Missing seasonal history:** annual references remain nullable for young
   products and early history. The NN uses a train-fitted median imputer plus
-  missingness indicators, trees use native missing-value handling, and no
-  row is silently discarded merely because a 364/365/371-day lag is absent.
-- **Seeds**: random seeds for both the NN ensemble and the tree-based baselines are
-  fixed (`Config.seeds`) to ensure reproducibility.
-- **Two forecast strategies**: **direct** predicts all seven target days
-  from a stacked `(ForecastOrigin, Horizon, ProductId)` panel, while
-  **recursive** trains genuine one-step models and feeds each generated
-  prediction into the next step's history. Both strategies share the same
-  end-of-origin information cutoff and are trained independently. `both`
-  mode evaluates them on paired development OOF keys and selects the
-  canonical strategy using development-only `conditional/common/global`
-  metrics.
-- **Training data**: rows where `ProductAvailable == False` are excluded
-  from supervised targets. Their quantities are censored from lag and
-  rolling-demand features rather than being treated as genuine zero demand.
-  Recursive synthetic future rows are marked available, matching the
-  conditional-demand forecast contract.
-- **Validation**: walk-forward (rolling-origin) cross-validation over two
-  labeled sets of origins -- a broader, seasonally-scattered `development`
-  set used to make modeling decisions, and a `recent_benchmark` set (the last
-  `n_cv_folds` non-overlapping 7-day blocks, a pseudo-test check) as
-  a final benchmark of recent performance. Each fold trains only on data
-  strictly before its evaluation block, so the reported metrics mirror the
-  real deployment scenario (no early-stopping on the eval fold, no leakage).
-- **Baselines**: XGBoost and LightGBM support both direct and recursive
-  contracts. Dynamic Ridge is deliberately **direct-only**: its recursive
-  feedback was empirically unstable even after numerical overflow guards.
-  Structured models use native categorical support or one-hot encoding as
-  appropriate.
-  **NeuralNet** and **Dynamic Ridge** predict a baseline-relative log residual, 
-  while **XGBoost** and **LightGBM** predict `log1p(Quantity)` directly. 
-  Two naive baselines are also included: seasonal-naive (value from 7 days prior) 
-  and a 28-day moving average. All are evaluated on the same folds and the same 
-  **common population** of rows where every model produced a valid prediction.
-- **Evaluation Regimes**: **Conditional Demand** (only days where the product
-  was available in stock) is the primary evaluation regime, as it measures the
-  true demand the model is meant to capture. **Realized Sales** (all days,
-  including stockouts) is available as a diagnostic toggle.
-- **Final submission**: by default, an ensemble of three NN seeds trained
-  under the development-selected direct or recursive strategy. XGBoost,
-  LightGBM and Dynamic Ridge remain comparison models unless
-  `--submission-model` explicitly selects otherwise.
+  missingness indicators; trees use native missing-value handling. Rows are not
+  silently discarded because a 364/365/371-day reference is unavailable.
+- **Forecast strategies:** `direct` predicts all seven target days from a
+  stacked `(ForecastOrigin, Horizon, ProductId)` panel. `recursive` trains a
+  genuine one-step model and feeds each generated prediction into the next
+  synthetic state. Both use the same end-of-origin information cutoff and are
+  trained independently. The final project decision is `direct`.
+- **Availability contract:** unavailable rows are excluded from supervised
+  targets and their quantities are censored from demand lags rather than
+  interpreted as genuine zero demand. The primary target is therefore demand
+  conditional on availability; realized-sales reporting remains diagnostic.
+- **Validation:** rolling-origin walk-forward evaluation has a seasonally
+  distributed `development` set for decisions, a disjoint `recent_benchmark`
+  for confirmation, and three untouched final-audit origins. Every fold trains
+  strictly before its evaluation block; the evaluation fold is never used for
+  early stopping or feature construction.
+- **Common population:** comparisons use rows on which every candidate being
+  compared produced a valid prediction. Model-specific coverage is retained as
+  a separate diagnostic so apparent gains cannot come from silently scoring an
+  easier subset.
+- **Reference models:** XGBoost and LightGBM support direct and recursive
+  inference. Dynamic Ridge is direct-only because recursive feedback was
+  empirically unstable. Seasonal-naive and a 28-day moving average provide
+  transparent non-learned baselines.
+- **Final model policy:** the submitted NeuralNet is an ensemble of seeds
+  `42`, `123` and `777`. The cross-model convex ensemble is retained as an
+  auditable alternative but was not promoted after the frozen final audit.
 
-## Tier C0 data-alignment gate
+## Repository layout
 
-The current source includes the pre-ablation C0 corrections:
-
-- separate lifecycle, calendar-gap and unavailable-state features;
-- annual-lag imputation and explicit missingness indicators instead of
-  complete-case deletion;
-- Dynamic Ridge marked direct-only;
-- winter/test-like, regular and holiday-event validation strata;
-- optional test-aligned development selection;
-- both development and recent-benchmark horizon summaries;
-- fallback, non-finite and catastrophic-guard diagnostics;
-- three frozen `FINAL_AUDIT_ORIGINS` that normal runs never execute.
-
-After applying this source revision, regenerate outputs before quoting new
-metrics; the checked-in tables may still describe the pre-C0 baseline.
-
-## Archived pre-C0 results (walk-forward CV, Conditional Demand)
-
-The table below is retained only as historical context from the pre-C0
-`recent_benchmark` run. Regenerate all artifacts before presenting C0 metrics:
-
-| model         |   MAE |  RMSE |   MAPE |
-|---------------|------:|------:|-------:|
-| NeuralNet     |  9.60 | 13.89 |  74.7% |
-| XGBoost       |  7.85 | 12.26 |  55.0% |
-| LightGBM      |  7.79 | 11.86 |  55.7% |
-| SeasonalNaive | 23.27 | 34.62 | 214.6% |
-| MovingAvg28   | 37.17 | 49.97 | 509.3% |
-
-Honest result: the tree baselines actually edge out the neural net here on
-raw error (though all three comfortably beat the naive baselines -- **NN is
-+58.8%** MAE better than seasonal-naive). This is unsurprising on a small,
-tabular, ~50k-row dataset -- exactly the regime the task brief itself says
-trees are the standard choice for. The NN remains the submission because the
-brief explicitly asked for a non-tree approach; the tree numbers are here so
-that trade-off is transparent rather than hidden. Exact numbers regenerate into `cv_results.csv` each run. Seeds are fixed;
-small differences can still arise across hardware/library backends. These
-benchmarks use the most recent history available at training time.
-
-## Repo layout
-
-```
-data/                    train_data.parquet, test_data.parquet (inputs)
+```text
+data/                    train and test Parquet inputs
 ml/
-  framework.py           torch-free: config, feature engineering, direct and
-                          one-step panel builders, recursive state transition,
-                          model registry/metadata, metrics. Shared by every
-                          model under models/ and by pipeline.py (see "macOS
-                          note" below for why the torch-free split exists).
-  models/
-    neural_net.py          NN model: QuantityNet (w/ horizon embedding),
-                          shared training and direct/recursive prediction
-    xgboost_model.py        XGBoost: train/predict directly on the panel
-    lightgbm_model.py        LightGBM: train/predict directly on the panel
-    dynamic_ridge.py        Dynamic Ridge: sklearn linear baseline with scaling/imputation
-    naive_baselines.py        seasonal-naive + 28-day moving average
-  tree_worker.py         isolated structured-model dispatcher: direct and
-                          recursive XGBoost/LightGBM, direct-only Dynamic Ridge
-  pipeline.py            strategy-aware CV/training/export orchestrator,
-                          development-only selection and artifact generation
+  framework.py           configuration, feature engineering, panel builders,
+                         recursive state transition, metadata and metrics
+  models/                NeuralNet, XGBoost, LightGBM, Dynamic Ridge and naive baselines
+  tree_worker.py         isolated native-tree subprocess dispatcher for macOS
+  pipeline.py            CV, selection, final training and artifact export
   benchmark_nn_batch_size.py
-                          real-fold MPS/CUDA batch throughput + WAPE benchmark
-  export_results.py      rebuilds results.json exclusively from persisted
-                          artifacts; it never retrains models
-outputs/                 canonical and strategy-specific submissions, OOF and
-                          final forecasts, strategy summaries, horizon metrics,
-                          timings and results.json
-tests/
-  test_pipeline.py       feature engineering, baselines and metric tests
-  test_direct_recursive_strategies.py
-                          strategy alignment, feedback and leakage tests
-  test_webapp_strategy_sync.py
-                          JSON contract and static frontend checks
-  webapp_smoke_test.js   optional Node.js syntax and browser-logic smoke checks
-  test_nn_performance.py  batch/LR/backend and recommendation tests
-webapp/
-  server.py              FastAPI app serving the dashboard + /api/results,
-                          plus /model/{slug} for the per-model pages
-  static/                index.html + app.js   (overview / comparison page)
-                          model.html + model.js (shared per-model page template)
-                          common.js              (shared nav + fetch/format helpers)
-                          styles.css             (Chart.js loaded from CDN)
-task.md                  original assignment brief (Czech)
+                         quality-aware MPS/CUDA batch-size benchmark
+  experiments/           optional C0.1/C1/C2/C3/C4 research and ablation runners
+  run_final_audit.py     one-shot evaluation on untouched origins
+  export_results.py      rebuilds dashboard JSON from persisted artifacts only
+outputs/                 canonical predictions, OOF results, screening summaries,
+                         frozen ensemble and final-audit artifacts
+webapp/                  local FastAPI dashboard and static frontend
+docs/                    byte-equivalent static dashboard for GitHub Pages
+tests/                   Python contracts and JavaScript smoke tests
+task.md                  original assignment brief in Czech
+DATASET_PROFILE_MODELING_AUDIT.md
+                         dataset story and modeling decisions
+RETRAINING_AND_CLI_GUIDE.md
+                         exact retraining recipes and complete flag reference
+PRESENTATION_CLEANUP.md  files removed from the delivery package and why
 ```
 
 ## Running
 
+Install the locked environment and run the fast verification suite:
+
 ```bash
-uv run python ml/pipeline.py         # runs CV, trains final ensemble, writes outputs/ + results.json
-uv run pytest tests/ -m "not integration" -q  # fast Python suite
-node tests/webapp_smoke_test.js             # optional; requires Node.js
+uv sync --frozen --group dev
+uv run pytest tests/ -m "not integration" -q
+node tests/webapp_smoke_test.js
 ```
 
-Uses `mps` automatically on Apple Silicon if available, else CPU.
-
-### First C0 regression run
-
-C0 changes the feature schema and NN preprocessing, so regenerate checkpoints
-and outputs before using the new diagnostics or quoting metrics:
+Reproduce the confirmed final submission:
 
 ```bash
 caffeinate -i uv run python ml/pipeline.py \
-  --forecast-strategy both \
-  --primary-strategy auto \
+  --forecast-strategy direct \
+  --primary-strategy direct \
   --submission-model NeuralNet \
   --selection-metric WAPE \
-  --selection-protocol global \
+  --selection-protocol test-aligned \
+  --training-window-days all \
+  --recency-half-life-days none \
+  --baseline-variant weighted_4321 \
+  --trend-features off \
+  --c2-feature-groups price,campaign,lifecycle,market,event \
+  --c34-config outputs/c34_screening/recommendation.json \
+  --ensemble on \
+  --ensemble-models NeuralNet,XGBoost,LightGBM \
   --nn-batch-size 512 \
   --nn-lr-scaling fixed \
   --reset-checkpoints \
-  --resume \
-  2>&1 | tee pipeline_c0_512_fixed.log
+  2>&1 | tee pipeline_final_retrain.log
 ```
 
-`global` and `512/fixed` intentionally preserve the pre-C0 selection/training
-policy for a controlled regression comparison. After this run is audited,
-Tier C screening may use `--selection-protocol test-aligned` and a separately
-benchmarked larger batch.
+The pipeline rewrites the submission, OOF diagnostics and both dashboard data
+copies. Use `--resume` instead of `--reset-checkpoints` when continuing the
+same interrupted configuration. The complete precedence rules and all CLI
+alternatives are documented in `RETRAINING_AND_CLI_GUIDE.md`.
 
 ### Apple Silicon performance profile
 
@@ -373,7 +329,7 @@ statistics, including per-origin summaries.
 Run the reduced real-data C0.1 check before the C1 screen:
 
 ```bash
-caffeinate -i uv run python ml/run_c01_recursive_check.py \
+caffeinate -i uv run python ml/experiments/c01_recursive_stability.py \
   --strict \
   2>&1 | tee pipeline_c01_recursive_check.log
 ```
@@ -420,7 +376,7 @@ four stratified origins. It executes:
 Start a fresh screen with:
 
 ```bash
-caffeinate -i uv run python ml/run_c1_screening.py \
+caffeinate -i uv run python ml/experiments/c1_recency_screening.py \
   --reset \
   2>&1 | tee pipeline_c1_screening.log
 ```
@@ -428,7 +384,7 @@ caffeinate -i uv run python ml/run_c1_screening.py \
 If interrupted, preserve completed candidate-fold checkpoints:
 
 ```bash
-caffeinate -i uv run python ml/run_c1_screening.py \
+caffeinate -i uv run python ml/experiments/c1_recency_screening.py \
   --resume \
   2>&1 | tee -a pipeline_c1_screening.log
 ```
@@ -529,7 +485,7 @@ use target quantities.
 Run the direct-first screen from the confirmed C1 policy:
 
 ```bash
-caffeinate -i uv run python ml/run_c2_screening.py \
+caffeinate -i uv run python ml/experiments/c2_feature_screening.py \
   --reset \
   2>&1 | tee pipeline_c2_screening.log
 ```
@@ -542,7 +498,7 @@ semantic representation under the C1 half-life sensitivity policies.
 Resume an interrupted screen without deleting completed folds:
 
 ```bash
-caffeinate -i uv run python ml/run_c2_screening.py \
+caffeinate -i uv run python ml/experiments/c2_feature_screening.py \
   --resume \
   2>&1 | tee -a pipeline_c2_screening.log
 ```
@@ -593,7 +549,7 @@ synthetic app/web history; models without a share head use the observed recent
 ### Fast C3/C4 screen
 
 ```bash
-caffeinate -i uv run python ml/run_c34_screening.py \
+caffeinate -i uv run python ml/experiments/c34_objective_channel_screening.py \
   --reset \
   2>&1 | tee pipeline_c34_screening.log
 ```
@@ -609,7 +565,7 @@ inside the 3% broad-development guard.
 Resume without deleting completed candidate folds:
 
 ```bash
-caffeinate -i uv run python ml/run_c34_screening.py \
+caffeinate -i uv run python ml/experiments/c34_objective_channel_screening.py \
   --resume \
   2>&1 | tee -a pipeline_c34_screening.log
 ```

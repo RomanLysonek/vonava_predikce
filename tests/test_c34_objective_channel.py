@@ -29,7 +29,7 @@ from ml.pipeline import (
     run_walk_forward_cv_direct,
     summarize_channel_share_oof,
 )
-from ml.run_c34_screening import _best_nn, _best_tree_mode
+from ml.experiments.c34_objective_channel_screening import _best_nn, _best_tree_mode
 
 
 def _raw(periods=390, products=(1, 2)):

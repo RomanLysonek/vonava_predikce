@@ -19,7 +19,7 @@ from ml.framework import (
 )
 from ml.models.neural_net import predict_ensemble, residual_support_bounds
 from ml.pipeline import RuntimeOptions, _json_safe, configure_c1_runtime
-from ml.run_c1_screening import _config_key, _extract_model_rows, _pick_winner
+from ml.experiments.c1_recency_screening import _config_key, _extract_model_rows, _pick_winner
 from ml.export_results import _read_csv_if_present
 
 

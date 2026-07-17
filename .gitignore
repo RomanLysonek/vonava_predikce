@@ -1,0 +1,22 @@
+# Virtual environments and Python caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editors and operating-system files
+.idea/
+.vscode/
+.DS_Store
+.ipynb_checkpoints/
+
+# Working logs and notes
+pipeline_*.log
+progress.txt
+
+# Reproducible heavy intermediate artifacts
+outputs/checkpoints*/
+outputs/final_audit_checkpoints/
+outputs/*_screening/checkpoints/
+outputs/*_screening/candidate_oof/
+outputs_c1_half365/
