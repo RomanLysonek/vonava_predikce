@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -123,6 +124,15 @@ def test_static_dashboard_is_self_contained(tmp_path):
     assert check_static_dashboard(tmp_path) == []
     assert 'href="./index.html"' in html
     assert 'href="/' not in html
+    for page in ("index.html", "model.html", "evaluation.html", "dataset.html"):
+        page_html = (tmp_path / "docs" / page).read_text()
+        assert 'href="/' not in page_html
+        assert 'src="/' not in page_html
+        internal_targets = re.findall(
+            r'(?:href|src)="(\./[^"#?]+)', page_html
+        )
+        for target in internal_targets:
+            assert (tmp_path / "docs" / target.removeprefix("./")).exists()
 
     (tmp_path / "docs" / "index.html").write_text("manual edit")
     assert "stale generated file: docs/index.html" in check_static_dashboard(

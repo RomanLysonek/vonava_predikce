@@ -226,6 +226,21 @@ def test_overview_uses_fixed_published_strategy_and_retains_development_history(
     assert '>Select all</button>' in overview
     assert '>Deselect all</button>' in overview
     assert 'class="panel model-comparison-panel"' in overview
+    assert 'class="panel submission-intro-panel"' in overview
+    assert "Standalone interview submission" in overview
+    assert "canonical deliverable" in overview
+    assert "not a claim of universal statistical superiority" in (
+        STATIC / "app.js"
+    ).read_text()
+    assert overview.index("submission-intro-panel") < overview.index(
+        "strategy-development-panel"
+    )
+    assert overview.index("strategy-development-panel") < overview.index(
+        "model-comparison-panel"
+    )
+    assert overview.index("model-comparison-panel") < overview.index(
+        "Product explorer"
+    )
 
     app_js = (STATIC / "app.js").read_text()
     assert "(ensembleValue - singleValue) * 100" in app_js
@@ -264,13 +279,8 @@ def test_evaluation_page_separates_walk_forward_from_recursive_inference():
     assert 'label: "Evaluation"' in common_js
     assert "wireSharedLinks();" in common_js
     assert 'toLocaleString("en-GB"' in common_js
-    assert 'label: "Classical Forecasting"' in common_js
-    assert 'label: "Anomaly Research"' in common_js
-    assert 'label: "Chronos-2 Challenger"' in common_js
-    assert "https://romanlysonek.github.io/vonava_predikce/" in common_js
-    assert "https://romanlysonek.github.io/vonave_anomalie/" in common_js
-    assert "https://romanlysonek.github.io/vonavy_chronos/" in common_js
-    assert common_js.count('aria-current="page"') == 1
+    assert "SUITE_PROJECTS" not in common_js
+    assert "renderSuiteSwitcher" not in common_js
 
     evaluation_js = (STATIC / "evaluation.js").read_text()
     assert "function renderEvaluationStages" in evaluation_js
@@ -285,7 +295,28 @@ def test_evaluation_page_separates_walk_forward_from_recursive_inference():
         assert "Walk-Forward Validated" in html
         assert "30 Product Time Series" in html
         assert "/ Interview Assignment" in html
-        assert 'id="suite-switcher"' in html
+        assert 'aria-label="Forecast assignment sections"' in html
+        assert 'id="suite-switcher"' not in html
+
+
+def test_authored_frontend_has_standalone_forecasting_identity():
+    forbidden = (
+        "Anomaly Research",
+        "Chronos-2 Challenger",
+        "vonave_anomalie",
+        "vonavy_chronos",
+        "SUITE_PROJECTS",
+        "suite-switcher",
+    )
+    frontend_files = [
+        path
+        for path in STATIC.iterdir()
+        if path.suffix in {".html", ".css", ".js"}
+    ]
+    for path in frontend_files:
+        content = path.read_text()
+        for needle in forbidden:
+            assert needle not in content, f"{needle!r} leaked into {path.name}"
 
 
 def test_evaluation_route_serves_methodology_page():
@@ -382,7 +413,7 @@ def test_promo_bar_uses_narrow_notino_style_desktop_ribbon():
 
     for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
         html = (STATIC / name).read_text()
-        expected = 'styles.css?v=18'
+        expected = 'styles.css?v=19'
         assert expected in html
 
 
@@ -420,8 +451,8 @@ def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform()
     assert 'document.getElementById("regime-select")' not in model_js
 
     overview = (STATIC / "index.html").read_text()
-    assert 'app.js?v=15' in overview
-    assert 'styles.css?v=18' in overview
+    assert 'app.js?v=16' in overview
+    assert 'styles.css?v=19' in overview
 
     app_js = (STATIC / "app.js").read_text()
     assert 'class="data-table submission-table"' in app_js

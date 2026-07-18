@@ -60,26 +60,25 @@ function checkStrategyHelpers() {
   assert.strictEqual(context.availableStrategies(withDirectOnlyRidge, "DynamicRidge").join(","), "direct");
 }
 
-function checkSuiteSwitcher() {
-  const target = { innerHTML: "" };
-  const context = {
-    window: {},
-    console,
-    document: {
-      getElementById: (id) => (id === "suite-switcher" ? target : null),
-      querySelectorAll: () => [],
-    },
-  };
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(staticDir, "common.js"), "utf8"), context);
-
-  assert.ok(target.innerHTML.includes("Classical Forecasting"));
-  assert.ok(target.innerHTML.includes("Anomaly Research"));
-  assert.ok(target.innerHTML.includes("Chronos-2 Challenger"));
-  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonava_predikce/"));
-  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonave_anomalie/"));
-  assert.ok(target.innerHTML.includes("https://romanlysonek.github.io/vonavy_chronos/"));
-  assert.strictEqual((target.innerHTML.match(/aria-current="page"/g) || []).length, 1);
+function checkStandaloneIdentity() {
+  const forbidden = [
+    "Anomaly Research",
+    "Chronos-2 Challenger",
+    "vonave_anomalie",
+    "vonavy_chronos",
+    "SUITE_PROJECTS",
+    "suite-switcher",
+  ];
+  for (const name of fs.readdirSync(staticDir)) {
+    if (!/\.(html|css|js)$/.test(name)) continue;
+    const source = fs.readFileSync(path.join(staticDir, name), "utf8");
+    for (const needle of forbidden) {
+      assert.ok(!source.includes(needle), `${needle} leaked into ${name}`);
+    }
+  }
+  const overview = fs.readFileSync(path.join(staticDir, "index.html"), "utf8");
+  assert.ok(overview.includes("Standalone interview submission"));
+  assert.ok(overview.includes('aria-label="Forecast assignment sections"'));
 }
 
 function checkProductExplorerControls() {
@@ -462,7 +461,7 @@ function checkSubmissionGridMarkup() {
 
 checkSyntax();
 checkStrategyHelpers();
-checkSuiteSwitcher();
+checkStandaloneIdentity();
 checkProductExplorerControls();
 checkSingleModelProductExplorer();
 checkModelMethodDescriptions();
