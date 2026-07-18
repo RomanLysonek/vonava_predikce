@@ -81,6 +81,39 @@ function checkStandaloneIdentity() {
   assert.ok(overview.includes('aria-label="Forecast assignment sections"'));
 }
 
+function checkStablePageTitle() {
+  const elements = {
+    "model-hero": { style: { setProperty() {} } },
+    "hero-badge": { textContent: "" },
+    "hero-title": { textContent: "" },
+    "hero-blurb": { textContent: "" },
+    "hero-source": { href: "", style: {}, textContent: "" },
+  };
+  const context = {
+    window: { location: { search: "", pathname: "/model/neuralnet" } },
+    console,
+    document: {
+      title: "NOTINO - predikce",
+      documentElement: { style: { setProperty() {} } },
+      getElementById: (id) => elements[id] || null,
+    },
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(staticDir, "common.js"), "utf8"), context);
+  const modelSource = fs.readFileSync(path.join(staticDir, "model.js"), "utf8");
+  vm.runInContext(modelSource.slice(0, modelSource.lastIndexOf("main();")), context);
+
+  context.renderHero({
+    kind: "primary",
+    color: "#111111",
+    label: "NeuralNet",
+    blurb: "Primary model",
+    source_url: "https://pytorch.org",
+    short: "PyTorch",
+  });
+  assert.strictEqual(context.document.title, "NOTINO - predikce");
+}
+
 function checkProductExplorerControls() {
   const instances = [];
   class ChartStub {
@@ -462,10 +495,11 @@ function checkSubmissionGridMarkup() {
 checkSyntax();
 checkStrategyHelpers();
 checkStandaloneIdentity();
+checkStablePageTitle();
 checkProductExplorerControls();
 checkSingleModelProductExplorer();
 checkModelMethodDescriptions();
 checkEvaluationMethodology();
 checkDatasetStory();
 checkSubmissionGridMarkup();
-console.log("8 JavaScript smoke checks passed");
+console.log("9 JavaScript smoke checks passed");

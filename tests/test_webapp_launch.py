@@ -1,4 +1,6 @@
 import json
+import os
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -9,20 +11,24 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE_URL = "http://127.0.0.1:8999"
 LAUNCH_COMMAND = ["uv", "run", "python", "webapp/server.py"]
 
 
-def _get(path: str) -> tuple[int, bytes]:
-    with urlopen(f"{BASE_URL}{path}", timeout=3) as response:
+def _get(base_url: str, path: str) -> tuple[int, bytes]:
+    with urlopen(f"{base_url}{path}", timeout=3) as response:
         return response.status, response.read()
 
 
 @pytest.mark.integration
 def test_documented_root_command_serves_complete_submission():
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    base_url = f"http://127.0.0.1:{port}"
     process = subprocess.Popen(
         LAUNCH_COMMAND,
         cwd=ROOT,
+        env={**os.environ, "NOTINO_DASHBOARD_PORT": str(port)},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -34,7 +40,7 @@ def test_documented_root_command_serves_complete_submission():
                 output = process.stdout.read() if process.stdout else ""
                 pytest.fail(f"server exited before readiness:\n{output}")
             try:
-                status, body = _get("/")
+                status, body = _get(base_url, "/")
                 if status == 200 and b"Standalone interview submission" in body:
                     break
             except URLError:
@@ -46,14 +52,22 @@ def test_documented_root_command_serves_complete_submission():
             "/": b"Forecast the supplied 30-product panel",
             "/dataset": b"Six facts that changed the modeling design",
             "/evaluation": b"Walk-forward / rolling-origin validation",
-            "/model/neuralnet": b"How this model works in this project",
         }
+        published = json.loads(
+            (ROOT / "webapp" / "static" / "results.json").read_text()
+        )
+        expected.update({
+            f"/model/{model['slug']}": b"How this model works in this project"
+            for model in published["models"]
+        })
         for route, marker in expected.items():
-            status, body = _get(route)
+            status, body = _get(base_url, route)
             assert status == 200
             assert marker in body
+            assert b"<title>NOTINO - predikce</title>" in body
+            assert body.count(b"description-strip") == 1
 
-        status, body = _get("/api/results")
+        status, body = _get(base_url, "/api/results")
         assert status == 200
         payload = json.loads(body)
         assert payload["selection"]["canonical_model"] == "NeuralNet"

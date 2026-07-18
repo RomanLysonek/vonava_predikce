@@ -8,7 +8,6 @@ function currentSlug() {
 const KIND_LABEL = { primary: "Submission", ensemble: "OOF Ensemble", baseline: "Baseline", naive: "Naive" };
 
 function renderHero(model) {
-  document.title = `${model.label} — Notino Quantity Forecast`;
   const hero = document.getElementById("model-hero");
   document.documentElement.style.setProperty("--mc", model.color);
   hero.style.setProperty("--mc", model.color);

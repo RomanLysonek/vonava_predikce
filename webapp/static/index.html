@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
+  <title>NOTINO - predikce</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/styles.css?v=19" />
+  <link rel="stylesheet" href="/static/styles.css?v=20" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -31,16 +31,15 @@
     <nav class="site-nav" id="site-nav" aria-label="Forecast assignment sections"></nav>
   </header>
 
+  <header class="description-strip model-hero overview-hero">
+    <span class="model-badge">Standalone interview submission</span>
+    <h1 id="submission-heading">Forecast the supplied 30-product panel for the next seven days</h1>
+    <p class="blurb">Predict total observed sales from the provided history and future-known retail covariates without leaking target-period quantities.</p>
+  </header>
+
   <main id="app">
     <section class="panel submission-intro-panel" aria-labelledby="submission-heading">
-      <div class="panel-header row">
-        <div>
-          <span class="submission-kicker">Standalone interview submission</span>
-          <h2 id="submission-heading">Forecast the supplied 30-product panel for the next seven days</h2>
-          <p>Predict total observed sales from the provided history and future-known retail covariates without leaking target-period quantities.</p>
-        </div>
-        <span class="winner-badge">Canonical delivery</span>
-      </div>
+      <span class="winner-badge submission-status-badge">Canonical delivery</span>
       <div class="submission-intro-grid">
         <article>
           <span>Selected assignment model</span>
