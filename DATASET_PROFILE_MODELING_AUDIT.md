@@ -29,7 +29,7 @@ recommendations as mandatory conclusions.
 | The data is a panel of 30 related daily series, not IID rows | Global models pool all products while preserving `ProductId` through embeddings, native categories or one-hot encoding | Implemented | `ml/framework.py`; model definitions under `ml/models/` |
 | 3,547 absent rows are staggered launches and 29 are internal active-history gaps | Reindex each product to a complete daily calendar only between its own first and last row; inserted gaps retain unknown quantity/availability; separate first-row and first-available clocks | Implemented | `reindex_daily_calendar`, `product_reference_dates`, lifecycle features in `ml/framework.py` |
 | Pre-launch, unavailable, missing and genuine zero-demand states are semantically different | Explicit observed/available/unavailable/gap state and lifecycle features; no blind zero filling | Implemented | `_availability_state`, `_window_state_features`, C2 lifecycle group |
-| `ProductAvailable=False` is a censored-sales signal, not a guaranteed zero; future availability is absent from test | Unavailable targets are excluded from primary model fitting and conditional-demand scoring; availability-aware lags exclude them; future `ProductAvailable` is not a model covariate; realized-sales scoring remains diagnostic | Implemented | `select_trainable_panel_rows`; conditional/common evaluation in `ml/pipeline.py` |
+| `ProductAvailable=False` is a censored-sales signal, not a guaranteed zero; future availability is absent from test | Unavailable targets are excluded from primary model fitting and observed-sales-conditional scoring; availability-aware lags exclude them; future `ProductAvailable` is not a model covariate; all-days sales scoring remains diagnostic | Implemented | `select_trainable_panel_rows`; conditional/common evaluation in `ml/pipeline.py` |
 | Campaign subtype IDs are labels, not an ordinal scale | NN embeddings, tree native categorical domains and Ridge one-hot encoding | Implemented | `CAMPAIGN_CATEGORIES`, `TREE_CATEGORICAL_COLUMNS`, model preprocessors |
 | Sale flag, coupon subtype and numerical discount have distinct semantics; positive discount can coexist with subtype `-1` | Preserve all fields separately; add campaign-active, app-only, subtype-match, discount-without-campaign and app-discount-advantage features | Implemented and selected | C2 campaign feature group in `prepare_features`; all C2 groups selected |
 | Base price is not the customer offer under channel-specific discounts | Derive effective web/app prices and relative effective-price features against recent product history | Implemented and selected | C2 price group in `prepare_features` and `build_direct_panel` |
@@ -41,7 +41,7 @@ recommendations as mandatory conclusions.
 | Quantities are right-skewed and overdispersed | Predict log counts or baseline-relative log residuals; screen Huber, MSE, mixed, Log-Cosh and Tweedie formulations instead of assuming a simple Poisson model | Implemented and selected per model | Final: NN MSE residual, XGBoost residual, LightGBM log1p |
 | Only 30 products and substantial product-scale heterogeneity | Use WAPE as the primary global metric, retain per-product diagnostics and compare on a common population | Implemented | `compute_metrics`, B4/C6 artifacts and dashboard |
 | A seven-day test should be compared with recent seasonal methods | Include lag-7 seasonal naive, availability-aware 28-day moving average and 4:3:2:1 same-weekday baseline, plus Ridge/tree comparators | Implemented | `ml/models/naive_baselines.py`, Dynamic Ridge, XGBoost, LightGBM |
-| Test covariates are familiar but target level is drifting | Avoid novelty-oriented handling; focus validation on temporal transfer, January-like weighting and recent confirmation | Implemented | Test-aligned WAPE, 12 development origins, 4 recent benchmark origins, 3 frozen audit origins |
+| Test covariates are familiar but target level is drifting | Avoid novelty-oriented handling; focus development selection on temporal transfer and January-like weighting, then report recent and one-shot audit behavior without gating eligibility | Implemented | Test-aligned WAPE, 12 development origins, 4 reporting-only recent origins, 3 spent audit origins |
 
 ## Why two profile recommendations were not retained literally
 
@@ -79,8 +79,8 @@ a successful negative experiment, not an omitted recommendation.
 
 ## Remaining limitations and residual risks
 
-1. **Unavailable sales are not true latent-demand labels.** Conditional
-   training/scoring avoids obvious stockout distortion, but inventory amount,
+1. **Available-day sales are not true latent-demand labels.** Conditional
+   training/scoring provides a less-censored proxy, but inventory amount,
    stockout timing and lost sales are unavailable. The system cannot identify
    fully unconstrained demand causally.
 

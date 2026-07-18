@@ -5,8 +5,11 @@ import numpy as np
 import pandas as pd
 
 from dashboard_artifacts import (
+    check_static_dashboard,
     collect_ablation_showcase,
+    collect_strategy_development,
     publish_static_dashboard,
+    summarize_origin_dispersion,
     summarize_per_product_oof,
     summarize_top_deciles,
 )
@@ -45,6 +48,11 @@ def test_product_and_top_decile_diagnostics_are_common_population():
     assert len(errors) <= 8
     assert errors["absolute_error"].notna().all()
 
+    dispersion = summarize_origin_dispersion(oof, PREDICTIONS)
+    assert set(dispersion["model"]) == {"NeuralNet", "XGBoost"}
+    assert (dispersion["n_origins"] == 1).all()
+    assert (dispersion["minimum"] == dispersion["maximum"]).all()
+
 
 def test_ablation_showcase_marks_recommendations(tmp_path):
     c1 = tmp_path / "c1_screening"
@@ -58,12 +66,37 @@ def test_ablation_showcase_marks_recommendations(tmp_path):
     assert result.loc[result["candidate"].eq("winner"), "selected"].all()
 
 
+def test_recursive_development_history_is_compact_and_artifact_backed(tmp_path):
+    target = tmp_path / "c01_recursive_check"
+    target.mkdir()
+    (target / "c01_recursive_check.json").write_text(json.dumps({
+        "schema_version": "c01-recursive-check-v1",
+        "config": {"epochs": 10, "seed": 42},
+        "passed": True,
+        "results": [{"WAPE": 0.4}, {"WAPE": 0.2}],
+    }))
+
+    result = collect_strategy_development(tmp_path)
+
+    assert result["role"] == "development_history"
+    assert result["n_origins"] == 2
+    assert result["wape_min"] == 0.2
+    assert result["wape_max"] == 0.4
+    assert result["published_final_forecast"] is False
+
+
 def test_static_dashboard_is_self_contained(tmp_path):
     static = tmp_path / "webapp" / "static"
     outputs = tmp_path / "outputs"
     static.mkdir(parents=True)
     outputs.mkdir()
-    (static / "index.html").write_text('<link href="/static/styles.css"><script src="/static/common.js?v=1"></script>')
+    (outputs / "run_manifest.json").write_text(
+        json.dumps({"schema_version": "forecast-run-v1"})
+    )
+    (static / "index.html").write_text(
+        '<a href="/">Home</a><link href="/static/styles.css">'
+        '<script src="/static/common.js?v=1"></script>'
+    )
     (static / "model.html").write_text('<script src="/static/common.js?v=1"></script>')
     (static / "evaluation.html").write_text('<script src="/static/common.js?v=1"></script><script src="/static/evaluation.js?v=1"></script>')
     (static / "dataset.html").write_text('<script src="/static/common.js?v=1"></script><script src="/static/dataset.js?v=1"></script>')
@@ -84,4 +117,14 @@ def test_static_dashboard_is_self_contained(tmp_path):
     assert 'window.STATIC_DASHBOARD = true' in html
     assert './styles.css' in html
     assert (tmp_path / "docs" / "results.json").exists()
+    assert (tmp_path / "docs" / "run_manifest.json").exists()
+    assert manifest["run_manifest"] == "webapp/static/run_manifest.json"
     assert manifest["entrypoint"] == "docs/index.html"
+    assert check_static_dashboard(tmp_path) == []
+    assert 'href="./index.html"' in html
+    assert 'href="/' not in html
+
+    (tmp_path / "docs" / "index.html").write_text("manual edit")
+    assert "stale generated file: docs/index.html" in check_static_dashboard(
+        tmp_path
+    )

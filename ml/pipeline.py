@@ -26,12 +26,9 @@ import subprocess
 import sys
 import tempfile
 import time
-import warnings
 from dataclasses import asdict, dataclass
 from enum import Enum
 from datetime import datetime, timezone
-
-warnings.filterwarnings("ignore")
 
 import numpy as np
 import pandas as pd
@@ -82,9 +79,16 @@ from ensemble import (
 )
 from dashboard_artifacts import (
     collect_ablation_showcase,
+    collect_strategy_development,
     publish_static_dashboard,
+    summarize_origin_dispersion,
     summarize_per_product_oof,
     summarize_top_deciles,
+)
+from provenance import (
+    refresh_legacy_audit_manifest,
+    sha256_file,
+    write_run_manifest,
 )
 
 np.random.seed(CFG.seed)
@@ -122,6 +126,7 @@ class RuntimeOptions:
     resume: bool = False
     reset_checkpoints: bool = False
     checkpoint_dir: str = "outputs/checkpoints"
+    reuse_oof: str | None = None
     nn_batch_size: str = "auto"
     nn_lr_scaling: str = "auto"
     nn_training_backend: str = "auto"
@@ -156,6 +161,15 @@ def resolve_strategies(strategy: ForecastStrategy) -> tuple[ForecastStrategy, ..
     return (strategy,)
 
 
+def validate_estimator_policy(cfg: Config) -> None:
+    """Require validation and deployment to use the same NeuralNet estimator."""
+    if cfg.cv_epochs != cfg.final_epochs:
+        raise ValueError(
+            "NeuralNet estimator mismatch: cv_epochs and final_epochs must match "
+            f"(got {cfg.cv_epochs} and {cfg.final_epochs})"
+        )
+
+
 def parse_args(argv=None) -> RuntimeOptions:
     parser = argparse.ArgumentParser(description="Notino quantity forecasting pipeline")
     parser.add_argument("--forecast-strategy", choices=[s.value for s in ForecastStrategy], default="direct")
@@ -180,6 +194,14 @@ def parse_args(argv=None) -> RuntimeOptions:
     parser.add_argument(
         "--checkpoint-dir", default="outputs/checkpoints",
         help="Directory used for atomic per-fold CV checkpoints",
+    )
+    parser.add_argument(
+        "--reuse-oof",
+        default=None,
+        help=(
+            "Reuse a compatible development/recent OOF Parquet artifact and "
+            "retrain final models only. Final-audit rows are rejected."
+        ),
     )
     parser.add_argument(
         "--nn-batch-size", default="auto",
@@ -302,6 +324,8 @@ def parse_args(argv=None) -> RuntimeOptions:
         and args.ensemble_benchmark_tolerance < 0
     ):
         parser.error("--ensemble-benchmark-tolerance must be nonnegative")
+    if args.reuse_oof and (args.resume or args.reset_checkpoints):
+        parser.error("--reuse-oof cannot be combined with CV checkpoint options")
     return RuntimeOptions(
         forecast_strategy=ForecastStrategy(args.forecast_strategy),
         primary_strategy=PrimaryStrategy(args.primary_strategy),
@@ -311,6 +335,7 @@ def parse_args(argv=None) -> RuntimeOptions:
         resume=args.resume,
         reset_checkpoints=args.reset_checkpoints,
         checkpoint_dir=args.checkpoint_dir,
+        reuse_oof=args.reuse_oof,
         nn_batch_size=args.nn_batch_size,
         nn_lr_scaling=args.nn_lr_scaling,
         nn_training_backend=args.nn_training_backend,
@@ -338,6 +363,293 @@ def parse_args(argv=None) -> RuntimeOptions:
         ensemble_min_relative_improvement=args.ensemble_min_relative_improvement,
         ensemble_benchmark_tolerance=args.ensemble_benchmark_tolerance,
     )
+
+
+OOF_REUSE_CONFIG_KEYS = (
+    "forecast_strategy",
+    "selection_metric",
+    "selection_protocol",
+    "horizon",
+    "lag_windows",
+    "cv_epochs",
+    "seeds",
+    "training_window_days",
+    "recency_half_life_days",
+    "baseline_variant",
+    "enable_trend_features",
+    "c2_feature_groups",
+    "nn_loss",
+    "nn_target_mode",
+    "nn_huber_delta",
+    "nn_combined_mse_weight",
+    "xgboost_target_mode",
+    "lightgbm_target_mode",
+    "enable_channel_history_features",
+    "channel_aux_weight",
+    "channel_share_smoothing",
+    "nn_batch_size",
+    "nn_lr_scaling",
+    "nn_effective_learning_rate",
+    "nn_training_backend",
+)
+
+
+def _effective_oof_config(
+    cfg: Config,
+    options: RuntimeOptions,
+) -> dict:
+    return {
+        "forecast_strategy": options.forecast_strategy.value,
+        "selection_metric": options.selection_metric,
+        "selection_protocol": options.selection_protocol,
+        "horizon": cfg.horizon,
+        "lag_windows": list(cfg.lag_windows),
+        "cv_epochs": cfg.cv_epochs,
+        "seeds": list(cfg.seeds),
+        "training_window_days": cfg.training_window_days,
+        "recency_half_life_days": cfg.recency_half_life_days,
+        "baseline_variant": cfg.baseline_variant,
+        "enable_trend_features": cfg.enable_trend_features,
+        "c2_feature_groups": list(cfg.c2_feature_groups),
+        "nn_loss": cfg.nn_loss,
+        "nn_target_mode": cfg.nn_target_mode,
+        "nn_huber_delta": cfg.nn_huber_delta,
+        "nn_combined_mse_weight": cfg.nn_combined_mse_weight,
+        "xgboost_target_mode": cfg.xgboost_target_mode,
+        "lightgbm_target_mode": cfg.lightgbm_target_mode,
+        "enable_channel_history_features": cfg.enable_channel_history_features,
+        "channel_aux_weight": cfg.channel_aux_weight,
+        "channel_share_smoothing": cfg.channel_share_smoothing,
+        "nn_batch_size": cfg.batch_size,
+        "nn_lr_scaling": cfg.nn_lr_scaling,
+        "nn_effective_learning_rate": effective_learning_rate(cfg),
+        "nn_training_backend": resolve_training_backend(cfg),
+    }
+
+
+def load_reusable_oof(
+    path: str,
+    cfg: Config,
+    options: RuntimeOptions,
+    strategies: tuple[ForecastStrategy, ...],
+    *,
+    history_raw: pd.DataFrame | None = None,
+    development_origins: tuple[pd.Timestamp, ...] | None = None,
+    benchmark_origins: tuple[pd.Timestamp, ...] | None = None,
+) -> pd.DataFrame:
+    """Load persisted development/benchmark OOF after strict policy checks."""
+    oof_path = os.path.abspath(path)
+    results_path = os.path.join(os.path.dirname(oof_path), "results.json")
+    run_manifest_path = os.path.join(
+        os.path.dirname(oof_path), "run_manifest.json"
+    )
+    if not os.path.exists(oof_path):
+        raise FileNotFoundError(oof_path)
+    if not os.path.exists(results_path):
+        raise FileNotFoundError(
+            f"Missing OOF metadata companion: {results_path}"
+        )
+    if not os.path.exists(run_manifest_path):
+        raise FileNotFoundError(
+            f"Missing OOF provenance companion: {run_manifest_path}"
+        )
+    with open(run_manifest_path, encoding="utf-8") as handle:
+        run_manifest = json.load(handle)
+    recorded_oof_hash = next(
+        (
+            digest
+            for name, digest in (run_manifest.get("outputs") or {}).items()
+            if name.endswith("/oof_predictions.parquet")
+        ),
+        None,
+    )
+    if not recorded_oof_hash or recorded_oof_hash != sha256_file(oof_path):
+        raise RuntimeError("Persisted OOF hash does not match run_manifest.json")
+    recorded_results_hash = next(
+        (
+            digest
+            for name, digest in (run_manifest.get("outputs") or {}).items()
+            if name.endswith("/results.json")
+            and "static" not in name
+            and "docs" not in name
+        ),
+        None,
+    )
+    if (
+        not recorded_results_hash
+        or recorded_results_hash != sha256_file(results_path)
+    ):
+        raise RuntimeError(
+            "Persisted OOF policy metadata does not match run_manifest.json"
+        )
+    recorded_full_config = (
+        (run_manifest.get("configuration") or {}).get("values") or {}
+    )
+    requested_full_config = _json_safe(asdict(cfg))
+    recorded_cfg_only = {
+        key: recorded_full_config.get(key)
+        for key in requested_full_config
+    }
+    if (
+        set(requested_full_config) - set(recorded_full_config)
+        or recorded_cfg_only != requested_full_config
+    ):
+        mismatched_keys = sorted(
+            key
+            for key, value in requested_full_config.items()
+            if recorded_full_config.get(key) != value
+        )
+        raise RuntimeError(
+            "Persisted OOF full estimator configuration mismatch: "
+            + ", ".join(mismatched_keys)
+        )
+    repository_root = (
+        os.path.dirname(os.path.dirname(oof_path))
+        if os.path.basename(os.path.dirname(oof_path)) == "outputs"
+        else os.getcwd()
+    )
+    for label, configured_path in (
+        ("train", cfg.train_path),
+        ("test", cfg.test_path),
+    ):
+        current_path = os.path.join(repository_root, configured_path)
+        recorded_hash = (
+            (run_manifest.get("inputs") or {}).get(label) or {}
+        ).get("sha256")
+        if (
+            not recorded_hash
+            or not os.path.exists(current_path)
+            or recorded_hash != sha256_file(current_path)
+        ):
+            raise RuntimeError(
+                f"Persisted OOF {label} input hash does not match current data"
+            )
+    with open(results_path, encoding="utf-8") as handle:
+        results = json.load(handle)
+    stored = results.get("config")
+    if not isinstance(stored, dict):
+        raise RuntimeError(f"{results_path} has no valid config object")
+
+    requested = _effective_oof_config(cfg, options)
+    mismatches = {
+        key: {"stored": stored.get(key), "requested": requested[key]}
+        for key in OOF_REUSE_CONFIG_KEYS
+        if stored.get(key) != requested[key]
+    }
+    if mismatches:
+        details = "\n".join(
+            f"  {key}: stored={values['stored']!r}, "
+            f"requested={values['requested']!r}"
+            for key, values in mismatches.items()
+        )
+        raise RuntimeError(
+            "Persisted OOF is incompatible with the requested estimator policy:\n"
+            + details
+        )
+
+    oof = pd.read_parquet(oof_path)
+    required = {
+        "origin_type",
+        "strategy",
+        "origin",
+        "ProductId",
+        "DateKey",
+        "horizon",
+        "actual",
+        "ProductAvailable",
+        *OOF_MODEL_COLUMNS.values(),
+    }
+    missing = sorted(required - set(oof.columns))
+    if missing:
+        raise RuntimeError(f"Persisted OOF is missing columns: {missing}")
+    origin_types = set(oof["origin_type"].astype(str))
+    allowed_origin_types = {"development", "recent_benchmark"}
+    if origin_types != allowed_origin_types:
+        raise RuntimeError(
+            "Persisted OOF must contain only development and recent_benchmark "
+            f"rows; found {sorted(origin_types)}"
+        )
+    requested_strategies = {strategy.value for strategy in strategies}
+    stored_strategies = set(oof["strategy"].astype(str))
+    if stored_strategies != requested_strategies:
+        raise RuntimeError(
+            "Persisted OOF strategy mismatch: "
+            f"stored={sorted(stored_strategies)}, "
+            f"requested={sorted(requested_strategies)}"
+        )
+    key_columns = [
+        "origin_type", "strategy", "origin", "ProductId", "DateKey", "horizon"
+    ]
+    if oof.duplicated(key_columns).any():
+        raise RuntimeError("Persisted OOF contains duplicate forecast keys")
+    if oof.empty:
+        raise RuntimeError("Persisted OOF is empty")
+    if development_origins is not None and benchmark_origins is not None:
+        expected_origins = {
+            "development": {
+                pd.Timestamp(origin) for origin in development_origins
+            },
+            "recent_benchmark": {
+                pd.Timestamp(origin) for origin in benchmark_origins
+            },
+        }
+        for origin_type, expected in expected_origins.items():
+            actual = {
+                pd.Timestamp(origin)
+                for origin in oof.loc[
+                    oof["origin_type"].eq(origin_type), "origin"
+                ].unique()
+            }
+            if actual != expected:
+                raise RuntimeError(
+                    f"Persisted OOF {origin_type} origins mismatch: "
+                    f"stored={sorted(actual)}, expected={sorted(expected)}"
+                )
+    if history_raw is not None:
+        expected_parts = []
+        origin_groups = (
+            ("development", development_origins or ()),
+            ("recent_benchmark", benchmark_origins or ()),
+        )
+        for origin_type, origins in origin_groups:
+            for origin in origins:
+                origin = pd.Timestamp(origin)
+                expected = history_raw[
+                    history_raw["DateKey"].between(
+                        origin + pd.Timedelta(days=1),
+                        origin + pd.Timedelta(days=cfg.horizon),
+                    )
+                ][["ProductId", "DateKey"]].copy()
+                expected["origin_type"] = origin_type
+                expected["origin"] = origin
+                expected["horizon"] = (
+                    expected["DateKey"] - origin
+                ).dt.days
+                for strategy in requested_strategies:
+                    expected_strategy = expected.copy()
+                    expected_strategy["strategy"] = strategy
+                    expected_parts.append(expected_strategy)
+        expected_keys = pd.concat(expected_parts, ignore_index=True)[
+            key_columns
+        ].sort_values(key_columns).reset_index(drop=True)
+        actual_keys = oof[key_columns].copy()
+        actual_keys["origin"] = pd.to_datetime(actual_keys["origin"])
+        actual_keys["DateKey"] = pd.to_datetime(actual_keys["DateKey"])
+        actual_keys = actual_keys.sort_values(key_columns).reset_index(drop=True)
+        try:
+            pd.testing.assert_frame_equal(
+                actual_keys, expected_keys, check_dtype=False
+            )
+        except AssertionError as exc:
+            raise RuntimeError(
+                "Persisted OOF row grid does not match the expected "
+                "origin/product/date/horizon grid"
+            ) from exc
+    print(
+        f"Reusing {len(oof):,} development/recent OOF rows from {path}; "
+        "final-audit rows were not loaded."
+    )
+    return oof
 
 
 def _parse_optional_days(value, *, none_token: str, cast):
@@ -959,13 +1271,9 @@ def run_walk_forward_cv_direct(
     features are already lookups into observed data, never a value that
     would first need to be predicted.
 
-    Trains the SAME `cfg.seeds`-sized NN ensemble as `run_final_forecast`
-    -- CV must score the actual estimator being submitted, not a cheaper
-    single-seed stand-in. `cv_epochs` vs `final_epochs` remains a
-    deliberate, disclosed compute/accuracy trade-off (cheaper proxy
-    training while iterating; the one-time final artifact trains longer)
-    -- unlike the seed count, that's not a hidden inconsistency, since
-    it's applied identically across every model/fold.
+    Trains the same `cfg.seeds`-sized NN ensemble and epoch policy as
+    `run_final_forecast`; CV scores the estimator that is actually deployed,
+    not a cheaper proxy.
 
     Returns row-level out-of-fold predictions -- one row per (origin,
     product, date), with per-seed NN columns alongside the ensemble and
@@ -1640,15 +1948,15 @@ def fit_c5_ensembles(
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, EnsembleFit], dict, pd.DataFrame]:
     """Fit one frozen convex ensemble per available strategy.
 
-    Only development OOF participates in weight fitting. The recent benchmark
-    is evaluated after weights are frozen and contributes confirmation status
-    only; it never changes a weight.
+    Only development OOF participates in weight fitting and eligibility. The
+    recent benchmark is evaluated after weights are frozen and is reporting
+    only: it never changes a weight or candidate eligibility.
     """
     fits: dict[str, EnsembleFit] = {}
     payload = {
         "schema_version": ENSEMBLE_SCHEMA_VERSION,
         "fit_split": "development",
-        "benchmark_role": "confirmation_only",
+        "benchmark_role": "reporting_only",
         "models": list(cfg.ensemble_models),
         "stratum_weights": VALIDATION_STRATUM_WEIGHTS,
         "grid_step": cfg.ensemble_grid_step,
@@ -1693,12 +2001,14 @@ def fit_c5_ensembles(
             and relative_regression
             <= cfg.ensemble_benchmark_max_relative_regression
         )
-        accepted = bool(fit.accepted_on_development and benchmark_confirmed)
+        eligible_on_development = bool(fit.accepted_on_development)
         strategy_payload = fit.to_dict()
         strategy_payload.update({
             "benchmark": benchmark,
             "benchmark_confirmed": benchmark_confirmed,
-            "accepted": accepted,
+            "eligible_on_development": eligible_on_development,
+            # Compatibility for existing consumers; acceptance is development-only.
+            "accepted": eligible_on_development,
         })
         payload["strategies"][strategy] = strategy_payload
         fits[strategy] = fit
@@ -1720,7 +2030,8 @@ def fit_c5_ensembles(
             ],
             "benchmark_relative_change": relative_regression,
             "benchmark_confirmed": benchmark_confirmed,
-            "accepted": accepted,
+            "eligible_on_development": eligible_on_development,
+            "accepted": eligible_on_development,
             "n_development_rows": fit.n_rows,
             "n_benchmark_rows": benchmark["n_rows"],
         })
@@ -1755,7 +2066,14 @@ def save_c5_ensemble_artifacts(
                 "strategy": strategy,
                 "model": model,
                 "weight": weight,
-                "accepted": details.get("accepted", False),
+                "eligible_on_development": details.get(
+                    "eligible_on_development",
+                    details.get("accepted_on_development", False),
+                ),
+                "accepted": details.get(
+                    "eligible_on_development",
+                    details.get("accepted_on_development", False),
+                ),
                 "benchmark_confirmed": details.get(
                     "benchmark_confirmed", False
                 ),
@@ -2246,6 +2564,15 @@ def _json_safe(obj):
     return obj
 
 
+def _rounded_records(frame: pd.DataFrame | None, digits: int) -> list[dict]:
+    if frame is None:
+        return []
+    rounded = frame.copy()
+    numeric_columns = rounded.select_dtypes(include=[np.number]).columns
+    rounded[numeric_columns] = rounded[numeric_columns].round(digits)
+    return rounded.to_dict(orient="records")
+
+
 def select_primary_summary(
     summary: pd.DataFrame,
     *,
@@ -2305,7 +2632,132 @@ def load_current_final_audit_artifacts(
     except (OSError, ValueError, TypeError):
         return pd.DataFrame(), pd.DataFrame()
     expected_hash = manifest.get("ensemble_weights_sha256")
-    if not expected_hash or expected_hash != _file_sha256(weights_path):
+    if not expected_hash:
+        return pd.DataFrame(), pd.DataFrame()
+    try:
+        with open(weights_path, encoding="utf-8") as handle:
+            current_weights = json.load(handle)
+        current_direct = (
+            current_weights.get("strategies", {})
+            .get("direct", {})
+            .get("weights", {})
+        )
+        audited_weights = manifest.get("ensemble_weights", {})
+        results_path = os.path.join(output_dir, "results.json")
+        with open(results_path, encoding="utf-8") as handle:
+            current_results = json.load(handle)
+        run_manifest_path = os.path.join(output_dir, "run_manifest.json")
+        with open(run_manifest_path, encoding="utf-8") as handle:
+            current_run_manifest = json.load(handle)
+        current_full_config = (
+            (current_run_manifest.get("configuration") or {}).get("values")
+            or {}
+        )
+        audited_full_config = manifest.get("evaluated_configuration")
+        config_keys = set(asdict(CFG))
+        same_full_policy = (
+            isinstance(audited_full_config, dict)
+            and config_keys <= set(audited_full_config)
+            and config_keys <= set(current_full_config)
+            and all(
+                audited_full_config[key] == current_full_config[key]
+                for key in config_keys
+            )
+        )
+        audited_config = manifest.get("configuration") or {}
+        current_config = current_results.get("config") or {}
+        # The audit runs walk-forward folds, so cv_epochs is the evaluated
+        # estimator. Historical final_epochs belongs to a separate forecast fit.
+        audit_policy_keys = (
+            "forecast_strategy",
+            "selection_metric",
+            "selection_protocol",
+            "horizon",
+            "lag_windows",
+            "cv_epochs",
+            "seeds",
+            "num_products",
+            "validation_stratum_weights",
+            "nn_batch_size",
+            "nn_lr_scaling",
+            "nn_effective_learning_rate",
+            "nn_training_backend",
+            "training_window_days",
+            "recency_half_life_days",
+            "baseline_variant",
+            "enable_trend_features",
+            "c2_feature_groups",
+            "nn_loss",
+            "nn_target_mode",
+            "nn_huber_delta",
+            "nn_combined_mse_weight",
+            "tree_target_mode",
+            "xgboost_target_mode",
+            "lightgbm_target_mode",
+            "tree_tweedie_variance_power",
+            "enable_channel_history_features",
+            "channel_aux_weight",
+            "channel_share_smoothing",
+            "nn_residual_guard_lower_quantile",
+            "nn_residual_guard_upper_quantile",
+            "nn_residual_guard_margin",
+            "recursive_safety_multiplier",
+            "recursive_safety_floor",
+        )
+        same_policy = all(
+            key in audited_config
+            and key in current_config
+            and audited_config[key] == current_config[key]
+            for key in audit_policy_keys
+        )
+        recorded_outputs = (
+            manifest.get("audit_output_hashes")
+            or manifest.get("output_hashes")
+            or {}
+        )
+        expected_audit_names = {
+            "final_audit_oof.parquet",
+            "final_audit_summary.csv",
+            "final_audit_validation_strata.csv",
+            "final_audit_test_aligned_scores.csv",
+            "final_audit_prediction_diagnostics.csv",
+            "final_audit_prediction_diagnostics_by_origin.csv",
+        }
+        recorded_by_name = {
+            os.path.basename(name): digest
+            for name, digest in recorded_outputs.items()
+            if os.path.basename(name) in expected_audit_names
+        }
+        valid_audit_outputs = (
+            set(recorded_by_name) == expected_audit_names
+            and all(
+                os.path.exists(os.path.join(output_dir, name))
+                and digest
+                == _file_sha256(os.path.join(output_dir, name))
+                for name, digest in recorded_by_name.items()
+            )
+        )
+        same_semantic_weights = (
+            current_direct
+            and set(current_direct) == set(audited_weights)
+            and all(
+                np.isclose(
+                    float(current_direct[model]),
+                    float(audited_weights[model]),
+                    rtol=0.0,
+                    atol=1e-12,
+                )
+                for model in current_direct
+            )
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return pd.DataFrame(), pd.DataFrame()
+    if not same_full_policy or not same_policy or not valid_audit_outputs:
+        return pd.DataFrame(), pd.DataFrame()
+    if (
+        expected_hash != _file_sha256(weights_path)
+        and not same_semantic_weights
+    ):
         return pd.DataFrame(), pd.DataFrame()
 
     def read_optional(name: str) -> pd.DataFrame:
@@ -2345,6 +2797,8 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
                          top_decile_summary: pd.DataFrame | None = None,
                          top_error_rows: pd.DataFrame | None = None,
                          ablation_showcase: pd.DataFrame | None = None,
+                         origin_dispersion: pd.DataFrame | None = None,
+                         strategy_development: dict | None = None,
                          final_audit_summary: pd.DataFrame | None = None,
                          final_audit_test_aligned_scores: pd.DataFrame | None = None) -> dict:
     """Bundle everything the presentation webapp needs into one JSON file.
@@ -2423,12 +2877,16 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "run_manifest": "run_manifest.json",
         "config": {
             "forecast_strategy": runtime_options.forecast_strategy.value if runtime_options else "direct",
             "primary_strategy": canonical_strategy,
             "submission_model": runtime_options.submission_model.value if runtime_options else "NeuralNet",
             "selection_metric": runtime_options.selection_metric if runtime_options else "WAPE",
             "selection_protocol": runtime_options.selection_protocol if runtime_options else "global",
+            "validation_artifact_source": (
+                runtime_options.reuse_oof if runtime_options else None
+            ),
             "primary_evaluation_regime": "conditional",
             "primary_comparison_population": "common",
             "primary_aggregation": "global",
@@ -2541,8 +2999,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             if prediction_diagnostics is not None else []
         ),
         "prediction_diagnostics_by_origin": (
-            prediction_diagnostics_by_origin.round(6).to_dict(orient="records")
-            if prediction_diagnostics_by_origin is not None else []
+            _rounded_records(prediction_diagnostics_by_origin, 6)
         ),
         "channel_share_summary": (
             channel_share_summary.round(6).to_dict(orient="records")
@@ -2566,13 +3023,17 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             if top_decile_summary is not None else []
         ),
         "top_error_rows": (
-            top_error_rows.round(6).to_dict(orient="records")
-            if top_error_rows is not None else []
+            _rounded_records(top_error_rows, 6)
         ),
         "ablation_showcase": (
             ablation_showcase.round(6).to_dict(orient="records")
             if ablation_showcase is not None else []
         ),
+        "origin_dispersion": (
+            origin_dispersion.round(6).to_dict(orient="records")
+            if origin_dispersion is not None else []
+        ),
+        "strategy_development": strategy_development or {},
         "final_audit_summary": (
             final_audit_summary.round(6).to_dict(orient="records")
             if final_audit_summary is not None else []
@@ -2588,6 +3049,7 @@ def export_results_json(train_raw: pd.DataFrame, test_raw: pd.DataFrame, submiss
             "development_winner": canonical_strategy,
             "benchmark_winner": None,
             "recent_benchmark_confirmation": None,
+            "benchmark_role": "reporting_only",
         },
     }
 
@@ -2630,10 +3092,13 @@ def _choose_canonical_model_strategy(
 ) -> tuple[str, str]:
     strategies = set(dev_summary["strategy"].unique())
     requested_model = options.submission_model.value
-    accepted_ensemble_strategies = {
+    development_eligible_ensemble_strategies = {
         strategy
         for strategy, details in (ensemble_payload or {}).get("strategies", {}).items()
-        if details.get("accepted")
+        if details.get(
+            "eligible_on_development",
+            details.get("accepted_on_development", False),
+        )
     }
 
     def choose_from_test_aligned(model: str | None = None) -> tuple[str, str]:
@@ -2644,10 +3109,12 @@ def _choose_canonical_model_strategy(
         candidates = test_aligned_scores.copy()
         if model is not None:
             candidates = candidates[candidates["model"].eq(model)]
-        elif accepted_ensemble_strategies:
+        elif development_eligible_ensemble_strategies:
             candidates = candidates[
                 ~candidates["model"].eq("Ensemble")
-                | candidates["strategy"].isin(accepted_ensemble_strategies)
+                | candidates["strategy"].isin(
+                    development_eligible_ensemble_strategies
+                )
             ]
         else:
             candidates = candidates[~candidates["model"].eq("Ensemble")]
@@ -2671,7 +3138,9 @@ def _choose_canonical_model_strategy(
         ]
         candidates = candidates[
             ~candidates["model"].eq("Ensemble")
-            | candidates["strategy"].isin(accepted_ensemble_strategies)
+            | candidates["strategy"].isin(
+                development_eligible_ensemble_strategies
+            )
         ]
         row = candidates.sort_values(options.selection_metric).iloc[0]
         return str(row["model"]), str(row["strategy"])
@@ -2728,6 +3197,7 @@ def _forecast_dict_to_json(test_raw: pd.DataFrame, forecasts: dict) -> dict:
 def main(argv=None) -> None:
     options = parse_args(argv)
     cfg = CFG
+    validate_estimator_policy(cfg)
     c1_runtime = configure_c1_runtime(cfg, options)
     c2_runtime = configure_c2_runtime(cfg, options)
     c34_runtime = configure_c34_runtime(cfg, options)
@@ -2791,25 +3261,44 @@ def main(argv=None) -> None:
     benchmark_origins = recent_benchmark_origins(train_raw, cfg)
     strategies = resolve_strategies(options.forecast_strategy)
 
-    dev_frames, benchmark_frames = [], []
-    for strategy in strategies:
-        print(f"\n=== {strategy.value.upper()} development CV ===")
-        dev = run_walk_forward_cv(
-            train_raw, DEVELOPMENT_ORIGINS, "development", cfg,
-            timings=timings["cv_folds"], strategy=strategy,
-            checkpoint_dir=options.checkpoint_dir, resume=options.resume,
+    if options.reuse_oof:
+        oof = load_reusable_oof(
+            options.reuse_oof,
+            cfg,
+            options,
+            strategies,
+            history_raw=train_raw,
+            development_origins=tuple(DEVELOPMENT_ORIGINS),
+            benchmark_origins=tuple(benchmark_origins),
         )
-        dev_frames.append(dev)
-        print(f"\n=== {strategy.value.upper()} recent-benchmark CV ===")
-        benchmark = run_walk_forward_cv(
-            train_raw, benchmark_origins, "recent_benchmark", cfg,
-            timings=timings["cv_folds"], strategy=strategy,
-            checkpoint_dir=options.checkpoint_dir, resume=options.resume,
-        )
-        benchmark_frames.append(benchmark)
+        dev_oof = oof[oof["origin_type"].eq("development")].copy()
+        benchmark_oof = oof[oof["origin_type"].eq("recent_benchmark")].copy()
+        timings["reused_oof"] = {
+            "path": options.reuse_oof,
+            "n_development_rows": int(len(dev_oof)),
+            "n_recent_benchmark_rows": int(len(benchmark_oof)),
+            "final_audit_accessed": False,
+        }
+    else:
+        dev_frames, benchmark_frames = [], []
+        for strategy in strategies:
+            print(f"\n=== {strategy.value.upper()} development CV ===")
+            dev = run_walk_forward_cv(
+                train_raw, DEVELOPMENT_ORIGINS, "development", cfg,
+                timings=timings["cv_folds"], strategy=strategy,
+                checkpoint_dir=options.checkpoint_dir, resume=options.resume,
+            )
+            dev_frames.append(dev)
+            print(f"\n=== {strategy.value.upper()} recent-benchmark CV ===")
+            benchmark = run_walk_forward_cv(
+                train_raw, benchmark_origins, "recent_benchmark", cfg,
+                timings=timings["cv_folds"], strategy=strategy,
+                checkpoint_dir=options.checkpoint_dir, resume=options.resume,
+            )
+            benchmark_frames.append(benchmark)
 
-    dev_oof = pd.concat(dev_frames, ignore_index=True)
-    benchmark_oof = pd.concat(benchmark_frames, ignore_index=True)
+        dev_oof = pd.concat(dev_frames, ignore_index=True)
+        benchmark_oof = pd.concat(benchmark_frames, ignore_index=True)
     ensemble_fits: dict[str, EnsembleFit] = {}
     ensemble_payload: dict = {
         "schema_version": ENSEMBLE_SCHEMA_VERSION,
@@ -2858,6 +3347,10 @@ def main(argv=None) -> None:
         oof, OOF_MODEL_COLUMNS
     )
     ablation_showcase = collect_ablation_showcase(cfg.output_dir)
+    origin_dispersion = summarize_origin_dispersion(
+        dev_oof, OOF_MODEL_COLUMNS
+    )
+    strategy_development = collect_strategy_development(cfg.output_dir)
 
     canonical_model, canonical_strategy = _choose_canonical_model_strategy(
         options, dev_summary, test_aligned_scores, ensemble_payload
@@ -3074,6 +3567,8 @@ def main(argv=None) -> None:
         strategy: _forecast_dict_to_json(test_raw, forecasts)
         for strategy, forecasts in final_by_strategy.items()
     }
+    repository_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    refresh_legacy_audit_manifest(repository_root)
     (
         final_audit_summary,
         final_audit_test_aligned_scores,
@@ -3096,12 +3591,10 @@ def main(argv=None) -> None:
         top_decile_summary=top_decile_summary,
         top_error_rows=top_error_rows,
         ablation_showcase=ablation_showcase,
+        origin_dispersion=origin_dispersion,
+        strategy_development=strategy_development,
         final_audit_summary=final_audit_summary,
         final_audit_test_aligned_scores=final_audit_test_aligned_scores,
-    )
-    publish_static_dashboard(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        os.path.join(cfg.output_dir, "results.json"),
     )
     try:
         plot_forecast(train_raw, submission, cfg=cfg)
@@ -3111,6 +3604,23 @@ def main(argv=None) -> None:
     timings["total_seconds"] = round(time.perf_counter() - run_start, 2)
     with open(os.path.join(cfg.output_dir, "timings.json"), "w") as f:
         json.dump(timings, f, indent=2)
+    refresh_legacy_audit_manifest(repository_root)
+    write_run_manifest(
+        repository_root,
+        command=[sys.executable, os.path.abspath(__file__), *(argv or sys.argv[1:])],
+        config={
+            **asdict(cfg),
+            "runtime_options": asdict(options),
+        },
+        device={
+            "type": str(DEVICE),
+            "training_backend": resolve_training_backend(cfg),
+        },
+    )
+    publish_static_dashboard(
+        repository_root,
+        os.path.join(cfg.output_dir, "results.json"),
+    )
     print(f"\nSaved canonical submission: {canonical_model}/{canonical_strategy}")
     print(f"Total runtime: {timings['total_seconds'] / 60:.1f} min")
 

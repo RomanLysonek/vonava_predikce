@@ -1,4 +1,4 @@
-# Notino Quantity Forecast
+# NOTINO / Interview Assignment — Quantity Forecast
 
 Interview assignment: forecast total `Quantity` (`QuantityApp + QuantityWeb`)
 for 30 products over the 7 days following the training window. The complete
@@ -10,15 +10,20 @@ as fully walk-forward-validated reference models rather than hidden comparisons.
 ## Final state
 
 - **Canonical submission:** NeuralNet using the direct multi-horizon strategy.
-- **Primary metric:** conditional-demand WAPE on the common evaluation population.
+- **Primary metric:** WAPE for observed sales conditional on availability on the
+  common evaluation population. This is a less-censored demand proxy, not latent demand.
 - **Selection protocol:** frozen test-aligned weighting of development strata;
-  the recent benchmark is confirmation-only.
+  the recent benchmark is reporting-only and cannot change eligibility.
+- **Estimator policy:** the same three-seed, 30-epoch NeuralNet is used in
+  validation and final deployment.
 - **Confirmed NeuralNet objective:** MSE on a baseline-relative log residual.
 - **Confirmed structured-model targets:** XGBoost `residual`, LightGBM `log1p`.
 - **Frozen cross-model ensemble:** 0.36 NeuralNet + 0.25 XGBoost + 0.39 LightGBM.
-- **Untouched final audit:** NeuralNet test-aligned WAPE `27.83%`; ensemble
-  `27.97%`. NeuralNet therefore remains canonical even though the ensemble was
-  slightly better on global WAPE (`29.93%` versus `30.11%`).
+- **Historical spent audit:** NeuralNet test-aligned WAPE `27.83%`; ensemble
+  `27.97%`. Its source/architecture provenance was incomplete, so it remains a
+  transparent historical artifact and is excluded from the current dashboard.
+  Three origins do not establish superiority; NeuralNet is canonical because
+  the brief predeclares a non-tree primary model.
 - **Submission artifact:** `outputs/submission.csv`; the transparent secondary
   blend is `outputs/submission_ensemble.csv`.
 
@@ -29,7 +34,10 @@ uv sync --frozen --group dev
 uv run python webapp/server.py
 ```
 
-Open `http://127.0.0.1:8999`. The static GitHub Pages build is in `docs/`.
+The primary delivery is the static GitHub Pages site at
+`https://romanlysonek.github.io/vonava_predikce/`. `webapp/static` is authored
+source and `docs/` is generated-only output. FastAPI at `http://127.0.0.1:8999`
+is an optional local preview.
 See `RETRAINING_AND_CLI_GUIDE.md` for exact retraining commands and every
 supported pipeline flag, `outputs/README.md` for the retained artifacts, and
 `PRESENTATION_CLEANUP.md` for the scope of the repository cleanup.
@@ -58,12 +66,13 @@ supported pipeline flag, `outputs/README.md` for the retained artifacts, and
   synthetic state. Both use the same end-of-origin information cutoff and are
   trained independently. The final project decision is `direct`.
 - **Availability contract:** unavailable rows are excluded from supervised
-  targets and their quantities are censored from demand lags rather than
-  interpreted as genuine zero demand. The primary target is therefore demand
-  conditional on availability; realized-sales reporting remains diagnostic.
+  targets and their quantities are censored from sales lags rather than
+  interpreted as genuine zero sales. The primary target is observed sales
+  conditional on availability, a less-censored demand proxy; realized-sales
+  reporting remains diagnostic.
 - **Validation:** rolling-origin walk-forward evaluation has a seasonally
   distributed `development` set for decisions, a disjoint `recent_benchmark`
-  for confirmation, and three untouched final-audit origins. Every fold trains
+  for reporting, and three now-spent historical audit origins. Every fold trains
   strictly before its evaluation block; the evaluation fold is never used for
   early stopping or feature construction.
 - **Common population:** comparisons use rows on which every candidate being
@@ -74,9 +83,10 @@ supported pipeline flag, `outputs/README.md` for the retained artifacts, and
   inference. Dynamic Ridge is direct-only because recursive feedback was
   empirically unstable. Seasonal-naive and a 28-day moving average provide
   transparent non-learned baselines.
-- **Final model policy:** the submitted NeuralNet is an ensemble of seeds
-  `42`, `123` and `777`. The cross-model convex ensemble is retained as an
-  auditable alternative but was not promoted after the frozen final audit.
+- **Final model policy:** the submitted NeuralNet is the predeclared assignment
+  model and averages seeds `42`, `123` and `777` for 30 epochs each. The
+  cross-model convex ensemble is retained as an auditable alternative; the
+  spent audit did not select or reject either candidate.
 
 ## Repository layout
 
@@ -96,7 +106,7 @@ ml/
 outputs/                 canonical predictions, OOF results, screening summaries,
                          frozen ensemble and final-audit artifacts
 webapp/                  local FastAPI dashboard and static frontend
-docs/                    byte-equivalent static dashboard for GitHub Pages
+docs/                    generated-only static dashboard for GitHub Pages
 tests/                   Python contracts and JavaScript smoke tests
 task.md                  original assignment brief in Czech
 DATASET_PROFILE_MODELING_AUDIT.md
@@ -143,6 +153,11 @@ The pipeline rewrites the submission, OOF diagnostics and both dashboard data
 copies. Use `--resume` instead of `--reset-checkpoints` when continuing the
 same interrupted configuration. The complete precedence rules and all CLI
 alternatives are documented in `RETRAINING_AND_CLI_GUIDE.md`.
+
+To regenerate final forecasts without retraining or revisiting validation
+origins, use the same command with
+`--reuse-oof outputs/oof_predictions.parquet` and omit checkpoint flags. The
+pipeline validates the retained OOF contract and rejects final-audit rows.
 
 ### Apple Silicon performance profile
 
@@ -267,13 +282,13 @@ uv run python ml/pipeline.py --forecast-strategy both \
   strategy selection defaults to development OOF metrics from the
   `conditional/common/global` population. `--selection-protocol test-aligned`
   instead uses frozen winter/regular/event stratum weights. The recent
-  benchmark is reporting only and never changes the selection.
+  benchmark is reporting only and never changes selection or ensemble eligibility.
 
 NeuralNet, XGBoost, and LightGBM are trained separately for direct and
 recursive use. Dynamic Ridge remains a direct-only structured benchmark.
 Recursive inference receives only an explicit allowlist of future-known
 covariates and treats generated future rows as available, matching the
-conditional-demand forecast contract.
+observed-sales-conditional-on-availability forecast contract.
 
 The unrounded model-strategy forecasts are stored in
 `outputs/final_forecasts.parquet`. Strategy-specific submissions and paired
@@ -591,12 +606,12 @@ walk-forward predictions. The default members are NeuralNet, XGBoost, and
 LightGBM. For each available strategy, the ensemble:
 
 - uses development OOF rows only for fitting;
-- requires the common conditional-demand population across all members;
+- requires the common observed-sales-conditional-on-availability population across all members;
 - minimizes the frozen test-aligned stratum-weighted WAPE;
 - constrains every weight to be nonnegative and all weights to sum to one;
 - performs a deterministic exhaustive simplex search (1% grid by default);
 - applies the frozen weights unchanged to the recent benchmark and final test;
-- records recent-benchmark confirmation but never refits from that benchmark.
+- reports recent-benchmark behavior but never refits or gates eligibility from it.
 
 Enable it with:
 
@@ -622,7 +637,7 @@ outputs/ablation_showcase.csv
 The canonical task submission may remain NeuralNet while the unrounded and
 rounded ensemble forecasts are preserved as separate artifacts. With
 `--submission-model auto`, an ensemble is eligible only after it clears the
-minimum development gain and recent-benchmark tolerance.
+minimum development gain. Recent-benchmark tolerance is descriptive metadata only.
 
 ### Combined C3/C4 confirmation and C5 fit
 
@@ -678,8 +693,10 @@ caffeinate -i uv run python ml/run_final_audit.py \
   2>&1 | tee pipeline_final_audit.log
 ```
 
-The script refuses a second audit unless `--force` is supplied. It never
-refits ensemble weights and refreshes `results.json` from persisted artifacts.
+The script refuses a second audit unless `--force` is supplied. The committed
+origins are spent and must not be rerun for this hardening pass. Future
+legitimate audits never refit ensemble weights and write provenance only after
+refreshing `results.json`.
 
 ### Tier C6 dashboard and GitHub Pages
 
@@ -691,22 +708,23 @@ Every normal pipeline/export now adds:
 - the largest recent row-level errors for business interpretation;
 - channel-share diagnostics when a C4 auxiliary head is present;
 - C1/C2/C3/C4 ablation recommendations;
-- C5 weights and benchmark confirmation;
+- C5 weights and benchmark reporting;
 - the one-shot final-audit table once available.
 
-`outputs/results.json` is copied to `webapp/static/results.json`, and a static
-GitHub Pages site is generated in `docs/`. Configure Pages to serve the `/docs`
-directory. The static model pages use query-string navigation and no FastAPI
-server is required.
+`outputs/results.json` and `outputs/run_manifest.json` are copied beside the
+authored static app, then `docs/` is generated deterministically. The Pages
+workflow verifies byte parity and deploys `docs/`; no FastAPI server is required.
 
 ### Final C5/C6 confirmation result
 
-The completed direct confirmation run froze the convex weights at 0.36
+The completed direct run froze the convex weights at 0.36
 NeuralNet, 0.25 XGBoost, and 0.39 LightGBM. The ensemble improved the
-development test-aligned WAPE by 4.97% and passed the recent-benchmark guard.
-On the three untouched final-audit origins, the ensemble was slightly better
+development test-aligned WAPE by 4.97%; recent-benchmark results were reported
+afterward and did not gate eligibility. On the three spent final-audit origins,
+the ensemble was slightly better
 on global WAPE (0.299304 vs 0.301079 for NeuralNet) but slightly worse on the
-frozen test-aligned objective (0.279737 vs 0.278328). Therefore the canonical
-submission remains NeuralNet, while the ensemble is retained as a transparent
-secondary artifact rather than being refitted after the audit. The dashboard
-shows both audit metrics explicitly.
+frozen test-aligned objective (0.279737 vs 0.278328). This near tie is not a
+superiority claim, and incomplete historical source/architecture provenance
+means those rows are not published as current dashboard evidence. NeuralNet
+remains canonical by the non-tree assignment contract, while the ensemble is
+retained as a transparent secondary artifact.

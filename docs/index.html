@@ -4,28 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/styles.css?v=18" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css?v=18" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="bg-glow"></div>
 
   <div class="promo-bar">
-    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
+    <a class="promo-dataset-link" data-dataset-link href="./dataset.html" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
     <span id="promo-strategy">7-Day Forecast</span>
     <span id="promo-model-count">Models Compared</span>
-    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
+    <a class="promo-evaluation-link" data-evaluation-link href="./evaluation.html" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
   </div>
 
   <header class="hero">
     <div class="hero-top">
       <div class="brand">
         <span class="brand-logo">NOTINO</span>
-        <span class="brand-tagline">Interview Assignment</span>
+        <span class="brand-tagline">/ Interview Assignment</span>
       </div>
       <div class="hero-title-block">
         <h1>Quantity Forecast Dashboard</h1>
+        <nav class="suite-switcher" id="suite-switcher" aria-label="Interview assignment suite"></nav>
       </div>
     </div>
     <nav class="site-nav" id="site-nav"></nav>
@@ -39,10 +40,6 @@
       </div>
       <div class="controls">
         <div class="control-group">
-          <label for="strategy-select">Forecast strategy</label>
-          <select id="strategy-select"></select>
-        </div>
-        <div class="control-group">
           <label for="regime-select">Availability treatment</label>
           <select id="regime-select">
             <option value="conditional">Available days only</option>
@@ -51,6 +48,17 @@
         </div>
       </div>
       <p class="selection-explanation" id="regime-explanation"></p>
+    </section>
+
+    <section class="panel" id="strategy-development-panel" hidden>
+      <div class="panel-header row">
+        <div>
+          <h2>Development path: direct and recursive</h2>
+          <p>Retained engineering evidence, not a live forecast selector</p>
+        </div>
+        <span class="winner-badge">Development history</span>
+      </div>
+      <div class="diagnostic-note" id="strategy-development-note"></div>
     </section>
 
     <section class="kpi-grid" id="kpi-grid">
@@ -68,6 +76,19 @@
         </div>
       </div>
       <div class="columns-grid" id="columns-grid"></div>
+    </section>
+
+    <section class="panel" id="origin-dispersion-panel" hidden>
+      <div class="panel-header">
+        <h2>Development-origin dispersion</h2>
+        <p>Origin-level conditional/common WAPE. Interquartile ranges show variation; they are not significance intervals.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="origin-dispersion-table">
+          <thead><tr><th>Model</th><th>Origins</th><th>Median</th><th>IQR</th><th>Range</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="panel" id="ensemble-panel" hidden>
@@ -121,38 +142,11 @@
       </div>
     </section>
 
-    <section class="panel" id="strategy-comparison-panel" hidden>
-      <div class="panel-header row">
-        <div>
-          <h2>Direct vs. recursive — paired development OOF</h2>
-          <p>Same products, origins, dates and horizons for both strategies</p>
-        </div>
-        <div class="control-group">
-          <label for="pair-metric-select">Metric</label>
-          <select id="pair-metric-select">
-            <option value="WAPE">WAPE</option>
-            <option value="MAE">MAE</option>
-            <option value="RMSE">RMSE</option>
-            <option value="Bias">Bias</option>
-            <option value="BiasRatio">Bias ratio</option>
-          </select>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table" id="strategy-comparison-table">
-          <thead>
-            <tr><th>Model</th><th>Direct</th><th>Recursive</th><th>Recursive − Direct</th><th>Winner</th><th>Paired rows</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
     <section class="panel">
       <div class="panel-header row">
         <div>
           <h2>Error by forecast horizon</h2>
-          <p>Development OOF · use this to inspect recursive error propagation</p>
+          <p>Development OOF · variation in error across the seven direct horizons</p>
         </div>
         <div class="controls">
           <div class="control-group">
@@ -222,7 +216,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>High-volume product-days</h2>
-          <p>Retrospective stress test on rows whose actual demand is in the top 10% of the recent benchmark</p>
+          <p>Retrospective stress test on rows whose observed sales are in the top 10% of the recent benchmark</p>
         </div>
         <div class="diagnostic-note compact" id="top-decile-explanation"></div>
         <div class="table-wrap diagnostic-table-wrap">
@@ -252,7 +246,7 @@
       <div class="panel-header row">
         <div>
           <h2>Frozen final audit</h2>
-          <p>Three untouched origins; the frozen conditional test-aligned objective is primary, with global WAPE shown for context</p>
+          <p>Three spent one-shot origins; descriptive evidence only, not a model-selection step</p>
         </div>
         <span class="winner-badge">One-shot</span>
       </div>
@@ -306,7 +300,8 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=13"></script>
-  <script src="/static/app.js?v=14"></script>
+  <script>window.STATIC_DASHBOARD = true;</script>
+  <script src="./common.js?v=15"></script>
+  <script src="./app.js?v=15"></script>
 </body>
 </html>

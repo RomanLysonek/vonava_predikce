@@ -191,7 +191,7 @@ def test_export_results_json_exposes_complete_strategy_payload(tmp_path):
     json.loads((tmp_path / "results.json").read_text())
 
 
-def test_strategy_controls_stay_on_overview_but_model_tabs_use_canonical_view():
+def test_overview_uses_fixed_published_strategy_and_retains_development_history():
     overview = (STATIC / "index.html").read_text()
     model_page = (STATIC / "model.html").read_text()
 
@@ -199,7 +199,7 @@ def test_strategy_controls_stay_on_overview_but_model_tabs_use_canonical_view():
         assert 'rel="icon" href="/static/favicon.svg"' in text
         assert 'id="promo-strategy"' in text
 
-    assert 'id="strategy-select"' in overview
+    assert 'id="strategy-select"' not in overview
     assert 'id="regime-select"' in overview
     assert 'class="selection-strip"' in overview
     assert 'id="strategy-select"' not in model_page
@@ -207,7 +207,9 @@ def test_strategy_controls_stay_on_overview_but_model_tabs_use_canonical_view():
     assert 'class="selection-strip"' not in model_page
     assert 'id="model-product-history-toggle"' in model_page
 
-    assert 'id="strategy-comparison-table"' in overview
+    assert 'id="strategy-comparison-table"' not in overview
+    assert 'id="strategy-development-panel"' in overview
+    assert 'id="origin-dispersion-table"' in overview
     assert 'id="chart-horizon"' in overview
     assert "Aligned WAPE" in overview
     assert "Δ WAPE (pp)" in overview
@@ -230,6 +232,8 @@ def test_strategy_controls_stay_on_overview_but_model_tabs_use_canonical_view():
     assert '`${absoluteDeltaPp >= 0 ? "+" : ""}${fmt(absoluteDeltaPp, 2)} pp`' in app_js
     assert "function renderRegimeExplanation" in app_js
     assert "function renderRegimeDefinitions" in app_js
+    assert "function renderStrategyDevelopment" in app_js
+    assert "function renderOriginDispersion" in app_js
     assert "function renderTopErrorInsight" in app_js
     assert "function setAllProductModels" in app_js
     assert "function setProductHistoryVisible" in app_js
@@ -253,12 +257,20 @@ def test_evaluation_page_separates_walk_forward_from_recursive_inference():
     assert 'id="evaluation-stage-grid"' in evaluation
     assert 'id="strategy-method-list"' in evaluation
     assert 'id="selection-objective-list"' in evaluation
-    assert 'evaluation.js?v=2' in evaluation
+    assert 'evaluation.js?v=3' in evaluation
 
     common_js = (STATIC / "common.js").read_text()
     assert "function evaluationHref" in common_js
     assert 'label: "Evaluation"' in common_js
     assert "wireSharedLinks();" in common_js
+    assert 'toLocaleString("en-GB"' in common_js
+    assert 'label: "Classical Forecasting"' in common_js
+    assert 'label: "Anomaly Research"' in common_js
+    assert 'label: "Chronos-2 Challenger"' in common_js
+    assert "https://romanlysonek.github.io/vonava_predikce/" in common_js
+    assert "https://romanlysonek.github.io/vonave_anomalie/" in common_js
+    assert "https://romanlysonek.github.io/vonavy_chronos/" in common_js
+    assert common_js.count('aria-current="page"') == 1
 
     evaluation_js = (STATIC / "evaluation.js").read_text()
     assert "function renderEvaluationStages" in evaluation_js
@@ -272,6 +284,8 @@ def test_evaluation_page_separates_walk_forward_from_recursive_inference():
         assert 'data-dataset-link' in html
         assert "Walk-Forward Validated" in html
         assert "30 Product Time Series" in html
+        assert "/ Interview Assignment" in html
+        assert 'id="suite-switcher"' in html
 
 
 def test_evaluation_route_serves_methodology_page():
@@ -292,7 +306,7 @@ def test_dataset_story_connects_profile_findings_to_modeling_decisions():
     assert "Known limitations" in dataset
     assert 'id="dataset-decision-trail"' in dataset
     assert 'id="dataset-response-list"' in dataset
-    assert 'dataset.js?v=1' in dataset
+    assert 'dataset.js?v=2' in dataset
 
     common_js = (STATIC / "common.js").read_text()
     assert "function datasetHref" in common_js
@@ -351,7 +365,7 @@ def test_favicon_route_serves_static_icon():
 
 def test_model_comparison_uses_wide_seven_column_desktop_layout():
     styles = (STATIC / "styles.css").read_text()
-    assert "width: min(1480px, calc(100vw - 32px));" in styles
+    assert "width: min(1280px, calc(100vw - 32px));" in styles
     assert "grid-template-columns: repeat(7, minmax(0, 1fr));" in styles
     assert ".model-comparison-panel .model-column-header h3" in styles
     assert "white-space: nowrap;" in styles
@@ -377,7 +391,7 @@ def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform()
     assert 'id="model-method-panel"' in model_html
     assert 'id="model-method-intro"' in model_html
     assert 'id="model-method-list"' in model_html
-    assert 'model.js?v=16' in model_html
+    assert 'model.js?v=17' in model_html
     assert 'id="nn-selection-panel"' in model_html
     assert 'id="nn-selection-grid"' in model_html
     assert "How we arrived at the submitted NeuralNet" in model_html
@@ -406,13 +420,15 @@ def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform()
     assert 'document.getElementById("regime-select")' not in model_js
 
     overview = (STATIC / "index.html").read_text()
-    assert 'app.js?v=14' in overview
+    assert 'app.js?v=15' in overview
     assert 'styles.css?v=18' in overview
 
     app_js = (STATIC / "app.js").read_text()
     assert 'class="data-table submission-table"' in app_js
     assert 'class="submission-product-column"' in app_js
     assert 'class="submission-date-column"' in app_js
+    assert 'Number(stats.Bias) >= 0 ? "var(--bad)"' not in app_js
+    assert 'Number(row.Bias) >= 0 ? "var(--bad)"' not in model_js
 
     styles = (STATIC / "styles.css").read_text()
     assert "#submission-table-wrap .submission-table" in styles

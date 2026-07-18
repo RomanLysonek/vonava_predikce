@@ -14,12 +14,14 @@ from __future__ import annotations
 import json
 import os
 import sys
+from dataclasses import asdict
 
 import pandas as pd
 
 from pipeline import (
     CFG,
     ForecastStrategy,
+    OOF_MODEL_COLUMNS,
     PrimaryStrategy,
     SubmissionModel,
     configure_c1_runtime,
@@ -27,12 +29,18 @@ from pipeline import (
     configure_c34_runtime,
     configure_c5_runtime,
     configure_nn_runtime,
+    DEVICE,
     export_results_json,
     load_current_final_audit_artifacts,
     load_raw,
     parse_args,
 )
 from dashboard_artifacts import publish_static_dashboard
+from dashboard_artifacts import (
+    collect_strategy_development,
+    summarize_origin_dispersion,
+)
+from provenance import refresh_legacy_audit_manifest, write_run_manifest
 
 
 def _read_csv_if_present(path: str, **kwargs) -> pd.DataFrame:
@@ -75,7 +83,7 @@ def main(argv=None) -> None:
     configure_c2_runtime(CFG, options)
     configure_c34_runtime(CFG, options)
     configure_c5_runtime(CFG, options)
-    configure_nn_runtime(CFG, options)
+    nn_runtime = configure_nn_runtime(CFG, options)
 
     out = CFG.output_dir
     submission = pd.read_csv(
@@ -125,6 +133,11 @@ def main(argv=None) -> None:
     ablation_showcase = _read_csv_if_present(
         os.path.join(out, "ablation_showcase.csv")
     )
+    oof = pd.read_parquet(os.path.join(out, "oof_predictions.parquet"))
+    origin_dispersion = summarize_origin_dispersion(
+        oof, OOF_MODEL_COLUMNS
+    )
+    strategy_development = collect_strategy_development(out)
     (
         final_audit_summary,
         final_audit_test_aligned_scores,
@@ -140,6 +153,8 @@ def main(argv=None) -> None:
             "exporter with the exact pipeline runtime arguments so configuration "
             "metadata is not guessed."
         )
+    repository_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    refresh_legacy_audit_manifest(repository_root)
 
     if options.primary_strategy in {
         PrimaryStrategy.DIRECT,
@@ -229,11 +244,23 @@ def main(argv=None) -> None:
         top_decile_summary=top_decile_summary,
         top_error_rows=top_error_rows,
         ablation_showcase=ablation_showcase,
+        origin_dispersion=origin_dispersion,
+        strategy_development=strategy_development,
         final_audit_summary=final_audit_summary,
         final_audit_test_aligned_scores=final_audit_test_aligned_scores,
     )
+    refresh_legacy_audit_manifest(repository_root)
+    write_run_manifest(
+        repository_root,
+        command=[sys.executable, os.path.abspath(__file__), *raw_argv],
+        config={**asdict(CFG), "runtime_options": asdict(options)},
+        device={
+            "type": str(DEVICE),
+            "training_backend": nn_runtime["training_backend"],
+        },
+    )
     publish_static_dashboard(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        repository_root,
         os.path.join(out, "results.json"),
     )
     print("Artifact-only export complete; no model training was performed.")

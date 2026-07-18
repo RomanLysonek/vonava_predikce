@@ -1,3 +1,3 @@
-# Static Notino forecast dashboard
+# Generated GitHub Pages site
 
-Generated from `outputs/results.json`. Configure GitHub Pages to serve the `/docs` directory.
+Do not edit this directory manually. It is generated from `webapp/static`, `outputs/results.json`, and `outputs/run_manifest.json` by `ml/publish_dashboard.py`.

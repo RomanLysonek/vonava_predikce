@@ -20,8 +20,8 @@ function rowCountCopy(row) {
   const expected = Number(row.n_expected);
   if (!Number.isFinite(scored)) return "Persisted row count unavailable";
   return Number.isFinite(expected)
-    ? `${scored.toLocaleString()} scored of ${expected.toLocaleString()} expected rows`
-    : `${scored.toLocaleString()} scored rows`;
+    ? `${fmt(scored, 0)} scored of ${fmt(expected, 0)} expected rows`
+    : `${fmt(scored, 0)} scored rows`;
 }
 
 function renderCurrentEvaluation(data) {
@@ -69,7 +69,7 @@ function renderEvaluationStages(data) {
       title: `${cfg.num_products || 30} products × ${cfg.horizon || 7} days`,
       role: "Unlabelled forecast",
       body: `The selected final model is trained on all eligible history available before ${testStart}, then forecasts ${testRange} and produces the canonical ${Number(cfg.num_products || 30) * Number(cfg.horizon || 7)}-row grid. Test actuals are never used anywhere in evaluation or selection.`,
-      detail: `${(data.submission || []).length.toLocaleString()} submitted rows`,
+      detail: `${fmt((data.submission || []).length, 0)} submitted rows`,
     },
   ];
   document.getElementById("evaluation-stage-grid").innerHTML = stages.map((stage) => `
@@ -125,7 +125,7 @@ function renderSelectionObjective(data) {
     ["January/February proxy", `${ratePct(weights.winter_test_like ?? 0.6, 0)} weight. All seven target dates fall in January or February, making this the closest seasonal proxy for the supplied January test week.`],
     ["Regular periods", `${ratePct(weights.regular ?? 0.25, 0)} weight. Development windows outside the winter-proxy and holiday/event stress definitions.`],
     ["Holiday / retail-event stress", `${ratePct(weights.holiday_event ?? 0.15, 0)} weight. Windows containing December or late-November retail-event dates, retained to prevent a January-focused objective from ignoring peak-demand robustness.`],
-    ["Selected result", `${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))}${score && Number.isFinite(Number(score.test_aligned_score)) ? ` achieved ${ratePct(score.test_aligned_score, 2)} development test-aligned WAPE` : " won the frozen development objective"}. The recent benchmark confirmed the decision; it did not choose it.`],
+    ["Assignment result", `${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))}${score && Number.isFinite(Number(score.test_aligned_score)) ? ` recorded ${ratePct(score.test_aligned_score, 2)} development test-aligned WAPE` : " was evaluated on the frozen development objective"}. NeuralNet is canonical because the brief predeclares a non-tree primary model. The recent benchmark was reported afterward and never changed eligibility.`],
   ];
   document.getElementById("selection-objective-list").innerHTML = rows.map(([title, description]) => `
     <div class="definition-item evaluation-step-item"><strong>${title}</strong><span>${description}</span></div>

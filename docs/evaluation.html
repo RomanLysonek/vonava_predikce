@@ -4,27 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Evaluation Process — Notino Quantity Forecast</title>
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/static/styles.css?v=18" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css?v=18" />
 </head>
 <body>
   <div class="bg-glow"></div>
 
   <div class="promo-bar">
-    <a class="promo-dataset-link" data-dataset-link href="/dataset" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
+    <a class="promo-dataset-link" data-dataset-link href="./dataset.html" title="The data structure and the modeling decisions it forced">30 Product Time Series</a>
     <span id="promo-strategy">7-Day Forecast</span>
     <span id="promo-model-count">Models Compared</span>
-    <a class="promo-evaluation-link" data-evaluation-link href="/evaluation" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
+    <a class="promo-evaluation-link" data-evaluation-link href="./evaluation.html" title="Rolling forecast origins; not the same thing as recursive inference">Walk-Forward Validated</a>
   </div>
 
   <header class="hero">
     <div class="hero-top">
       <div class="brand">
         <span class="brand-logo">NOTINO</span>
-        <span class="brand-tagline">Interview Assignment</span>
+        <span class="brand-tagline">/ Interview Assignment</span>
       </div>
       <div class="hero-title-block">
         <h1>Quantity Forecast Dashboard</h1>
+        <nav class="suite-switcher" id="suite-switcher" aria-label="Interview assignment suite"></nav>
       </div>
     </div>
     <nav class="site-nav" id="site-nav"></nav>
@@ -89,7 +90,7 @@
           <p>The metric population is fixed before comparing model scores.</p>
         </div>
         <div class="definition-list">
-          <div class="definition-item evaluation-step-item"><strong>Conditional demand · primary</strong><span>Score only product-days on which the product was available. This estimates underlying customer demand rather than penalizing a model for inventory censorship.</span></div>
+          <div class="definition-item evaluation-step-item"><strong>Observed sales conditional on availability · primary</strong><span>Score only product-days on which the product was available. This is a less-censored sales proxy; without inventory quantities or lost-sales labels it does not identify unconstrained customer demand.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Realized sales · diagnostic</strong><span>Score every observed product-day, including unavailable days. This measures what was sold under actual stock constraints, not the unconstrained demand target.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Common population</strong><span>For a comparison, retain rows with an actual value and valid predictions from every included model. Expected, predicted and scored row counts are reported explicitly.</span></div>
           <div class="definition-item evaluation-step-item"><strong>Global aggregation</strong><span>Pool absolute errors and actual demand across the selected rows before computing WAPE. Large-volume product-days therefore receive proportionate operational weight.</span></div>
@@ -140,7 +141,8 @@
     <p id="footer-method-text">Loading canonical forecasting method…</p>
   </footer>
 
-  <script src="/static/common.js?v=13"></script>
-  <script src="/static/evaluation.js?v=2"></script>
+  <script>window.STATIC_DASHBOARD = true;</script>
+  <script src="./common.js?v=15"></script>
+  <script src="./evaluation.js?v=3"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-strategy,model,weight,accepted,benchmark_confirmed
-direct,NeuralNet,0.36,True,True
-direct,XGBoost,0.25,True,True
-direct,LightGBM,0.39,True,True
+strategy,model,weight,eligible_on_development,accepted,benchmark_confirmed
+direct,NeuralNet,0.36,True,True,True
+direct,XGBoost,0.25,True,True,True
+direct,LightGBM,0.39,True,True,True
