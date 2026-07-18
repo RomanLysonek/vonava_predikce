@@ -379,7 +379,7 @@ def test_runtime_promo_labels_have_safe_rendered_geometry(tmp_path):
 
     geometry = {
         width: _render_promo_geometry(tmp_path, chrome, width)
-        for width in (701, 776, 800, 801)
+        for width in (701, 776, 800, 801, 840, 841, 900, 901)
     }
     for width, measurement in geometry.items():
         assert measurement["viewportWidth"] == width
@@ -387,7 +387,8 @@ def test_runtime_promo_labels_have_safe_rendered_geometry(tmp_path):
 
     for width in (701, 776, 800):
         assert geometry[width]["columns"] == 2
-    assert geometry[801]["columns"] == 4
+    for width in (801, 840, 841, 900, 901):
+        assert geometry[width]["columns"] == 4
 
     mobile = _render_mobile_promo_alignment(tmp_path, chrome)
     assert mobile["mediaMatches"] is True
