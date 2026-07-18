@@ -79,7 +79,7 @@ body {
   text-align: right;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .promo-bar {
     min-height: 57px;
     padding: 8px 24px;
@@ -104,7 +104,7 @@ body {
     row-gap: 8px;
   }
 
-  .promo-bar > * {
+  .promo-bar > :nth-child(n) {
     text-align: left;
   }
 }

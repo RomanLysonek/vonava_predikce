@@ -410,7 +410,7 @@ def test_promo_bar_uses_canonical_four_column_grid():
     assert ".promo-bar > *" in styles
     assert "min-width: 0;" in styles
     assert "white-space: nowrap;" in styles
-    assert "@media (max-width: 700px)" in styles
+    assert "@media (max-width: 800px)" in styles
 
     for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
         html = (STATIC / name).read_text()
