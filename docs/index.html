@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notino Quantity Forecast — Model & Strategy Comparison</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./styles.css?v=18" />
+  <link rel="stylesheet" href="./styles.css?v=19" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -26,13 +26,40 @@
       </div>
       <div class="hero-title-block">
         <h1>Quantity Forecast Dashboard</h1>
-        <nav class="suite-switcher" id="suite-switcher" aria-label="Interview assignment suite"></nav>
       </div>
     </div>
-    <nav class="site-nav" id="site-nav"></nav>
+    <nav class="site-nav" id="site-nav" aria-label="Forecast assignment sections"></nav>
   </header>
 
   <main id="app">
+    <section class="panel submission-intro-panel" aria-labelledby="submission-heading">
+      <div class="panel-header row">
+        <div>
+          <span class="submission-kicker">Standalone interview submission</span>
+          <h2 id="submission-heading">Forecast the supplied 30-product panel for the next seven days</h2>
+          <p>Predict total observed sales from the provided history and future-known retail covariates without leaking target-period quantities.</p>
+        </div>
+        <span class="winner-badge">Canonical delivery</span>
+      </div>
+      <div class="submission-intro-grid">
+        <article>
+          <span>Selected assignment model</span>
+          <strong id="submission-model-title">NeuralNet · Direct multi-horizon</strong>
+          <p>The brief asks for a non-tree primary solution. This model is the canonical deliverable, while strong tree and classical methods remain visible comparators.</p>
+        </article>
+        <article>
+          <span>Evidence, not overclaim</span>
+          <strong id="submission-evidence-title">Leakage-safe and competitive</strong>
+          <p id="submission-evidence-copy">Rolling origins, common-row scoring and validation/deployment epoch parity support the choice; they do not prove universal statistical superiority.</p>
+        </article>
+        <article>
+          <span>Forecast contract</span>
+          <strong>30 products × 7 ISO-dated horizons</strong>
+          <p>Observed total sales are modelled conditional on availability as a less-censored proxy. Inventory and lost-sales data were not supplied, so latent demand remains unidentified.</p>
+        </article>
+      </div>
+    </section>
+
     <section class="selection-strip">
       <div>
         <span class="selection-label">View</span>
@@ -301,7 +328,7 @@
   </footer>
 
   <script>window.STATIC_DASHBOARD = true;</script>
-  <script src="./common.js?v=15"></script>
-  <script src="./app.js?v=15"></script>
+  <script src="./common.js?v=16"></script>
+  <script src="./app.js?v=16"></script>
 </body>
 </html>

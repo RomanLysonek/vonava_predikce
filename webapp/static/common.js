@@ -38,37 +38,6 @@ function runManifestHref() {
   return window.STATIC_DASHBOARD ? "run_manifest.json" : "/static/run_manifest.json";
 }
 
-const SUITE_PROJECTS = [
-  {
-    key: "prediction",
-    label: "Classical Forecasting",
-    href: "https://romanlysonek.github.io/vonava_predikce/",
-  },
-  {
-    key: "anomaly",
-    label: "Anomaly Research",
-    href: "https://romanlysonek.github.io/vonave_anomalie/",
-  },
-  {
-    key: "chronos",
-    label: "Chronos-2 Challenger",
-    href: "https://romanlysonek.github.io/vonavy_chronos/",
-  },
-];
-
-function renderSuiteSwitcher() {
-  if (typeof document === "undefined") return;
-  const target = document.getElementById("suite-switcher");
-  if (!target) return;
-  target.innerHTML = SUITE_PROJECTS.map((project) => `
-    <a
-      class="suite-link${project.key === "prediction" ? " active" : ""}"
-      href="${project.href}"
-      ${project.key === "prediction" ? 'aria-current="page"' : ""}
-    >${project.label}</a>
-  `).join("");
-}
-
 function wireSharedLinks() {
   if (typeof document === "undefined" || !document.querySelectorAll) return;
   document.querySelectorAll("[data-dataset-link]").forEach((link) => {
@@ -263,4 +232,3 @@ if (window.Chart) {
 }
 
 wireSharedLinks();
-renderSuiteSwitcher();

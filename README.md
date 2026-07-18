@@ -34,10 +34,11 @@ uv sync --frozen --group dev
 uv run python webapp/server.py
 ```
 
-The primary delivery is the static GitHub Pages site at
-`https://romanlysonek.github.io/vonava_predikce/`. `webapp/static` is authored
-source and `docs/` is generated-only output. FastAPI at `http://127.0.0.1:8999`
-is an optional local preview.
+The submission runs locally at `http://127.0.0.1:8999`. `webapp/static` is the
+authored source and `docs/` is deterministic generated output prepared for
+GitHub Pages. The repository does not assume that Pages is already enabled;
+the public deployment should be treated as pending until the repository
+coordinator enables it.
 See `RETRAINING_AND_CLI_GUIDE.md` for exact retraining commands and every
 supported pipeline flag, `outputs/README.md` for the retained artifacts, and
 `PRESENTATION_CLEANUP.md` for the scope of the repository cleanup.
@@ -223,9 +224,10 @@ module together.
 
 ## Interactive results dashboard
 
-A local FastAPI + vanilla-JS/Chart.js dashboard presents strategy-aware
-walk-forward comparisons, per-fold tables, paired direct-vs-recursive results,
-horizon curves, per-product forecasts, and the canonical submission grid.
+A standalone FastAPI + vanilla-JS/Chart.js dashboard presents the original
+forecasting assignment: data constraints, baseline and model development,
+leakage-safe walk-forward evidence, direct-vs-recursive engineering history,
+the canonical NeuralNet, limitations, and the final seven-day forecast.
 
 ```bash
 uv run python webapp/server.py       # http://127.0.0.1:8999 (port set in webapp/server.py)
@@ -233,16 +235,15 @@ uv run python webapp/server.py       # http://127.0.0.1:8999 (port set in webapp
 
 It reads `outputs/results.json` fresh on every request, so after editing
 `ml/pipeline.py` (or a model under `ml/models/`) and rerunning it (or just
-`uv run python ml/export_results.py` to skip retraining), reload the page to
-see updated numbers. The server runs with `--reload`, and the frontend is
-static HTML/CSS/JS with no build step — edit `webapp/static/*` and refresh
-the browser to iterate on the presentation.
+`uv run python ml/export_results.py` to skip retraining), restart the command
+and reload the page to see updated numbers. The frontend is static HTML/CSS/JS
+with no build step.
 
-**Pages:**
-- `/` — overview with direct/recursive and conditional/realized selectors,
-- `/dataset` — concise dataset profile, finding-to-decision mapping, retained/rejected experiments and known limitations,
-  all seven models, paired strategy comparison, development horizon curves,
-  benchmark fold metrics, product explorer and canonical submission.
+**Pages and navigation:**
+- `/` — assignment objective, canonical NeuralNet, development progression,
+  baselines, evaluation evidence, forecast explorer and final submission grid.
+- `/dataset` — supplied-data profile, finding-to-decision mapping,
+  retained/rejected experiments and honest limitations.
 - `/evaluation` — the complete rolling-origin evaluation contract: the
   distinction between walk-forward validation and direct/recursive inference,
   development/recent-benchmark/final-audit roles, common-population scoring,
@@ -713,7 +714,9 @@ Every normal pipeline/export now adds:
 
 `outputs/results.json` and `outputs/run_manifest.json` are copied beside the
 authored static app, then `docs/` is generated deterministically. The Pages
-workflow verifies byte parity and deploys `docs/`; no FastAPI server is required.
+workflow always verifies byte parity independently. It deploys `docs/` only
+when repository Pages configuration is available; no FastAPI server is required
+for that static artifact.
 
 ### Final C5/C6 confirmation result
 
