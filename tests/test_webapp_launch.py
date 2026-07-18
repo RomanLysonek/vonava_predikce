@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import socket
 import subprocess
 import time
@@ -12,6 +13,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 LAUNCH_COMMAND = ["uv", "run", "python", "webapp/server.py"]
+PROMO_PATTERN = re.compile(
+    rb'<div class="promo-bar">\s*(.*?)\s*</div>',
+    flags=re.DOTALL,
+)
 
 
 def _get(base_url: str, path: str) -> tuple[int, bytes]:
@@ -60,12 +65,17 @@ def test_documented_root_command_serves_complete_submission():
             f"/model/{model['slug']}": b"How this model works in this project"
             for model in published["models"]
         })
+        promo_bars = set()
         for route, marker in expected.items():
             status, body = _get(base_url, route)
             assert status == 200
             assert marker in body
             assert b"<title>NOTINO - predikce</title>" in body
             assert body.count(b"description-strip") == 1
+            promo = PROMO_PATTERN.findall(body)
+            assert len(promo) == 1
+            promo_bars.add(promo[0])
+        assert len(promo_bars) == 1
 
         status, body = _get(base_url, "/api/results")
         assert status == 200

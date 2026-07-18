@@ -42,17 +42,71 @@ body {
 .promo-bar {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px var(--page-padding-inline);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  column-gap: 24px;
   background: #fff;
   border-bottom: 1px solid var(--hairline);
-  padding: 10px var(--page-padding-inline);
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  font-size: 11.5px;
+  font-size: 10px;
+  line-height: 1.2;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--text);
+}
+
+.promo-bar > * {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.promo-bar > :first-child {
+  text-align: left;
+}
+
+.promo-bar > :nth-child(2),
+.promo-bar > :nth-child(3) {
+  text-align: center;
+}
+
+.promo-bar > :last-child {
+  text-align: right;
+}
+
+@media (max-width: 700px) {
+  .promo-bar {
+    min-height: 57px;
+    padding: 8px 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 8px;
+  }
+
+  .promo-bar > :nth-child(odd) {
+    text-align: left;
+  }
+
+  .promo-bar > :nth-child(even) {
+    text-align: right;
+  }
+}
+
+@media (max-width: 480px) {
+  .promo-bar {
+    min-height: 89px;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .promo-bar > * {
+    text-align: left;
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -789,32 +843,6 @@ select:disabled {
   }
 }
 
-/* Narrow promo ribbon: closer to Notino's centered desktop utility strip. */
-.promo-bar {
-  width: 60%;
-  margin: 0 auto;
-  padding: 8px clamp(16px, 2vw, 32px);
-  gap: clamp(10px, 1.4vw, 24px);
-  flex-wrap: nowrap;
-  font-size: clamp(8.5px, 0.72vw, 10.5px);
-  letter-spacing: 0.04em;
-}
-
-.promo-bar > span {
-  white-space: nowrap;
-}
-
-@media (max-width: 760px) {
-  .promo-bar {
-    width: 100%;
-    margin: 0;
-    padding: 8px 20px;
-    gap: 8px 18px;
-    flex-wrap: wrap;
-    font-size: 9px;
-  }
-}
-
 /* Model implementation explanations and canonical-grid alignment (tour v6) */
 .model-method-panel {
   border-top: 5px solid var(--mc, var(--ink));
@@ -864,10 +892,6 @@ select:disabled {
 }
 
 /* Evaluation methodology page and shared methodology navigation (tour v7) */
-.promo-bar > a {
-  white-space: nowrap;
-}
-
 .promo-evaluation-link {
   color: inherit;
   text-decoration: none;

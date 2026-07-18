@@ -402,14 +402,15 @@ def test_model_comparison_uses_wide_seven_column_desktop_layout():
     assert "white-space: nowrap;" in styles
 
 
-def test_promo_bar_uses_narrow_notino_style_desktop_ribbon():
+def test_promo_bar_uses_canonical_four_column_grid():
     styles = (STATIC / "styles.css").read_text()
-    assert "width: 60%;" in styles
-    assert "margin: 0 auto;" in styles
-    assert "font-size: clamp(8.5px, 0.72vw, 10.5px);" in styles
-    assert ".promo-bar > span" in styles
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in styles
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles
+    assert "align-items: center;" in styles
+    assert ".promo-bar > *" in styles
+    assert "min-width: 0;" in styles
     assert "white-space: nowrap;" in styles
-    assert "@media (max-width: 760px)" in styles
+    assert "@media (max-width: 700px)" in styles
 
     for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
         html = (STATIC / name).read_text()
