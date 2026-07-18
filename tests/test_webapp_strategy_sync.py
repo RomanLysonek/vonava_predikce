@@ -410,11 +410,12 @@ def test_promo_bar_uses_canonical_four_column_grid():
     assert ".promo-bar > *" in styles
     assert "min-width: 0;" in styles
     assert "white-space: nowrap;" in styles
-    assert "@media (max-width: 800px)" in styles
+    assert "@media (max-width: 840px)" in styles
+    assert ".promo-bar > :nth-child(n)" in styles
 
     for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
         html = (STATIC / name).read_text()
-        expected = 'styles.css?v=20'
+        expected = 'styles.css?v=21'
         assert expected in html
 
 
@@ -453,7 +454,7 @@ def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform()
 
     overview = (STATIC / "index.html").read_text()
     assert 'app.js?v=16' in overview
-    assert 'styles.css?v=20' in overview
+    assert 'styles.css?v=21' in overview
 
     app_js = (STATIC / "app.js").read_text()
     assert 'class="data-table submission-table"' in app_js
