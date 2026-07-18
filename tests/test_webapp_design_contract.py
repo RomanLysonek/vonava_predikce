@@ -349,7 +349,7 @@ def test_promo_geometry_is_exact_and_responsive():
   white-space: nowrap;
 }"""
     tablet = """\
-@media (max-width: 800px) {
+@media (max-width: 840px) {
   .promo-bar {
     min-height: 57px;
     padding: 8px 24px;
@@ -385,15 +385,14 @@ def test_runtime_promo_labels_have_safe_rendered_geometry(tmp_path):
         assert measurement["viewportWidth"] == width
         assert measurement["overlaps"] == [], (width, measurement)
 
-    for width in (701, 776, 800):
+    for width in (701, 776, 800, 801, 840):
         assert geometry[width]["columns"] == 2
-    for width in (801, 840, 841, 900, 901):
+    for width in (841, 900, 901):
         assert geometry[width]["columns"] == 4
 
     mobile = _render_mobile_promo_alignment(tmp_path, chrome)
     assert mobile["mediaMatches"] is True
-    assert mobile["alignments"][1] == "left"
-    assert mobile["alignments"][3] == "left"
+    assert mobile["alignments"] == ["left"] * 4
 
 
 def test_browser_title_cannot_be_mutated_by_javascript():
