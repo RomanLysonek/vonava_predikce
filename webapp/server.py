@@ -10,6 +10,7 @@ Then open:            http://127.0.0.1:8999
 """
 
 import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -73,4 +74,5 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8999)
+    port = int(os.environ.get("NOTINO_DASHBOARD_PORT", "8999"))
+    uvicorn.run(app, host="127.0.0.1", port=port)

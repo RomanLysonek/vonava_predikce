@@ -12,9 +12,17 @@
   --good: #1a7a3c;
   --bad: #c62828;
   --radius: 0px;
+  --page-padding-inline: 56px;
+  --description-strip-padding-block: 40px;
+  --description-strip-border-width: 6px;
+  --description-strip-min-height: 300px;
 }
 
 * { box-sizing: border-box; }
+
+html {
+  scrollbar-gutter: stable;
+}
 
 body {
   margin: 0;
@@ -36,7 +44,7 @@ body {
   z-index: 1;
   background: #fff;
   border-bottom: 1px solid var(--hairline);
-  padding: 10px 56px;
+  padding: 10px var(--page-padding-inline);
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
@@ -54,7 +62,7 @@ header.hero {
   position: relative;
   z-index: 1;
   background: var(--ink);
-  padding: 28px 56px 0;
+  padding: 28px var(--page-padding-inline) 0;
 }
 
 .hero-top {
@@ -203,21 +211,25 @@ nav.site-nav {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Model detail page                                                      */
+/* Shared page description strip                                          */
 /* ---------------------------------------------------------------------- */
-.model-hero {
+.description-strip {
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
-  margin: 0 auto;
-  padding: 40px 56px;
+  width: 100%;
+  max-width: none;
+  min-height: var(--description-strip-min-height);
+  margin: 0;
+  padding: var(--description-strip-padding-block) var(--page-padding-inline);
   border-radius: 0;
   background: var(--ink);
-  border-bottom: 6px solid var(--mc);
+  border-bottom: var(--description-strip-border-width) solid var(--mc);
 }
-.model-hero .model-badge { margin-bottom: 14px; }
-.model-hero h1 { margin: 0 0 12px; font-size: 34px; font-weight: 900; text-transform: uppercase; color: #fff; }
-.model-hero p.blurb { margin: 0 0 18px; color: #b8b8b8; max-width: 700px; font-size: 14.5px; line-height: 1.6; }
-.model-hero a.source-link {
+.description-strip .model-badge { margin-bottom: 14px; }
+.description-strip h1 { margin: 0 0 12px; font-size: 34px; font-weight: 900; text-transform: uppercase; color: #fff; }
+.description-strip p.blurb { margin: 0 0 18px; color: #b8b8b8; max-width: 700px; font-size: 14.5px; line-height: 1.6; }
+.description-strip a.source-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -232,7 +244,11 @@ nav.site-nav {
   padding: 10px 18px;
   border-radius: 0;
 }
-.model-hero a.source-link:hover { background: var(--mc); color: #fff; border-color: var(--mc); }
+.description-strip a.source-link:hover { background: var(--mc); color: #fff; border-color: var(--mc); }
+
+.overview-hero {
+  --mc: #0a0a0a;
+}
 
 .kpi-value.model-accent { color: var(--mc); }
 
@@ -249,7 +265,7 @@ main#app {
   z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 40px 56px 64px;
+  padding: 40px var(--page-padding-inline) 64px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -302,14 +318,8 @@ main#app {
   border-top: 6px solid var(--ink);
 }
 
-.submission-kicker {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.submission-status-badge {
+  margin-bottom: 18px;
 }
 
 .submission-intro-grid {
@@ -397,7 +407,7 @@ footer {
   position: relative;
   z-index: 1;
   background: var(--ink);
-  padding: 28px 56px 40px;
+  padding: 28px var(--page-padding-inline) 40px;
   color: #b8b8b8;
   font-size: 12.5px;
   line-height: 1.6;
@@ -407,10 +417,10 @@ footer a { color: #fff; }
 footer code { background: #2a2a2a; color: #fff; padding: 2px 6px; border-radius: 0; }
 
 @media (max-width: 900px) {
+  :root { --page-padding-inline: 24px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .panel-grid { grid-template-columns: 1fr; }
   .panel-grid .panel + .panel { border-left: 1px solid var(--ink); border-top: none; margin-top: -1px; }
-  .promo-bar, header.hero, main#app, footer p, .model-hero { padding-left: 24px; padding-right: 24px; }
   .hero-title-block { text-align: left; }
   .submission-intro-grid { grid-template-columns: 1fr; }
   .submission-intro-grid article {
