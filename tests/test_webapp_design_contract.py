@@ -12,7 +12,13 @@ from dashboard_artifacts import check_static_dashboard
 ROOT = Path(__file__).resolve().parents[1]
 AUTHORED = ROOT / "webapp" / "static"
 GENERATED = ROOT / "docs"
-PAGES = ("index.html", "dataset.html", "evaluation.html", "model.html")
+PAGES = (
+    "index.html",
+    "dataset.html",
+    "evaluation.html",
+    "model.html",
+    "whole-story.html",
+)
 TITLE = "NOTINO - predikce"
 CHROME_CANDIDATES = (
     "google-chrome",
@@ -307,7 +313,12 @@ def test_description_geometry_has_one_shared_owner():
     assert ":root { --page-padding-inline: 24px; }" in css
     assert "scrollbar-gutter: stable;" in css
 
-    for selector in (".overview-hero", ".dataset-hero", ".evaluation-hero"):
+    for selector in (
+        ".overview-hero",
+        ".dataset-hero",
+        ".evaluation-hero",
+        ".wholestory-hero",
+    ):
         match = re.search(rf"{re.escape(selector)}\s*\{{([^}}]*)\}}", css, re.DOTALL)
         assert match
         declarations = [

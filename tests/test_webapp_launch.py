@@ -57,6 +57,7 @@ def test_documented_root_command_serves_complete_submission():
             "/": b"Forecast the supplied 30-product panel",
             "/dataset": b"Six facts that changed the modeling design",
             "/evaluation": b"Walk-forward / rolling-origin validation",
+            "/whole-story": b"The missing bridge: changeable features",
         }
         published = json.loads(
             (ROOT / "webapp" / "static" / "results.json").read_text()

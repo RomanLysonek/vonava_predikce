@@ -288,7 +288,13 @@ def test_evaluation_page_separates_walk_forward_from_recursive_inference():
     assert "function renderSelectionObjective" in evaluation_js
     assert "walk-forward validation is the outer evaluation loop" in evaluation_js
 
-    for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
+    for name in (
+        "index.html",
+        "model.html",
+        "evaluation.html",
+        "dataset.html",
+        "whole-story.html",
+    ):
         html = (STATIC / name).read_text()
         assert 'data-evaluation-link' in html
         assert 'data-dataset-link' in html
@@ -364,6 +370,32 @@ def test_dataset_route_serves_story_page():
     assert Path(response.path) == STATIC / "dataset.html"
 
 
+def test_whole_story_connects_forecasting_to_profit_decisions():
+    story = (STATIC / "whole-story.html").read_text()
+    assert "From beauty demand to profitable decisions" in story
+    assert "The missing bridge: changeable features" in story
+    assert "not a price or promotion optimizer" in (
+        STATIC / "whole-story.js"
+    ).read_text()
+    assert "Expected contribution" in story
+    assert "How I would help as a new colleague" in story
+    assert 'whole-story.js?v=1' in story
+
+    common_js = (STATIC / "common.js").read_text()
+    assert "function wholeStoryHref" in common_js
+    assert 'label: "Whole Story"' in common_js
+    assert common_js.index('label: "Whole Story"') > common_js.index(
+        "...(data.models || []).map"
+    )
+
+
+def test_whole_story_route_serves_narrative_page():
+    from webapp import server
+
+    response = server.whole_story_page()
+    assert Path(response.path) == STATIC / "whole-story.html"
+
+
 def test_api_results_serves_strategy_payload(tmp_path, monkeypatch):
     from webapp import server
 
@@ -413,9 +445,15 @@ def test_promo_bar_uses_canonical_four_column_grid():
     assert "@media (max-width: 840px)" in styles
     assert ".promo-bar > :nth-child(n)" in styles
 
-    for name in ("index.html", "model.html", "evaluation.html", "dataset.html"):
+    for name in (
+        "index.html",
+        "model.html",
+        "evaluation.html",
+        "dataset.html",
+        "whole-story.html",
+    ):
         html = (STATIC / name).read_text()
-        expected = 'styles.css?v=21'
+        expected = 'styles.css?v=22'
         assert expected in html
 
 
@@ -454,7 +492,7 @@ def test_model_tabs_explain_exact_project_usage_and_submission_grid_is_uniform()
 
     overview = (STATIC / "index.html").read_text()
     assert 'app.js?v=16' in overview
-    assert 'styles.css?v=21' in overview
+    assert 'styles.css?v=22' in overview
 
     app_js = (STATIC / "app.js").read_text()
     assert 'class="data-table submission-table"' in app_js

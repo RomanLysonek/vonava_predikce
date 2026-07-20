@@ -34,6 +34,10 @@ function evaluationHref() {
   return window.STATIC_DASHBOARD ? "evaluation.html" : "/evaluation";
 }
 
+function wholeStoryHref() {
+  return window.STATIC_DASHBOARD ? "whole-story.html" : "/whole-story";
+}
+
 function runManifestHref() {
   return window.STATIC_DASHBOARD ? "run_manifest.json" : "/static/run_manifest.json";
 }
@@ -199,7 +203,7 @@ function updateStrategyCopy(data, strategy) {
   if (modelCount) modelCount.textContent = `${(data.models || []).length} Models Compared`;
 }
 
-/** Renders the shared top nav: Overview + Dataset + Evaluation + one pill per model. */
+/** Renders the shared top nav, ending with the complete business narrative. */
 function renderNav(data, activeSlug) {
   const nav = document.getElementById("site-nav");
   if (!nav) return;
@@ -213,6 +217,7 @@ function renderNav(data, activeSlug) {
       color: m.color,
       href: modelHref(m.slug),
     })),
+    { slug: "whole-story", label: "Whole Story", color: "#fb7185", href: wholeStoryHref() },
   ];
   nav.innerHTML = items
     .map((it) => {

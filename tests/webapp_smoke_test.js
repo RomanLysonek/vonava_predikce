@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, "..");
 const staticDir = path.join(root, "webapp", "static");
 
 function checkSyntax() {
-  for (const name of ["common.js", "app.js", "model.js", "evaluation.js", "dataset.js"]) {
+  for (const name of ["common.js", "app.js", "model.js", "evaluation.js", "dataset.js", "whole-story.js"]) {
     const result = spawnSync(process.execPath, ["--check", path.join(staticDir, name)], {
       encoding: "utf8",
     });
@@ -466,6 +466,55 @@ function checkDatasetStory() {
   assert.strictEqual(overviewLink.href, "index.html");
 }
 
+function checkWholeStory() {
+  const elements = {
+    "wholestory-current-note": { innerHTML: "" },
+    "site-nav": { innerHTML: "" },
+    "promo-strategy": { textContent: "" },
+    "promo-model-count": { textContent: "" },
+    "footer-method-text": { textContent: "" },
+  };
+  const overviewLink = { href: "" };
+  const context = {
+    window: { STATIC_DASHBOARD: true },
+    console,
+    document: {
+      getElementById: (id) => elements[id] || null,
+      querySelectorAll: () => [],
+      querySelector: (selector) => selector === "[data-overview-link]" ? overviewLink : null,
+    },
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(staticDir, "common.js"), "utf8"), context);
+  const storySource = fs.readFileSync(path.join(staticDir, "whole-story.js"), "utf8");
+  vm.runInContext(storySource.slice(0, storySource.lastIndexOf("main();")), context);
+
+  const data = {
+    config: { horizon: 7 },
+    models: [
+      { key: "NeuralNet", slug: "neuralnet", label: "NeuralNet", color: "#111", strategies: ["direct"] },
+    ],
+    forecasts_by_strategy: { direct: {} },
+    selection: { canonical_model: "NeuralNet", canonical_strategy: "direct" },
+    ensemble: {
+      strategies: {
+        direct: { weights: { NeuralNet: 0.36, XGBoost: 0.25, LightGBM: 0.39 } },
+      },
+    },
+  };
+
+  context.renderWholeStoryCurrentDecision(data);
+  context.renderNav(data, "whole-story");
+  context.wireWholeStoryOverviewLink();
+
+  assert.ok(elements["wholestory-current-note"].innerHTML.includes("not a price or promotion optimizer"));
+  assert.ok(elements["wholestory-current-note"].innerHTML.includes("LightGBM 39%"));
+  assert.ok(elements["site-nav"].innerHTML.includes("whole-story.html"));
+  assert.ok(elements["site-nav"].innerHTML.includes("nav-pill active"));
+  assert.ok(elements["site-nav"].innerHTML.endsWith("Whole Story</a>"));
+  assert.strictEqual(overviewLink.href, "index.html");
+}
+
 function checkSubmissionGridMarkup() {
   const tableWrap = { innerHTML: "" };
   const context = {
@@ -501,5 +550,6 @@ checkSingleModelProductExplorer();
 checkModelMethodDescriptions();
 checkEvaluationMethodology();
 checkDatasetStory();
+checkWholeStory();
 checkSubmissionGridMarkup();
-console.log("9 JavaScript smoke checks passed");
+console.log("10 JavaScript smoke checks passed");
