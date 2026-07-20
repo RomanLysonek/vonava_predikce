@@ -60,6 +60,11 @@ def evaluation_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "evaluation.html")
 
 
+@app.get("/whole-story")
+def whole_story_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "whole-story.html")
+
+
 @app.get("/model/{slug}")
 def model_page(slug: str) -> FileResponse:
     # One shared template; model.js reads `slug` from the URL itself and
