@@ -374,12 +374,12 @@ def test_whole_story_connects_forecasting_to_profit_decisions():
     story = (STATIC / "whole-story.html").read_text()
     assert "From beauty demand to profitable decisions" in story
     assert "The missing bridge: changeable features" in story
-    assert "not a price or promotion optimizer" in (
+    assert "does not choose the price or promo" in (
         STATIC / "whole-story.js"
     ).read_text()
     assert "Expected contribution" in story
     assert "How I would help as a new colleague" in story
-    assert 'whole-story.js?v=1' in story
+    assert 'whole-story.js?v=2' in story
 
     common_js = (STATIC / "common.js").read_text()
     assert "function wholeStoryHref" in common_js

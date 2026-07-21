@@ -507,7 +507,7 @@ function checkWholeStory() {
   context.renderNav(data, "whole-story");
   context.wireWholeStoryOverviewLink();
 
-  assert.ok(elements["wholestory-current-note"].innerHTML.includes("not a price or promotion optimizer"));
+  assert.ok(elements["wholestory-current-note"].innerHTML.includes("does not choose the price or promo"));
   assert.ok(elements["wholestory-current-note"].innerHTML.includes("LightGBM 39%"));
   assert.ok(elements["site-nav"].innerHTML.includes("whole-story.html"));
   assert.ok(elements["site-nav"].innerHTML.includes("nav-pill active"));
