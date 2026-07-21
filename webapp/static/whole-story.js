@@ -12,7 +12,7 @@ function wholeStoryEnsembleCopy(data) {
 function renderWholeStoryCurrentDecision(data) {
   const note = document.getElementById("wholestory-current-note");
   if (!note) return;
-  note.innerHTML = `<strong>Published assignment:</strong> ${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))} predicts total observed App + Web sales for ${data.config?.horizon || 7} days. It learns a baseline-relative correction; the competitive secondary blend is ${wholeStoryEnsembleCopy(data)}. This is a demand-forecasting result, not a price or promotion optimizer.`;
+  note.innerHTML = `<strong>What we finally used:</strong> ${canonicalModel(data)} / ${strategyLabel(canonicalStrategy(data))}, forecasting total App + Web sales ${data.config?.horizon || 7} days ahead. It adjusts a same-weekday baseline, and we also kept ${wholeStoryEnsembleCopy(data)} as a strong comparison. It forecasts the planned offer; it does not choose the price or promo.`;
 }
 
 function wireWholeStoryOverviewLink() {

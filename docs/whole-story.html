@@ -33,7 +33,7 @@
   <header class="description-strip model-hero wholestory-hero">
     <span class="model-badge">The whole story</span>
     <h1>From beauty demand to profitable decisions</h1>
-    <p class="blurb">How Notino's retail reality becomes a seven-day demand forecast, why prices and promotions must eventually become decisions rather than inputs, and where a new colleague can create measurable profit.</p>
+    <p class="blurb">How Notino's retail reality becomes a seven-day demand forecast, and why prices and promotions must eventually become decisions rather than inputs.</p>
   </header>
 
   <main id="app">
@@ -41,54 +41,53 @@
       <span class="wholestory-chapter">01 / The business behind the rows</span>
       <div class="panel-header">
         <h2>Beauty retail is a promise made before demand arrives</h2>
-        <p>A customer sees a product, price and offer now; the commercial and fulfilment system must already be ready.</p>
+        <p>A customer sees an offer now. Stock, pricing and fulfilment have to be ready before the order arrives.</p>
       </div>
-      <p class="wholestory-lede">Notino is an online-first European beauty retailer: perfumes, skincare, make-up, hair care and personal-care products from many brands, complemented by stores and pickup points, private-label products, marketplace activity and value-added services. That makes demand forecasting a commercial capability, not just a statistics exercise.</p>
+      <p class="wholestory-lede">Notino is an online-first European beauty retailer selling perfumes, skincare, make-up and hair care.</p>
       <div class="wholestory-stat-grid">
-        <article><strong>Assortment</strong><span>Many products, brands, price points and replenishment profiles compete for attention and working capital.</span></article>
-        <article><strong>Channels</strong><span>Web, app and physical touchpoints shape when, where and under which incentive a purchase happens.</span></article>
-        <article><strong>Retail rhythm</strong><span>Weekdays, gifting seasons, campaigns and product availability create synchronized demand shocks.</span></article>
-        <article><strong>Profit engine</strong><span>Retail margin, private-label economics, marketplace commissions and services reward different decisions.</span></article>
+        <article><strong>Many choices</strong><span>Demand is spread across products, brands and price points.</span></article>
+        <article><strong>More than one channel</strong><span>The same customer may move between web, app and stores.</span></article>
+        <article><strong>A strong rhythm</strong><span>Weekdays, gifting seasons and campaigns can move many products at once.</span></article>
+        <article><strong>Limited stock</strong><span>Too little loses sales; too much ties up cash and invites discounting.</span></article>
       </div>
-      <p class="wholestory-source-note">Public business context is intentionally kept general; the quantitative claims below come from the supplied assignment data.</p>
     </section>
 
     <section class="panel wholestory-panel">
       <span class="wholestory-chapter">02 / What the supplied data says</span>
       <div class="panel-header">
-        <h2>A compact sample of a changing commercial system</h2>
-        <p>Thirty products cannot represent all of Notino, but their five-year history already exposes the forces a useful forecasting system must respect.</p>
+        <h2>Thirty products, but a surprisingly rich story</h2>
+        <p>Five years of daily history show that the way people buy is not standing still.</p>
       </div>
       <div class="wholestory-fact-grid">
         <article>
           <span class="wholestory-fact-number">5.1% to 45.1%</span>
           <h3>The app became a major channel</h3>
-          <p>App share rose sharply from 2021 to 2025. The 1,501 app-only campaign rows suggest purposeful channel steering, not merely passive migration.</p>
+          <p>App share rose from 5.1% to 45.1%. The 1,501 app-only campaign rows show that offers helped shape that move.</p>
         </article>
         <article>
           <span class="wholestory-fact-number">Sunday +19.7%</span>
           <h3>Timing changes demand</h3>
-          <p>Sunday is strongest while Saturday is 27.6% below average. November and December reach roughly 1.95x and 1.53x normal demand.</p>
+          <p>Sunday is strongest, Saturday is weakest, and the gifting season changes the scale completely.</p>
         </article>
         <article>
           <span class="wholestory-fact-number">45.50 to 21.81</span>
           <h3>The recent level moved</h3>
-          <p>Mean January 1-11 demand per product-day fell from 45.50 units in 2024 to 21.81 in 2026. Old history can teach shape without always representing today's level.</p>
+          <p>Early-January demand fell by more than half from 2024 to 2026. Old history still helps, but it cannot speak for today on its own.</p>
         </article>
         <article>
           <span class="wholestory-fact-number">25.3%</span>
           <h3>Availability does not mean zero</h3>
-          <p>One quarter of rows marked unavailable still contain sales. Stock state is imperfect, and observed sales cannot automatically be treated as unconstrained demand.</p>
+          <p>One quarter of unavailable rows still show sales. Stock status is useful, but it is not a perfect view of lost demand.</p>
         </article>
         <article>
           <span class="wholestory-fact-number">98.6%</span>
           <h3>The test prices were familiar</h3>
-          <p>Nearly every product-level test price had appeared in training. The difficult problem was changing demand, not extrapolating to unknown products or offers.</p>
+          <p>Nearly every test price had appeared before. The hard part was changing demand, not an unfamiliar price list.</p>
         </article>
         <article>
           <span class="wholestory-fact-number">30 x 7</span>
-          <h3>The decision horizon is operational</h3>
-          <p>The required output is one week for 30 known products: short enough for planned prices and campaigns to be known, but long enough to cover a full weekly cycle.</p>
+          <h3>One useful week ahead</h3>
+          <p>Seven days cover the full weekly rhythm while planned prices and campaigns are still reasonably knowable.</p>
         </article>
       </div>
     </section>
@@ -96,15 +95,15 @@
     <section class="panel wholestory-panel">
       <span class="wholestory-chapter">03 / How we modeled it</span>
       <div class="panel-header">
-        <h2>Start with a retail memory, then learn its corrections</h2>
-        <p>The final system is easier to understand as five decisions than as a catalogue of algorithms.</p>
+        <h2>Start with what usually happens, then adjust</h2>
+        <p>The model follows a simple line of thought.</p>
       </div>
       <div class="wholestory-flow">
-        <article><strong>1</strong><h3>Repair the calendar</h3><p>Separate pre-launch periods, missing observations, unavailable days and genuine zero sales instead of replacing all absence with zero.</p></article>
-        <article><strong>2</strong><h3>Anchor in weekly behaviour</h3><p>Use recent same-weekday demand as a strong baseline, because a Monday resembles prior Mondays more than an arbitrary nearby date.</p></article>
-        <article><strong>3</strong><h3>Add known context</h3><p>Give the model calendar, price, campaign, discount, lifecycle, market and event features that would actually be known for each target date.</p></article>
-        <article><strong>4</strong><h3>Predict seven days directly</h3><p>Build one row per future horizon from the same observed origin. Later days do not consume earlier predictions, avoiding compounding forecast error.</p></article>
-        <article><strong>5</strong><h3>Validate as history unfolded</h3><p>Repeat seven-day forecasts at historical cutoffs and score common available-product rows. WAPE leads selection; bias and coverage guard the result.</p></article>
+        <article><strong>1</strong><h3>Clean the history</h3><p>A missing row, a stockout and a genuine zero are not the same thing.</p></article>
+        <article><strong>2</strong><h3>Remember the weekday</h3><p>A Monday usually tells us more about the next Monday than an arbitrary nearby day.</p></article>
+        <article><strong>3</strong><h3>Read the situation</h3><p>Price, campaign, calendar and retail events explain why this week may differ.</p></article>
+        <article><strong>4</strong><h3>Predict the week</h3><p>All seven days start from the same known history, so one bad prediction cannot spoil the next.</p></article>
+        <article><strong>5</strong><h3>Replay the past</h3><p>We tested the process at old cut-off dates before trusting it on the real week.</p></article>
       </div>
       <div class="diagnostic-note wholestory-current-note" id="wholestory-current-note"></div>
     </section>
@@ -112,52 +111,50 @@
     <section class="panel wholestory-panel wholestory-change-panel">
       <span class="wholestory-chapter">04 / The missing bridge: changeable features</span>
       <div class="panel-header">
-        <h2>A forecast answers "what will sell?" - not yet "what should we do?"</h2>
-        <p>Price, discount and campaign fields were used as future-known inputs. We did not estimate their causal effects or optimize them.</p>
+        <h2>The forecast sees a promo. It does not yet know what the promo caused.</h2>
+        <p>We used planned prices and campaigns to predict the week ahead. We did not use the model to choose them.</p>
       </div>
       <div class="diagnostic-note wholestory-boundary-note">
-        <strong>Important boundary:</strong> changing a promo value in the current model creates a model-based scenario, not a reliable incremental-sales claim. Historical promos were targeted by the business, so correlation mixes the offer effect with seasonality, product choice, customer intent and other selection effects.
+        <strong>The catch:</strong> promos are not handed out at random. They often appear on products, dates or seasons that were already expected to behave differently. That pollutes the historical view: we see sales with the promo, but not what the same day would have looked like without it.
       </div>
       <div class="definition-list wholestory-response-list">
-        <div class="definition-item"><strong>1 / Build treatment-quality data</strong><span>Add list price, net selling price, unit cost, promo mechanics, placement, traffic, inventory quantity, competitor price and customer/market context. Record why and when an offer was assigned.</span></div>
-        <div class="definition-item"><strong>2 / Estimate elasticity and uplift</strong><span>Use randomized holdouts where possible; otherwise apply causal panels, difference-in-differences, doubly robust learners or hierarchical elasticity models with product/category pooling.</span></div>
-        <div class="definition-item"><strong>3 / Separate demand from fulfilment</strong><span>Estimate lost sales from inventory trajectories, page views, substitutions and replenishment events. A profitable optimizer needs latent demand, not only censored sales.</span></div>
-        <div class="definition-item"><strong>4 / Create a guarded simulator</strong><span>Expose price/promo scenarios only inside historically supported ranges, return uncertainty bands, and flag extrapolation rather than presenting one precise but fragile number.</span></div>
-        <div class="definition-item"><strong>5 / Optimize the decision</strong><span>Choose price, discount, channel and campaign under margin, stock, brand, fairness, legal and operational constraints - then measure incrementality with controlled experiments.</span></div>
+        <div class="definition-item"><strong>First, keep better context</strong><span>Record the offer, placement, traffic, stock and reason for running the promo - not only the final discount.</span></div>
+        <div class="definition-item"><strong>Then, create a fair comparison</strong><span>Small holdout groups can show what changed because of the promo rather than what happened beside it.</span></div>
+        <div class="definition-item"><strong>Finally, test useful choices</strong><span>Compare a few realistic price and promo options, including their margin and stock impact, before recommending one.</span></div>
       </div>
     </section>
 
     <section class="panel wholestory-panel">
       <span class="wholestory-chapter">05 / From accuracy to profit</span>
       <div class="panel-header">
-        <h2>The best commercial action balances volume, margin and risk</h2>
-        <p>Maximizing units can destroy margin; maximizing price can destroy conversion. The objective must value the full outcome.</p>
+        <h2>More sales do not automatically mean more profit</h2>
+        <p>A deep discount may lift volume and still leave the business worse off. A high price can protect margin and lose the customer.</p>
       </div>
       <div class="wholestory-profit-equation">
         <span>Expected contribution</span>
         <strong>= (price - unit cost - variable fulfilment cost) x expected units - promo cost - stockout/overstock risk</strong>
       </div>
       <div class="wholestory-profit-grid">
-        <article><span>Forecast</span><h3>Know the likely baseline</h3><p>Predict demand and uncertainty under the currently planned offer, by product, date and channel.</p></article>
-        <article><span>Simulate</span><h3>Compare credible actions</h3><p>Estimate incremental units and substitution for candidate prices, promos, placements and stock allocations.</p></article>
-        <article><span>Optimize</span><h3>Select constrained profit</h3><p>Maximize expected contribution while respecting inventory, brand rules, service level and operational capacity.</p></article>
-        <article><span>Learn</span><h3>Close the causal loop</h3><p>Run holdouts, measure realized incrementality and feed results back into elasticity and decision models.</p></article>
+        <article><span>Forecast</span><h3>What happens now?</h3><p>Estimate sales under the offer already planned.</p></article>
+        <article><span>Compare</span><h3>What could we change?</h3><p>Try a small set of realistic prices and promotions.</p></article>
+        <article><span>Choose</span><h3>What pays best?</h3><p>Balance unit margin, likely volume, stock and business rules.</p></article>
+        <article><span>Learn</span><h3>Did it work?</h3><p>Measure the result and make the next decision better.</p></article>
       </div>
     </section>
 
     <section class="panel wholestory-panel wholestory-colleague-panel">
       <span class="wholestory-chapter">06 / How I would help as a new colleague</span>
       <div class="panel-header">
-        <h2>Turn a credible forecast into a trusted decision product</h2>
-        <p>The first contribution is not another complex model. It is connecting data, commercial assumptions and measured outcomes.</p>
+        <h2>My first job would be to connect the model to real decisions</h2>
+        <p>Not by adding complexity first, but by understanding how people use the answer.</p>
       </div>
       <div class="wholestory-colleague-grid">
-        <article><strong>Listen and map</strong><p>Work with pricing, category, CRM, supply and finance teams to document which decisions are changeable, when they are made and which constraints are real.</p></article>
-        <article><strong>Make economics explicit</strong><p>Join unit cost, net revenue, promo funding, returns and fulfilment cost so model evaluation reflects contribution, not accuracy alone.</p></article>
-        <article><strong>Earn causal evidence</strong><p>Design small holdouts and natural-experiment analyses, beginning with high-volume products where uncertainty has meaningful financial value.</p></article>
-        <article><strong>Ship safely</strong><p>Build monitored scenarios and recommendations with uncertainty, approvals, rollback rules and clear forecast-versus-realized diagnostics.</p></article>
+        <article><strong>Listen first</strong><p>Learn when pricing, stock and campaign decisions are made - and what can actually change.</p></article>
+        <article><strong>Add the economics</strong><p>Bring cost and margin into the same view as forecast accuracy.</p></article>
+        <article><strong>Test small</strong><p>Use focused experiments to learn which offers truly add sales.</p></article>
+        <article><strong>Make it usable</strong><p>Show clear options, uncertainty and what happened after the decision.</p></article>
       </div>
-      <p class="wholestory-closing">The destination is a learning commercial system: forecast what customers are likely to buy, understand which actions genuinely change that demand, choose the action with the best risk-adjusted contribution, and learn from every result.</p>
+      <p class="wholestory-closing">The goal is simple: know what is likely to sell, learn what we can genuinely influence, and make the next decision more profitable than the last.</p>
       <div class="dataset-page-links wholestory-page-links">
         <a href="./dataset.html" data-dataset-link>Inspect the data story</a>
         <a href="./evaluation.html" data-evaluation-link>Review the evaluation contract</a>
@@ -172,6 +169,6 @@
 
   <script>window.STATIC_DASHBOARD = true;</script>
   <script src="./common.js?v=17"></script>
-  <script src="./whole-story.js?v=1"></script>
+  <script src="./whole-story.js?v=2"></script>
 </body>
 </html>
