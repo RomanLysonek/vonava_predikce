@@ -1,0 +1,7 @@
+name,overrides,nn_cv_wape,nn_test_wape,ens_cv_wape,ens_test_wape,d_nn_cv,d_nn_test,d_ens_test,runtime_min,verdict,config_window,config_recency
+E1-huber,"{""--nn-loss"": ""huber""}",0.2699698121351002,0.276721,0.24620191325863405,0.253583,0.003823,0.00111,0.000108,,FLAT vs champion (noise),,
+E2-logcosh,"{""--nn-loss"": ""logcosh""}",0.25960534961136433,0.275734,0.2484998383439019,0.252697,-0.006541,0.000123,-0.000778,,FLAT vs champion (noise),,
+E3-log1p,"{""--nn-target-mode"": ""log1p""}",0.27129869609690843,0.299469,0.25227009341511963,0.258054,0.005152,0.023858,0.004579,37.0,CHAMPION STANDS,,
+E7-trendon,"{""--trend-features"": ""on""}",0.26961694453134916,0.277903,0.24734132112921037,0.25443,0.00347,0.002292,0.000955,37.8,CHAMPION STANDS,,
+E5-base8421,"{""--baseline-variant"": ""weighted_8421""}",0.2833900499770817,0.271347,0.24762809065474395,0.251449,0.017244,-0.004264,-0.002026,40.0,"MIXED (test win, CV worse) -> confirm",,
+E6-baselag7,"{""--baseline-variant"": ""lag7""}",0.2655334298939917,0.27874,0.24909638427875602,0.254504,-0.000613,0.003129,0.001029,40.3,CHAMPION STANDS,,
